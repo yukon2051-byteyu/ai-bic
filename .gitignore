@@ -1,0 +1,22 @@
+# --- 認証情報（絶対にコミットしない） ---
+# Streamlit Secrets：APIキーとアクセス用パスワードを書くファイル
+.streamlit/secrets.toml
+# 環境変数ファイル
+.env
+.env.*
+
+# --- 実行時に作られるデータ ---
+# 利用状況の記録（SQLite）
+*.db
+*.sqlite3
+
+# --- Python ---
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# --- エディタ・OS ---
+.vscode/
+Thumbs.db
+desktop.ini
