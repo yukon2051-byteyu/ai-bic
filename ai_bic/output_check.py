@@ -16,7 +16,7 @@ from ai_bic.config import (
     MAX_QUESTIONS_PER_ITEM,
     MIN_QUOTE_CHARS,
 )
-from ai_bic.item_rules import askable_item_ids
+from ai_bic.item_rules import askable_item_ids, is_unknown_answer
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
@@ -151,6 +151,10 @@ def verify_evidences(
     downgraded: list[str] = []
 
     for issue in checked.issues:
+        # 「分かりません」のような情報のない回答は、どの区分の課題でも根拠として扱わない
+        # （本物のAIが「すみません、その点は分かりません。」を根拠に引用したため）
+        issue.evidences = [ev for ev in issue.evidences if not is_unknown_answer(ev.quote)]
+
         if issue.evidence_type != "事実":
             continue
 

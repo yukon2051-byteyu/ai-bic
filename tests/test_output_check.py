@@ -323,6 +323,28 @@ def test_複数の引用のうち1つでも確認できれば事実のまま():
     assert downgraded == []
 
 
+def test_分かりませんだけの引用は_どの区分でも根拠から外す():
+    # 本物のAIが「すみません、その点は分かりません。」を要確認の課題の根拠に引用した（改善の余地c）
+    state = HearingState(
+        turns=[HearingTurn(turn_no=1, item_id="H2", question="手順は？", answer="すみません、その点は分かりません。")]
+    )
+    unknown = ev("すみません、その点は分かりません。", source="回答", turn_no=1)
+    result, _ = verify_evidences(
+        analysis(issue("I1", evidence_type="要確認", evidences=[unknown])), business_info(), state
+    )
+    assert result.issues[0].evidences == []
+
+
+def test_分かりませんの引用しかない事実の課題は格下げ():
+    state = HearingState(
+        turns=[HearingTurn(turn_no=1, item_id="H2", question="手順は？", answer="分かりません")]
+    )
+    _, downgraded = verify_evidences(
+        analysis(issue(evidences=[ev("分かりません", source="回答", turn_no=1)])), business_info(), state
+    )
+    assert downgraded == ["I1"]
+
+
 def test_推測や要確認の課題は照合しない():
     result, downgraded = verify_evidences(
         analysis(issue("I1", evidence_type="推測"), issue("I2", evidence_type="要確認")),

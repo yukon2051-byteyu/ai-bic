@@ -8,7 +8,12 @@
 同じ判定を使うよう、ここにまとめる。
 """
 
-from ai_bic.config import MAX_QUESTIONS_PER_ITEM, UNKNOWN_ANSWER_MAX_CHARS, UNKNOWN_ANSWER_WORDS
+from ai_bic.config import (
+    MAX_QUESTIONS_PER_ITEM,
+    UNKNOWN_ANSWER_FILLERS,
+    UNKNOWN_ANSWER_MAX_REST_CHARS,
+    UNKNOWN_ANSWER_WORDS,
+)
 from ai_bic.models import Framework, HearingState
 
 
@@ -18,13 +23,20 @@ def question_count(state: HearingState, item_id: str) -> int:
 
 
 def is_unknown_answer(answer: str | None) -> bool:
-    """「分かりません」のような、情報のない短い回答かどうか。
+    """「分かりません」のような、情報のない回答かどうか。
 
-    長い回答の中に「分からない」が含まれる場合（例：「誰が担当か分からないことが多い」）は、
-    業務の問題点を述べている可能性があるため、情報のない回答とはみなさない。
+    「分からない」という言葉と、「すみません」「その点は」などの決まり文句を取り除いたあと、
+    中身がほとんど残らない回答だけを「情報のない回答」とみなす。
+    「担当者が休みだと分からないこともあります」のように、「分からない」を含んでいても
+    業務の問題点を述べている回答は、情報のある回答として扱う（誤判定の再発防止）。
     """
     text = "".join((answer or "").split())
-    return len(text) <= UNKNOWN_ANSWER_MAX_CHARS and any(w in text for w in UNKNOWN_ANSWER_WORDS)
+    if not any(w in text for w in UNKNOWN_ANSWER_WORDS):
+        return False
+    rest = text
+    for word in (*UNKNOWN_ANSWER_WORDS, *UNKNOWN_ANSWER_FILLERS):
+        rest = rest.replace(word, "")
+    return len(rest) <= UNKNOWN_ANSWER_MAX_REST_CHARS
 
 
 def answered_unknown(state: HearingState, item_id: str) -> bool:

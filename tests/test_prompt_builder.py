@@ -61,6 +61,19 @@ def test_質問のプロンプトは_分からない項目を聞き続けない�
     assert "同じ項目への質問は2回まで" in text
 
 
+@pytest.mark.parametrize("name", ["analysis_system", "proposal_system"])
+def test_分析と提案のプロンプトは_述べていない役職を使わないルールを含む(name):
+    # 本物のAIが、部署名から推測した「室長」を使った（改善の余地a）
+    text = load_system_prompt(name)
+    assert "利用者が述べたもの" in text
+    assert "担当者" in text and "上長" in text
+
+
+def test_質問のプロンプトは_業務情報で充足していれば質問しないルールを含む():
+    # 本物のAIが、業務概要に書かれた内容を質問した（改善の余地b）
+    assert "その項目は質問しないでください" in load_system_prompt("question_system")
+
+
 def test_分析のプロンプトは課題0件を許し_重要度の基準を含む():
     text = load_system_prompt("analysis_system")
     assert "0件でも構いません" in text
