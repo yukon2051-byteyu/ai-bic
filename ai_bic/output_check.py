@@ -16,6 +16,7 @@ from ai_bic.config import (
     MAX_QUESTIONS_PER_ITEM,
     MIN_QUOTE_CHARS,
 )
+from ai_bic.item_rules import askable_item_ids
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
@@ -58,14 +59,17 @@ def check_question_result(
 
     status_by_id = {s.item_id: s.status for s in result.item_status}
     has_question = bool(result.next_item_id and result.question and result.question.strip())
+    # まだ質問してよい項目（上限に達した項目や「分からない」と言われた項目は除く）
+    askable = askable_item_ids(state, framework, status_by_id)
 
-    # 「まだ聞く」なら、次の質問が必要
-    if not result.is_sufficient and not has_question:
-        problems.append("ヒアリング継続なのに次の質問がない")
-
-    # 「十分」と言っても未確認の項目があれば続ける。その場合は質問が必要
-    if result.is_sufficient and "未確認" in status_by_id.values() and not has_question:
-        problems.append("未確認の項目があるのに次の質問がない")
+    # 質問してよい項目が残っているときだけ、次の質問を求める
+    # （残っていなければ、ヒアリングは終了する：hearing._finish_reason）
+    if askable and not has_question:
+        if not result.is_sufficient:
+            problems.append("ヒアリング継続なのに次の質問がない")
+        elif any(status_by_id.get(i) == "未確認" for i in askable):
+            # 「十分」と言っても、まだ聞ける未確認の項目があれば続ける
+            problems.append("未確認の項目があるのに次の質問がない")
 
     if result.next_item_id:
         asked = sum(1 for turn in state.turns if turn.item_id == result.next_item_id)

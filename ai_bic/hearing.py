@@ -12,6 +12,7 @@ AIClient の3つの関数だけを使う（基本設計の方針P4）。
 from typing import Protocol
 
 from ai_bic.config import MAX_HEARING_TURNS
+from ai_bic.item_rules import askable_item_ids
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
@@ -31,6 +32,7 @@ from ai_bic.output_check import verify_evidences
 FINISH_MAX_TURNS = "質問回数の上限に達したため終了しました"
 FINISH_SUFFICIENT = "必要な情報がそろったため終了しました"
 FINISH_BY_USER = "利用者の操作により、ここまでの情報で診断しました"
+FINISH_NO_ITEMS = "これ以上お聞きできる項目がないため終了しました"
 
 
 class AIClient(Protocol):
@@ -92,8 +94,9 @@ def request_next_question(
     for status in result.item_status:
         state.item_status[status.item_id] = status
 
-    if _can_finish(result):
-        state.finished_reason = FINISH_SUFFICIENT
+    reason = _finish_reason(result, state, framework)
+    if reason:
+        state.finished_reason = reason
         return None
 
     turn = HearingTurn(
@@ -106,16 +109,22 @@ def request_next_question(
     return turn
 
 
-def _can_finish(result: QuestionResult) -> bool:
-    """情報が十分にそろったと判断してよいかを返す（基本設計 6.3）。
+def _finish_reason(result: QuestionResult, state: HearingState, framework: Framework) -> str | None:
+    """ヒアリングを終えてよければ終了理由を、続けるなら None を返す（基本設計 6.3）。
 
     - 全項目が「充足」なら終了
-    - AIが「十分」と判断しても、「未確認」の項目が残っていれば続ける
+    - まだ質問してよい項目が残っていなければ終了（上限に達した・「分からない」と言われた項目しかない）
+    - AIが「十分」と判断しても、まだ聞ける「未確認」の項目が残っていれば続ける
     """
-    statuses = [s.status for s in result.item_status]
-    if all(s == "充足" for s in statuses):
-        return True
-    return result.is_sufficient and "未確認" not in statuses
+    statuses = {s.item_id: s.status for s in result.item_status}
+    if all(s == "充足" for s in statuses.values()):
+        return FINISH_SUFFICIENT
+    askable = askable_item_ids(state, framework, statuses)
+    if not askable:
+        return FINISH_NO_ITEMS
+    if result.is_sufficient and not any(statuses.get(i) == "未確認" for i in askable):
+        return FINISH_SUFFICIENT
+    return None
 
 
 def add_answer(state: HearingState, answer: str) -> None:

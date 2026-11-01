@@ -32,6 +32,9 @@ MAX_TOKENS_PROPOSAL = 16_000
 # --- 件数・回数の上限 ---
 MAX_HEARING_TURNS = 5  # ヒアリングの質問回数（R5）
 MAX_QUESTIONS_PER_ITEM = 2  # 同じ診断項目への質問回数の上限（同じことを聞き続けるのを防ぐ。R3）
+# 「分からない」と答えた項目は、それ以上質問しない（R3）。短い回答にこれらの言葉があれば「分からない」とみなす
+UNKNOWN_ANSWER_WORDS = ("分かりません", "わかりません", "分からない", "わからない", "不明", "把握していません", "把握していない", "知りません")
+UNKNOWN_ANSWER_MAX_CHARS = 30
 MAX_ISSUES = 5  # 課題の件数（決定事項C2）
 MAX_PROPOSALS = 3  # 改善案の件数
 MAX_FIRST_STEPS = 3  # 改善案ごとの「最初の一歩」の件数

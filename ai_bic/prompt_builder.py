@@ -13,6 +13,7 @@ AIに指示を出す攻撃（プロンプトインジェクション）を防ぐ
 from pathlib import Path
 
 from ai_bic.config import MAX_HEARING_TURNS
+from ai_bic.item_rules import askable_item_ids, blocked_reason, question_count
 from ai_bic.models import AnalysisResult, Attachment, BusinessInfo, Framework, HearingState
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
@@ -60,7 +61,10 @@ def _hearing_log_block(state: HearingState) -> str:
 
 
 def _hearing_items_block(state: HearingState, framework: Framework) -> str:
-    """診断項目の一覧と、現在の充足状況。"""
+    """診断項目の一覧と、現在の充足状況・質問回数・まだ質問してよいか。
+
+    質問回数などはAIに数えさせず、プログラムが数えて渡す（item_rules.py）。
+    """
     lines = ["<hearing_items>"]
     for item in framework.hearing_items:
         status = state.item_status.get(item.id)
@@ -68,10 +72,16 @@ def _hearing_items_block(state: HearingState, framework: Framework) -> str:
             f"- {item.id} {item.name}：{item.description}",
             f"  充足の条件：{item.sufficient_when}",
             f"  現在の状況：{status.status if status else '未確認'}",
+            f"  これまでの質問回数：{question_count(state, item.id)}回",
         ]
+        reason = blocked_reason(state, item.id)
+        if reason:
+            lines.append(f"  ※この項目はもう質問できません（{reason}）")
         if status and status.known_facts:
             lines.append(f"  分かっていること：{_escape(status.known_facts)}")
     lines.append("</hearing_items>")
+    askable = askable_item_ids(state, framework)
+    lines.append(f"質問してよい項目：{'、'.join(askable) if askable else 'なし'}")
     return "\n".join(lines)
 
 
