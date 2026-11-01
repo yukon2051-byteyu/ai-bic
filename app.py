@@ -384,7 +384,11 @@ def render_result() -> None:
     html(ui.label("Summary", "診断サマリー"))
     if result.proposals:
         top = issues_by_id.get(result.proposals.summary.top_issue_id)
-        html(ui.summary_card(result.proposals.summary, top.title if top else ""))
+        html(
+            ui.summary_card(
+                result.proposals.summary, top, analysis.issues, len(result.proposals.proposals)
+            )
+        )
     else:
         html(ui.note("お聞きした範囲では、明確な課題は確認できませんでした。"))
 

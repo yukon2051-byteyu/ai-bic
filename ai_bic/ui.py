@@ -28,6 +28,7 @@ CSS = f"""
   --surface: #F6F6F7;
   --accent: {ACCENT};
   --accent-soft: #EEF1F6;
+  --gold: #C9B37E;  /* 紺の面の上だけで使う、控えめな強調色 */
 }}
 
 /* 書体は画面全体に設定し、各部品には引き継がせる。
@@ -128,14 +129,38 @@ header[data-testid="stHeader"] {{ display: none; }}
 .bic-qa .a {{ margin: .6rem 0 0 2.9rem; background: var(--surface); padding: .7rem 1rem; border-radius: 4px;
   color: var(--sub); line-height: 1.8; font-size: .92rem; }}
 
-/* 診断サマリー（唯一の塗りつぶし面） */
-.bic-summary {{ background: var(--accent); color: #fff; border-radius: 4px; padding: 2rem 2.2rem; }}
-.bic-summary .lead {{ font-size: 1.25rem; font-weight: 400; line-height: 1.9; letter-spacing: .04em; margin: 0 0 1.4rem; }}
-.bic-summary dl {{ display: grid; grid-template-columns: 7.5rem 1fr; gap: .6rem 1rem; margin: 0;
-  border-top: 1px solid rgba(255,255,255,.25); padding-top: 1.2rem; font-size: .9rem; line-height: 1.8; }}
-.bic-summary dt {{ font-family: "Inter", "Noto Sans JP", sans-serif; font-size: .72rem; letter-spacing: .14em;
-  color: rgba(255,255,255,.65); padding-top: .2rem; }}
-.bic-summary dd {{ margin: 0; }}
+/* 診断サマリー：3段（要点 → 最重要課題と最初の一手 → 数字）で強弱をつける。
+   紺の面の上で大事な場所だけに、くすんだ金色（--gold）を細い線とラベルで使う */
+.bic-summary {{
+  position: relative; overflow: hidden; color: #fff; border-radius: 6px; padding: 1.9rem 2.2rem 1.6rem;
+  background: linear-gradient(125deg, #14213D 0%, #1B2B4B 55%, #2F4A6E 100%);
+}}
+.bic-summary::after {{
+  content: ""; position: absolute; right: -100px; bottom: -160px; width: 360px; height: 360px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(140,170,210,.25) 0%, rgba(140,170,210,0) 70%);
+}}
+.bic-summary > * {{ position: relative; z-index: 1; }}
+.bic-summary .eyebrow {{ font-family: "Inter", sans-serif; font-size: 11px; font-weight: 600;
+  letter-spacing: .24em; color: var(--gold); }}
+.bic-summary .lead {{ font-size: 1.3rem; font-weight: 500; line-height: 1.75; letter-spacing: .03em; margin: .55rem 0 1.3rem; }}
+.bic-summary .tiles {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
+.bic-summary .tile {{ background: rgba(255,255,255,.07); border-top: 2px solid var(--gold);
+  border-radius: 0 0 4px 4px; padding: .95rem 1.15rem 1.05rem; }}
+.bic-summary .t-label {{ font-size: .72rem; letter-spacing: .16em; color: rgba(255,255,255,.62); }}
+.bic-summary .t-main {{ font-size: 1.02rem; font-weight: 700; line-height: 1.7; margin: .35rem 0 .3rem; }}
+.bic-summary .t-sub {{ font-size: .76rem; color: rgba(255,255,255,.65); letter-spacing: .04em; }}
+.bic-summary .stats {{ display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 1.3rem;
+  border-top: 1px solid rgba(255,255,255,.16); padding-top: 1rem; }}
+.bic-summary .stats div {{ border-left: 1px solid rgba(255,255,255,.16); padding-left: 1rem; }}
+.bic-summary .stats div:first-child {{ border-left: none; padding-left: 0; }}
+.bic-summary .n {{ display: block; font-family: "Inter", sans-serif; font-size: 1.7rem; font-weight: 300; line-height: 1.2; }}
+.bic-summary .n.hot {{ color: var(--gold); font-weight: 500; }}
+.bic-summary .stats span:last-child {{ font-size: .74rem; color: rgba(255,255,255,.65); letter-spacing: .06em; }}
+@media (max-width: 720px) {{
+  .bic-summary {{ padding: 1.5rem 1.3rem; }}
+  .bic-summary .tiles {{ grid-template-columns: 1fr; }}
+  .bic-summary .stats {{ grid-template-columns: 1fr 1fr; gap: .8rem 0; }}
+}}
 
 /* 課題・改善案のカード */
 .bic-card {{ border: 1px solid var(--line); border-radius: 4px; padding: 1.7rem 1.9rem; margin-bottom: 1.1rem; background: #fff; }}
@@ -238,11 +263,35 @@ def qa(turn: HearingTurn) -> str:
     return f'<div class="bic-qa"><div class="q"><b>Q{turn.turn_no}</b><span>{esc(turn.question)}</span></div>{answer}</div>'
 
 
-def summary_card(summary: DiagnosisSummary, top_issue_title: str) -> str:
+def summary_card(
+    summary: DiagnosisSummary, top_issue: Issue | None, issues: list[Issue], proposal_count: int
+) -> str:
+    """診断サマリー。要点 → 最重要課題と最初の一手 → 件数 の3段で、重要な点から目に入るようにする。"""
+    if top_issue:
+        top_main = esc(top_issue.title)
+        top_sub = f"重要度 {esc(top_issue.severity)}　／　{esc(top_issue.evidence_type)}"
+    else:
+        top_main, top_sub = "（課題を特定できませんでした）", ""
+    high = sum(1 for i in issues if i.severity == "高")
+    check = sum(1 for i in issues if i.evidence_type == "要確認")
+    stats = [
+        (len(issues), "抽出した課題", False),
+        (high, "重要度「高」", high > 0),  # 重要度「高」があれば金色で目立たせる
+        (proposal_count, "改善案", False),
+        (check, "要確認", False),
+    ]
+    stats_html = "".join(
+        f'<div><span class="n{" hot" if hot else ""}">{n}</span><span>{esc(name)}</span></div>'
+        for n, name, hot in stats
+    )
     return (
-        f'<div class="bic-summary"><p class="lead">{esc(summary.headline)}</p><dl>'
-        f"<dt>最重要課題</dt><dd>{esc(top_issue_title)}</dd>"
-        f"<dt>最初の一手</dt><dd>{esc(summary.first_action)}</dd></dl></div>"
+        '<div class="bic-summary"><div class="eyebrow">DIAGNOSIS SUMMARY</div>'
+        f'<p class="lead">{esc(summary.headline)}</p><div class="tiles">'
+        f'<div class="tile"><div class="t-label">最重要課題</div><div class="t-main">{top_main}</div>'
+        f'<div class="t-sub">{top_sub}</div></div>'
+        f'<div class="tile"><div class="t-label">最初の一手</div><div class="t-main">{esc(summary.first_action)}</div>'
+        '<div class="t-sub">今週から始められること</div></div></div>'
+        f'<div class="stats">{stats_html}</div></div>'
     )
 
 

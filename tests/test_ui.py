@@ -45,7 +45,8 @@ def test_改善案カードと質問とサマリーも攻撃の文字列を無�
     proposal = make_proposal(title=ATTACK, before=ATTACK, after=ATTACK, first_steps=[ATTACK])
     turn = HearingTurn(turn_no=1, item_id="H5", question=ATTACK, answer=ATTACK)
     summary = DiagnosisSummary(headline=ATTACK, top_issue_id="I1", first_action=ATTACK)
-    for html in [ui.proposal_card(1, proposal), ui.qa(turn), ui.summary_card(summary, ATTACK)]:
+    top = make_issue(title=ATTACK)
+    for html in [ui.proposal_card(1, proposal), ui.qa(turn), ui.summary_card(summary, top, [top], 1)]:
         assert "<script>" not in html
         assert "<img" not in html
 
@@ -64,6 +65,36 @@ def test_改善案カードには導入前後と最初の一歩が出る():
     assert "BEFORE" in card and "AFTER" in card
     assert "最初の一歩" in card
     assert "現在の様式を集めて違いを一覧にする" in card
+
+
+def test_サマリーは最重要課題を太字の枠で示し_件数を数える():
+    summary = DiagnosisSummary(headline="最大の課題は属人化です", top_issue_id="I1", first_action="手順を書き出す")
+    issues = [
+        make_issue(issue_id="I1", title="担当者1人に依存", severity="高"),
+        make_issue(issue_id="I2", severity="中", evidence_type="要確認"),
+        make_issue(issue_id="I3", severity="高", evidence_type="推測"),
+    ]
+    card = ui.summary_card(summary, issues[0], issues, 3)
+
+    assert '<div class="t-main">担当者1人に依存</div>' in card
+    assert "重要度 高" in card
+    assert '<div class="t-main">手順を書き出す</div>' in card
+    assert '<span class="n">3</span><span>抽出した課題</span>' in card
+    assert '<span class="n hot">2</span><span>重要度「高」</span>' in card  # 「高」があれば強調
+    assert '<span class="n">1</span><span>要確認</span>' in card
+
+
+def test_重要度高がなければ件数を強調しない():
+    summary = DiagnosisSummary(headline="要点", top_issue_id="I1", first_action="一手")
+    issues = [make_issue(severity="中")]
+    card = ui.summary_card(summary, issues[0], issues, 1)
+    assert '<span class="n">0</span><span>重要度「高」</span>' in card
+
+
+def test_最重要課題が見つからなくても表示が崩れない():
+    summary = DiagnosisSummary(headline="要点", top_issue_id="I9", first_action="一手")
+    card = ui.summary_card(summary, None, [], 0)
+    assert "課題を特定できませんでした" in card
 
 
 def test_書体の指定でアイコンを壊さない():
