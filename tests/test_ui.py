@@ -1,0 +1,74 @@
+"""ui.py のテスト（画面の部品）。
+
+AIの回答や利用者の入力をHTMLに埋め込むため、<script> などがそのまま
+動いてしまわないこと（XSS対策）を中心に確認する。
+"""
+
+from ai_bic import ui
+from ai_bic.models import DiagnosisSummary, Evidence, HearingTurn, Issue
+from tests.fakes import make_proposal
+
+ATTACK = '<script>alert("x")</script><img src=x onerror=alert(1)>'
+
+
+def make_issue(**override) -> Issue:
+    data = {
+        "issue_id": "I1", "title": "転記の負担", "summary": "転記に時間がかかる",
+        "viewpoint_ids": ["V1"], "evidence_type": "事実",
+        "evidences": [Evidence(source="業務情報", turn_no=None, file_no=None, quote="転記に時間がかかり")],
+        "assumed_cause": "様式の違い", "impact": "残業", "severity": "高",
+        "severity_reason": "月20時間以上", "followup_questions": ["何時間かかりますか"],
+    }
+    data.update(override)
+    return Issue(**data)
+
+
+def test_escは記号を文字として表示できる形に変える():
+    assert ui.esc("<b>&\"'") == "&lt;b&gt;&amp;&quot;&#x27;"
+    assert ui.esc(None) == ""
+
+
+def test_escはドル記号も数式にならない形にする():
+    # Streamlit は $...$ を数式として表示するため
+    assert "$" not in ui.esc("費用は$20")
+
+
+def test_課題カードに埋め込まれた攻撃の文字列は動かない():
+    issue = make_issue(title=ATTACK, summary=ATTACK, followup_questions=[ATTACK])
+    card = ui.issue_card(1, issue, ATTACK, [ATTACK], downgraded=False)
+    assert "<script>" not in card
+    assert "<img" not in card
+    assert "&lt;script&gt;" in card
+
+
+def test_改善案カードと質問とサマリーも攻撃の文字列を無効化する():
+    proposal = make_proposal(title=ATTACK, before=ATTACK, after=ATTACK, first_steps=[ATTACK])
+    turn = HearingTurn(turn_no=1, item_id="H5", question=ATTACK, answer=ATTACK)
+    summary = DiagnosisSummary(headline=ATTACK, top_issue_id="I1", first_action=ATTACK)
+    for html in [ui.proposal_card(1, proposal), ui.qa(turn), ui.summary_card(summary, ATTACK)]:
+        assert "<script>" not in html
+        assert "<img" not in html
+
+
+def test_課題カードには重要度と根拠の種別と格下げの注記が出る():
+    card = ui.issue_card(2, make_issue(), "観点：業務効率", ["業務情報"], downgraded=True)
+    assert "02" in card
+    assert "重要度 高" in card
+    assert "事実：発言で確認済み" in card
+    assert "確認できなかったため「要確認」" in card
+    assert "転記に時間がかかり" in card
+
+
+def test_改善案カードには導入前後と最初の一歩が出る():
+    card = ui.proposal_card(1, make_proposal())
+    assert "BEFORE" in card and "AFTER" in card
+    assert "最初の一歩" in card
+    assert "現在の様式を集めて違いを一覧にする" in card
+
+
+def test_進み具合は今の段階を強調する():
+    steps = [("input", "01 業務情報"), ("hearing", "02 ヒアリング")]
+    bar = ui.topbar(steps, "hearing")
+    assert '<span class="now">02 ヒアリング</span>' in bar
+    assert '<span class="done">01 業務情報</span>' in bar
+    assert "bic-steps" not in ui.topbar(steps, "top")  # トップでは進み具合を出さない

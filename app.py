@@ -2,6 +2,7 @@
 
 画面は表示と入力の受け取りだけを行い、業務ロジックは ai_bic パッケージに任せる（方針P3）。
 1ページの中で「トップ → 業務情報 → ヒアリング → 資料の添付 → 診断結果」を切り替える（決定事項B1）。
+見た目の部品（配色・書体・カード）は ai_bic/ui.py にまとめている。
 
 Streamlit は操作のたびにこのファイルを最初から実行し直す。
 AIの呼び出しは advance()（質問）と diagnose()（分析・提案）の2か所にまとめ、
@@ -12,7 +13,7 @@ import uuid
 
 import streamlit as st
 
-from ai_bic import config, guard
+from ai_bic import config, guard, ui
 from ai_bic.ai_client import ClaudeClient
 from ai_bic.attachments import load_attachments
 from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
@@ -34,17 +35,16 @@ VIEWPOINT_NAMES = {v.id: v.name for v in FRAMEWORK.viewpoints}
 
 NOTICE = "個人情報や社外秘の情報は入力しないでください。企業名は空欄または架空の名前をおすすめします。"
 STEPS = [
-    ("input", "① 業務情報"),
-    ("hearing", "② ヒアリング"),
-    ("attach", "③ 資料の添付"),
-    ("result", "④ 診断結果"),
+    ("input", "01 業務情報"),
+    ("hearing", "02 ヒアリング"),
+    ("attach", "03 資料の添付"),
+    ("result", "04 診断結果"),
 ]
-SEVERITY_LABEL = {"高": ":red[**重要度：高**]", "中": ":orange[**重要度：中**]", "低": ":gray[**重要度：低**]"}
-EVIDENCE_LABEL = {
-    "事実": "✅ 事実（発言で確認済み）",
-    "推測": "💭 推測（発言からの推測）",
-    "要確認": "❓ 要確認（判断材料が不足）",
-}
+
+
+def html(text: str) -> None:
+    """ui.py の部品（HTML）を表示する。中の文字は ui.esc() でエスケープ済み。"""
+    st.markdown(text, unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------
@@ -135,29 +135,16 @@ def diagnose() -> None:
 # ---------------------------------------------------------------
 def render_header() -> None:
     s = st.session_state
-    st.title("📋 AI-BIC 業務改善診断")
-    st.caption("AIが業務改善コンサルタントとしてヒアリングし、課題と改善案を根拠つきで整理します")
-
+    html(ui.CSS)
+    html(ui.topbar(STEPS, s.stage))
     if s.mode == "demo":
-        st.info(
-            "**デモモード**：AIは使用していません。架空の業務と、あらかじめ用意した固定の結果を表示しています。",
-            icon="🧪",
-        )
-
-    if s.stage != "top":
-        current = [key for key, _ in STEPS].index(s.stage)
-        labels = [
-            f"**{label}**" if i == current else (f"~~{label}~~" if i < current else f":gray[{label}]")
-            for i, (_, label) in enumerate(STEPS)
-        ]
-        st.markdown("　→　".join(labels))
-        st.divider()
+        html(ui.demo_banner())
 
 
 def render_error(retry) -> None:
     """AIエラーのメッセージと、再試行／トップに戻るボタン。retry は再試行で呼ぶ関数。"""
     kind = st.session_state.error_kind
-    st.error(user_message(kind), icon="⚠️")
+    st.error(user_message(kind))
     if is_retryable(kind):
         if st.button("再試行する", type="primary", key="retry"):
             retry()
@@ -171,29 +158,19 @@ def render_error(retry) -> None:
 # 画面01：トップ
 # ---------------------------------------------------------------
 def render_top() -> None:
-    st.markdown(
-        """
-業務の担当者にAIが**業務改善コンサルタントとして質問**し、
-業務の課題と改善案を整理します。
-
-1. **業務情報を入力**（部署、業務名、困っていること）
-2. **AIの質問に回答**（最大5問。1問ずつ）
-3. **診断結果を確認**（課題・重要度・根拠と、最大3つの改善案）
-
-課題は「事実」「推測」「要確認」に分けて表示し、根拠を確認できない内容は事実として扱いません。
-改善案は、業務ルールの見直しなど**費用のかからない方法から**検討します。
-"""
-    )
-    st.warning(
-        f"**ご利用上の注意**　{NOTICE}　入力内容はAI（Anthropic社のClaude）に送信されます。"
-        "診断結果は保存されないため、必要な場合は画面を印刷するなどして控えてください。",
-        icon="🔒",
+    html(ui.hero())
+    html(ui.features())
+    html(
+        ui.note(
+            f"ご利用上の注意　{NOTICE}　入力内容はAI（Anthropic社のClaude）に送信されます。"
+            "診断結果は保存されないため、必要な場合は画面を印刷するなどして控えてください。"
+        )
     )
 
     col_ai, col_demo = st.columns(2, gap="large")
 
     with col_ai:
-        st.subheader("AI診断")
+        html(ui.label("AI Diagnosis", "AI診断"))
         if guard.ai_available():
             password = st.text_input("アクセス用パスワード", type="password", key="password")
             if st.button("診断を始める", type="primary", key="start_ai"):
@@ -205,14 +182,13 @@ def render_top() -> None:
                     start("ai")
                     st.rerun()
         else:
-            st.info("AI診断は現在利用できません。デモモードをお試しください。")
+            html(ui.note("AI診断は現在利用できません。デモモードをお試しください。"))
 
     with col_demo:
-        st.subheader("デモで試す")
-        st.caption("APIキー不要。架空の業務で、画面の流れを確認できます。")
+        html(ui.label("Demo", "デモで試す"))
         scenarios = load_scenarios()
         titles = [sc["title"] for sc in scenarios]
-        chosen = st.selectbox("シナリオ", titles, key="demo_scenario")
+        chosen = st.selectbox("架空の業務シナリオ（APIキー不要）", titles, key="demo_scenario")
         if st.button("デモを始める", key="start_demo"):
             start("demo", scenarios[titles.index(chosen)])
             st.rerun()
@@ -223,8 +199,8 @@ def render_top() -> None:
 # ---------------------------------------------------------------
 def render_input() -> None:
     s = st.session_state
-    st.subheader("業務情報の入力")
-    st.caption(f"🔒 {NOTICE}")
+    html(ui.label("Step 01", "業務情報の入力"))
+    html(ui.note(NOTICE))
 
     fields = [
         ("company_name", "企業名（任意）", "text", "例：株式会社サンプル"),
@@ -235,7 +211,7 @@ def render_input() -> None:
     ]
 
     values = {}
-    with st.form("info_form"):
+    with st.form("info_form", border=False):
         for field, label, kind, placeholder in fields:
             widget = st.text_input if kind == "text" else st.text_area
             values[field] = widget(
@@ -274,14 +250,10 @@ def render_hearing() -> None:
     state = s.hearing_state
     asked = len(state.turns)
 
+    html(ui.label("Step 02", "ヒアリング"))
     st.progress(asked / config.MAX_HEARING_TURNS, text=f"質問 {asked} / 最大 {config.MAX_HEARING_TURNS}")
 
-    for turn in state.turns:
-        with st.chat_message("assistant", avatar="🧑‍💼"):
-            st.write(turn.question)
-        if turn.answer is not None:
-            with st.chat_message("user"):
-                st.write(turn.answer)
+    html("".join(ui.qa(turn) for turn in state.turns))
 
     if s.error_kind:
         render_error(retry=advance)
@@ -295,12 +267,11 @@ def render_hearing() -> None:
                 "回答",
                 value=default,
                 placeholder=current.answer_example or "",
-                help=current.answer_example,
                 max_chars=config.ANSWER_MAX_CHARS,
                 key=f"answer_{current.turn_no}",
             )
             if current.answer_example:
-                st.caption(f"💡 {current.answer_example}")
+                st.caption(f"回答の例　{current.answer_example}")
             submitted = st.form_submit_button("回答する", type="primary", key="submit_answer")
         if s.answer_error:
             st.error(s.answer_error)
@@ -313,7 +284,6 @@ def render_hearing() -> None:
                 advance()
             st.rerun()
 
-    st.divider()
     col_finish, col_cancel = st.columns(2)
     with col_finish:
         if st.button("ここまでの情報で診断する", key="finish", help="残りの質問をせずに、資料の添付に進みます"):
@@ -331,19 +301,18 @@ def render_hearing() -> None:
 # ---------------------------------------------------------------
 def render_attach() -> None:
     s = st.session_state
-    st.subheader("資料の添付（任意）")
+    html(ui.label("Step 03", "資料の添付（任意）"))
     st.markdown(
         "業務で使っている集計表・記録・手順書などがあれば添付してください。"
         "AIが課題分析の根拠として使います。添付しなくても診断できます。"
     )
-    st.caption(
-        f"対応形式：CSV・テキスト・Excel（.xlsx）／{config.MAX_ATTACHMENTS}ファイルまで／"
-        f"合計{config.MAX_ATTACHMENT_CHARS:,}文字まで"
-    )
-    st.warning(
-        "個人情報（氏名・住所・電話番号など）や社外秘の情報を含むファイルは添付しないでください。"
-        "必要な部分だけを残したファイルをおすすめします。添付ファイルは保存されません。",
-        icon="🔒",
+    html(
+        ui.note(
+            f"対応形式：CSV・テキスト・Excel（.xlsx）／{config.MAX_ATTACHMENTS}ファイルまで／"
+            f"合計{config.MAX_ATTACHMENT_CHARS:,}文字まで。"
+            "個人情報（氏名・住所・電話番号など）や社外秘の情報を含むファイルは添付しないでください。"
+            "添付ファイルは保存されません。"
+        )
     )
 
     if s.error_kind:
@@ -353,9 +322,9 @@ def render_attach() -> None:
     if s.mode == "demo":
         # デモでは架空の見本ファイルを添付済みの状態で表示する（決定事項）
         attachments = demo_attachments(s.scenario)
-        st.info("デモでは、架空の見本ファイルを添付済みです。")
+        st.caption("デモでは、架空の見本ファイルを添付済みです。")
         for a in attachments:
-            with st.expander(f"📎 {a.name}"):
+            with st.expander(f"添付ファイル　{a.name}"):
                 st.text(a.text)
         if st.button("この資料で診断する", type="primary", key="diagnose"):
             s.attachments = attachments
@@ -386,7 +355,6 @@ def render_attach() -> None:
                 diagnose()
                 st.rerun()
 
-    st.divider()
     if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
         reset()
         st.rerun()
@@ -410,77 +378,48 @@ def render_result() -> None:
     result = s.diagnosis
     analysis = result.analysis
     info = s.business_info
+    issues_by_id = {i.issue_id: i for i in analysis.issues}
 
-    st.subheader("業務の概要")
-    st.markdown(f"**{info.department}／{info.task_name}**")
+    # --- 診断サマリー（最初の数秒で価値が伝わるように） ---
+    html(ui.label("Summary", "診断サマリー"))
+    if result.proposals:
+        top = issues_by_id.get(result.proposals.summary.top_issue_id)
+        html(ui.summary_card(result.proposals.summary, top.title if top else ""))
+    else:
+        html(ui.note("お聞きした範囲では、明確な課題は確認できませんでした。"))
+
+    # --- 業務の概要 ---
+    html(ui.label("Overview", "業務の概要"))
+    html(f'<span class="bic-tag">{ui.esc(info.department)}</span><span class="bic-tag">{ui.esc(info.task_name)}</span>')
     st.write(analysis.business_summary)
-    st.caption(s.hearing_state.finished_reason)
+    meta = [s.hearing_state.finished_reason]
     if result.attachment_names:
-        st.caption("診断に使った資料：" + "、".join(f"📎 {n}" for n in result.attachment_names))
-
+        meta.append("診断に使った資料：" + "、".join(result.attachment_names))
+    html(ui.footnote("　／　".join(meta)))
     if result.missing_item_ids:
         names = "、".join(ITEM_NAMES[i] for i in result.missing_item_ids)
-        st.warning(f"次の項目は情報が不足しています。結果は参考としてご覧ください：{names}", icon="📝")
+        html(ui.note(f"次の項目は情報が不足しています。結果は参考としてご覧ください：{names}"))
 
     # --- 課題（F03） ---
-    st.subheader(f"抽出された課題（{len(analysis.issues)}件）")
-    if not analysis.issues:
-        st.info("お聞きした範囲では、明確な課題は確認できませんでした。")
-
-    for issue in analysis.issues:
-        with st.container(border=True):
-            st.markdown(f"#### {issue.issue_id}. {issue.title}")
-            viewpoints = "・".join(VIEWPOINT_NAMES.get(v, v) for v in issue.viewpoint_ids)
-            st.markdown(f"{SEVERITY_LABEL[issue.severity]}　{EVIDENCE_LABEL[issue.evidence_type]}　:gray[観点：{viewpoints}]")
-            if issue.issue_id in result.downgraded_issue_ids:
-                st.caption("⚠️ AIは「事実」と判断しましたが、根拠となる発言を入力内容の中に確認できなかったため「要確認」としています。")
-            st.write(issue.summary)
-
-            st.markdown("**判断根拠（ご本人の発言・添付資料）**")
-            if issue.evidences:
-                for ev in issue.evidences:
-                    where = evidence_source(ev, result.attachment_names)
-                    st.markdown(f"> {ev.quote}　:gray[（{where}）]")
-            else:
-                st.caption("根拠となる発言はありません")
-
-            st.markdown(f"**想定原因（推測）**：{issue.assumed_cause}")
-            st.markdown(f"**業務への影響**：{issue.impact}")
-            st.markdown(f"**重要度の理由**：{issue.severity_reason}")
-            if issue.followup_questions:
-                st.markdown("**追加で確認したいこと**")
-                for q in issue.followup_questions:
-                    st.markdown(f"- {q}")
-
+    html(ui.label("Issues", f"抽出された課題（{len(analysis.issues)}件）"))
+    for no, issue in enumerate(analysis.issues, start=1):
+        viewpoints = "観点：" + "・".join(VIEWPOINT_NAMES.get(v, v) for v in issue.viewpoint_ids)
+        sources = [evidence_source(ev, result.attachment_names) for ev in issue.evidences]
+        downgraded = issue.issue_id in result.downgraded_issue_ids
+        html(ui.issue_card(no, issue, viewpoints, sources, downgraded))
     if analysis.no_issue_viewpoints:
         names = "、".join(VIEWPOINT_NAMES.get(v, v) for v in analysis.no_issue_viewpoints)
-        st.caption(f"問題が確認できなかった観点：{names}")
+        html(ui.footnote(f"問題が確認できなかった観点：{names}"))
 
     # --- 改善案（F04） ---
-    st.subheader("改善案")
+    html(ui.label("Proposals", "改善案"))
     if result.proposals is None:
-        st.info("課題が確認できなかったため、改善案は作成していません。")
+        html(ui.note("課題が確認できなかったため、改善案は作成していません。"))
     else:
-        for n, p in enumerate(result.proposals.proposals, start=1):
-            with st.container(border=True):
-                st.markdown(f"#### 案{n}. {p.title}")
-                targets = "、".join(p.target_issue_ids)
-                st.markdown(f"`{p.category}`　**導入難易度：{p.difficulty}**　:gray[対応する課題：{targets}]")
-                st.write(p.description)
-                st.markdown(f"**推奨理由**：{p.reason}")
-                if p.why_not_simpler:
-                    st.markdown(f"**より簡単な方法では不十分な理由**：{p.why_not_simpler}")
-                st.markdown(f"**期待できる効果（想定）**：{p.expected_effect}")
-                if p.risks:
-                    st.markdown("**想定リスク**")
-                    for r in p.risks:
-                        st.markdown(f"- {r}")
-                if p.prerequisites:
-                    st.markdown("**実施前に確認すべき事項**")
-                    for r in p.prerequisites:
-                        st.markdown(f"- {r}")
+        for no, p in enumerate(result.proposals.proposals, start=1):
+            html(ui.proposal_card(no, p))
 
-    st.caption("※ 診断結果はAIによる参考情報です。効果は想定であり、実施前に関係者と事実を確認してください。")
+    html(ui.footnote("診断結果はAIによる参考情報です。効果は想定であり、実施前に関係者と事実を確認してください。"))
     if st.button("新しい診断を始める", type="primary", key="new"):
         reset()
         st.rerun()

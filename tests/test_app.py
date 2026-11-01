@@ -54,7 +54,7 @@ def test_デモモードで最後まで診断できる(secrets):
     at.button(key="start_demo").click().run()
     assert at.session_state.stage == "input"
     assert at.session_state.mode == "demo"
-    assert "デモモード" in at.info[0].value  # デモであることを常に表示（F05）
+    assert "デモモード：AIは使用していません" in all_text(at)  # デモであることを常に表示（F05）
 
     # 入力欄にはシナリオの内容が入っている（決定事項E2）
     assert at.text_input(key="f_department").value == "営業管理部"
@@ -80,6 +80,11 @@ def test_デモモードで最後まで診断できる(secrets):
     # 添付ファイルからの根拠が、ファイル名つきで表示される（F09）
     assert "添付ファイル『集計差異の記録.csv』" in text
     assert "診断に使った資料" in text
+    # 訴求力のための項目（診断サマリー・導入前後の比較・最初の一歩）
+    assert "最大の課題は、集計方法を担当者1人しか知らないことです" in text
+    assert "最重要課題" in text and "最初の一手" in text
+    assert "BEFORE" in text and "AFTER" in text
+    assert "5つの営業所の現在の様式を集め、項目の違いを一覧表にする" in text
 
     # 新しい診断を始めるとトップに戻り、内容は消える
     at.button(key="new").click().run()
@@ -124,7 +129,7 @@ def test_修理受付のデモは不足項目を表示する(secrets):
     for _ in range(5):
         at.button(key="submit_answer").click().run()
     at.button(key="diagnose").click().run()
-    assert "改善に向けた制約条件" in at.warning[-1].value  # 5問で終わり、不足項目を表示
+    assert "情報が不足しています。結果は参考としてご覧ください：改善に向けた制約条件" in all_text(at)  # 5問で終わり、不足項目を表示
 
 
 def test_ヒアリングの途中で_ここまでの情報で診断できる(secrets):
@@ -138,7 +143,7 @@ def test_ヒアリングの途中で_ここまでの情報で診断できる(sec
     at.button(key="diagnose").click().run()
 
     assert at.session_state.stage == "result"
-    assert "情報が不足しています" in at.warning[-1].value  # 不足項目を明示（R6）
+    assert "情報が不足しています" in all_text(at)  # 不足項目を明示（R6）
 
 
 def test_資料の添付の段階で中止するとトップに戻る(secrets):
@@ -198,7 +203,7 @@ def test_回答が空なら次の質問に進まない(secrets):
 # ---------------------------------------------------------------
 def test_APIキーやパスワードが未設定ならAI診断は使えない(secrets):
     at = new_app(secrets)
-    assert "AI診断は現在利用できません" in at.info[0].value
+    assert "AI診断は現在利用できません" in all_text(at)
     assert not [b for b in at.button if b.key == "start_ai"]
 
 

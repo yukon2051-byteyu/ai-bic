@@ -1,3 +1,7 @@
-# 画面の見た目（企業向けの落ち着いた配色）
+# 画面の基本の配色（モノクロ基調＋差し色は深い紺の1色。詳細は ai_bic/ui.py）
 [theme]
-primaryColor = "#1F4E79"
+base = "light"
+primaryColor = "#1B2B4B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F6F6F7"
+textColor = "#14161A"
