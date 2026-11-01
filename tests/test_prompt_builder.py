@@ -55,6 +55,12 @@ def test_3種類のシステムプロンプトを読み込め_乗っ取り対策
     assert "<business_info>" in text
 
 
+def test_質問のプロンプトは_分からない項目を聞き続けないルールを含む():
+    text = load_system_prompt("question_system")
+    assert "「分からない」" in text
+    assert "同じ項目への質問は2回まで" in text
+
+
 def test_分析のプロンプトは課題0件を許し_重要度の基準を含む():
     text = load_system_prompt("analysis_system")
     assert "0件でも構いません" in text
