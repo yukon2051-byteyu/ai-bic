@@ -82,6 +82,39 @@ def test_修理受付のデモには_あいまいな回答への確認質問が�
     assert scenario["turns"][2]["question_type"] == "確認"
 
 
+def test_交通費精算のデモは_入力が詳しいので2問で終了する():
+    state, result = run_demo("travel_expense")
+    assert len(state.turns) == 2
+    assert state.finished_reason == FINISH_SUFFICIENT
+    assert result.missing_item_ids == []
+    # 業務情報で分かっている項目（目的・作業内容・時間・ツール）は質問していない
+    assert {t.item_id for t in state.turns} == {"H5", "H6"}
+
+
+def test_交通費精算のデモは_AIが最初から要確認とした課題を含む():
+    _, result = run_demo("travel_expense")
+    by_id = {i.issue_id: i.evidence_type for i in result.analysis.issues}
+    assert by_id["I3"] == "要確認"
+    assert result.downgraded_issue_ids == []  # 格下げではなく、AI自身の判断
+
+
+def test_交通費精算のデモは_制約を守り自動化を含む():
+    _, result = run_demo("travel_expense")
+    categories = [p.category for p in result.proposals.proposals]
+    assert "自動化" in categories
+    assert "新規システム導入" not in categories
+    # 「クラウドサービスは使えない」という制約に反する案を出していない
+    for p in result.proposals.proposals:
+        assert "クラウド" not in p.description
+
+
+def test_3本のシナリオで_5種類の改善の種類のうち4種類以上を見せられる():
+    categories = {
+        p["category"] for s in SCENARIOS for p in s["proposals"]["proposals"]
+    }
+    assert len(categories) >= 4
+
+
 def test_修理受付のデモは_格下げがなく_新規システム導入には理由がある():
     _, result = run_demo("repair_reception")
     assert result.downgraded_issue_ids == []
