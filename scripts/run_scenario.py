@@ -135,9 +135,13 @@ def main() -> int:
         for ev in issue.evidences:
             print(f"    根拠（{ev.source} turn={ev.turn_no} file={ev.file_no}）：{ev.quote}")
     if result and result.proposals:
-        print()
+        s = result.proposals.summary
+        print(f"\n■ 診断サマリー（最重要課題：{s.top_issue_id}）\n  要点：{s.headline}\n  最初の一手：{s.first_action}")
         for n, p in enumerate(result.proposals.proposals, start=1):
-            print(f"案{n} [{p.category}・難易度{p.difficulty}] {p.title} → {', '.join(p.target_issue_ids)}")
+            print(f"\n案{n} [{p.category}・難易度{p.difficulty}] {p.title} → {', '.join(p.target_issue_ids)}")
+            print(f"  BEFORE：{p.before}\n  AFTER ：{p.after}")
+            for step in p.first_steps:
+                print(f"  □ {step}")
 
     usage = usage_summary(db_path, session_id)
     total = sum(u["dollars"] for u in usage)
