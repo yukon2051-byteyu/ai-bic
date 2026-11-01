@@ -51,8 +51,9 @@ class FakeClient:
         self.calls["question"] += 1
         return self._give(self.questions.pop(0))
 
-    def analyze(self, info, state, framework) -> AnalysisResult:
+    def analyze(self, info, state, framework, attachments=None) -> AnalysisResult:
         self.calls["analysis"] += 1
+        self.received_attachments = attachments  # 添付ファイルが渡ったかをテストで確認する
         return self._give(self.analysis)
 
     def propose(self, info, state, analysis) -> ProposalResult:

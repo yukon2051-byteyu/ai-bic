@@ -20,6 +20,7 @@ from ai_bic.hearing import (
 )
 from ai_bic.models import (
     AnalysisResult,
+    Attachment,
     BusinessInfo,
     Evidence,
     Issue,
@@ -230,7 +231,7 @@ def make_issue(issue_id, quote) -> Issue:
         summary="",
         viewpoint_ids=["V1"],
         evidence_type="事実",
-        evidences=[Evidence(source="業務情報", turn_no=None, quote=quote)],
+        evidences=[Evidence(source="業務情報", turn_no=None, file_no=None, quote=quote)],
         assumed_cause="",
         impact="",
         severity="中",
@@ -279,6 +280,26 @@ def test_診断で分析と提案が行われ_根拠のない事実は格下げ�
     assert result.proposals is not None
     assert result.missing_item_ids == ["H1", "H2", "H3", "H4", "H5", "H6"]
     assert client.calls == {"question": 0, "analysis": 1, "proposal": 1}
+
+
+def test_添付ファイルは課題分析に渡り_結果にファイル名が残る():
+    files = [Attachment(name="記録.csv", text="数字が合わない月の一覧")]
+    analysis = AnalysisResult(business_summary="", issues=[], no_issue_viewpoints=[])
+    client = FakeClient(analysis=analysis)
+
+    result = run_diagnosis(client, INFO, finished_state(), FW, files)
+
+    assert client.received_attachments == files
+    assert result.attachment_names == ["記録.csv"]
+
+
+def test_添付なしでも診断できる():
+    client = FakeClient(
+        analysis=AnalysisResult(business_summary="", issues=[], no_issue_viewpoints=[])
+    )
+    result = run_diagnosis(client, INFO, finished_state(), FW)
+    assert client.received_attachments == []
+    assert result.attachment_names == []
 
 
 def test_課題が0件なら提案のAIを呼ばない():

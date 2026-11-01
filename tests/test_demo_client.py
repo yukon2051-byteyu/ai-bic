@@ -6,7 +6,7 @@
 import pytest
 
 from ai_bic.config import load_framework
-from ai_bic.demo_client import DemoClient, demo_answer, load_scenarios
+from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
 from ai_bic.hearing import (
     FINISH_MAX_TURNS,
     FINISH_SUFFICIENT,
@@ -16,7 +16,12 @@ from ai_bic.hearing import (
     start_hearing,
 )
 from ai_bic.models import BusinessInfo
-from ai_bic.output_check import check_analysis, check_proposals, check_question_result
+from ai_bic.output_check import (
+    _quote_found,
+    check_analysis,
+    check_proposals,
+    check_question_result,
+)
 from ai_bic.validation import validate_business_info
 
 FW = load_framework("general")
@@ -39,9 +44,37 @@ def test_デモシナリオは最後まで進み_全データがチェックに�
         add_answer(state, demo_answer(scenario, turn.turn_no))
 
     assert len(state.turns) == len(scenario["turns"])
-    result = run_diagnosis(client, info, state, FW)
+    result = run_diagnosis(client, info, state, FW, demo_attachments(scenario))
     assert check_analysis(client.analyze(info, state, FW), FW) == []
     assert check_proposals(result.proposals, result.analysis) == []
+
+
+# わざと根拠のない「事実」にしてある課題（引用照合の仕組みを見せるため）
+INTENTIONALLY_UNSUPPORTED = {("sales_report", "I5")}
+
+
+@pytest.mark.parametrize("scenario", SCENARIOS, ids=[s["id"] for s in SCENARIOS])
+def test_デモの引用は1件ずつすべて元の文章に実在する(scenario):
+    # 課題単位ではなく引用単位で確認する（1件でも誤った引用があれば見つける）
+    info = scenario["business_info"]
+    business = " ".join(v or "" for v in info.values())
+    answers = {n: t["demo_answer"] for n, t in enumerate(scenario["turns"], start=1)}
+    files = {n: a.text for n, a in enumerate(demo_attachments(scenario), start=1)}
+
+    for issue in scenario["analysis"]["issues"]:
+        if (scenario["id"], issue["issue_id"]) in INTENTIONALLY_UNSUPPORTED:
+            continue
+        for ev in issue["evidences"]:
+            source = {"業務情報": business, "回答": answers.get(ev["turn_no"], ""),
+                      "添付ファイル": files.get(ev["file_no"], "")}[ev["source"]]
+            assert _quote_found(ev["quote"], [source]), f'{issue["issue_id"]}: {ev["quote"]}'
+
+
+@pytest.mark.parametrize("scenario", SCENARIOS, ids=[s["id"] for s in SCENARIOS])
+def test_どのシナリオも見本ファイルを持ち_根拠に使っている(scenario):
+    assert demo_attachments(scenario)
+    sources = {ev["source"] for i in scenario["analysis"]["issues"] for ev in i["evidences"]}
+    assert "添付ファイル" in sources
 
 
 def test_シナリオが2本以上あり_IDとタイトルが重複しない():
@@ -58,7 +91,7 @@ def run_demo(scenario_id):
     state = start_hearing(FW)
     while (turn := request_next_question(client, info, state, FW)) is not None:
         add_answer(state, demo_answer(scenario, turn.turn_no))
-    return state, run_diagnosis(client, info, state, FW)
+    return state, run_diagnosis(client, info, state, FW, demo_attachments(scenario))
 
 
 def test_売上集計のデモは_4問で全項目がそろって終了する():

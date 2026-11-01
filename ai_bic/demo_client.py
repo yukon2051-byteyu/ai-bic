@@ -14,6 +14,7 @@ import json
 from ai_bic.config import CONFIG_DIR
 from ai_bic.models import (
     AnalysisResult,
+    Attachment,
     BusinessInfo,
     Framework,
     HearingState,
@@ -63,7 +64,11 @@ class DemoClient:
         )
 
     def analyze(
-        self, info: BusinessInfo, state: HearingState, framework: Framework
+        self,
+        info: BusinessInfo,
+        state: HearingState,
+        framework: Framework,
+        attachments: list[Attachment] | None = None,
     ) -> AnalysisResult:
         return AnalysisResult.model_validate(self.scenario["analysis"])
 
@@ -77,6 +82,11 @@ def demo_answer(scenario: dict, turn_no: int) -> str:
     """回答欄にあらかじめ入れておく、シナリオの回答（決定事項E2）。"""
     turns = scenario["turns"]
     return turns[turn_no - 1]["demo_answer"] if 1 <= turn_no <= len(turns) else ""
+
+
+def demo_attachments(scenario: dict) -> list[Attachment]:
+    """シナリオの見本ファイル（F09。添付済みの状態で表示し、根拠の照合にも使う）。"""
+    return [Attachment(**a) for a in scenario.get("attachments", [])]
 
 
 def _statuses(values: dict, framework: Framework, default: str = "未確認") -> list[ItemStatus]:

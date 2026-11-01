@@ -113,11 +113,12 @@ class HearingState(BaseModel):
 # AIの出力②：課題分析（F03）
 # ---------------------------------------------------------------
 class Evidence(BaseModel):
-    """判断根拠となる利用者の発言の引用。output_check.py で実在を照合する。"""
+    """判断根拠となる利用者の発言（または添付ファイル）の引用。output_check.py で実在を照合する。"""
 
-    source: Literal["業務情報", "回答"]
+    source: Literal["業務情報", "回答", "添付ファイル"]
     turn_no: int | None  # 回答の場合、何回目の回答か
-    quote: str  # 利用者の発言をそのまま引用したもの
+    file_no: int | None  # 添付ファイルの場合、何番目のファイルか（照合に必要なため省略不可）
+    quote: str  # 利用者の発言や添付ファイルの文字を、そのまま引用したもの
 
 
 class Issue(BaseModel):
@@ -169,11 +170,22 @@ class ProposalResult(BaseModel):
 
 
 # ---------------------------------------------------------------
+# 添付ファイル（F09。プログラムが読み込む。保存はしない）
+# ---------------------------------------------------------------
+class Attachment(BaseModel):
+    """文字として読み込んだ添付ファイル。"""
+
+    name: str  # ファイル名
+    text: str  # 取り出した文字（Excelはシートごとに、セルをタブ区切りで並べる）
+
+
+# ---------------------------------------------------------------
 # 診断結果のまとめ（プログラムが作る。結果画面に表示する）
 # ---------------------------------------------------------------
 class DiagnosisResult(BaseModel):
     """課題分析・改善提案と、画面に添える補足情報。"""
 
+    attachment_names: list[str]  # 診断に使った添付ファイルの名前（file_no の順）
     analysis: AnalysisResult  # 引用照合（格下げ）を反映したもの
     proposals: ProposalResult | None  # 課題が0件のときは None（提案のAIを呼ばない）
     downgraded_issue_ids: list[str]  # 根拠を確認できず「要確認」に格下げした課題

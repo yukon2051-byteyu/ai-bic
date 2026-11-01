@@ -18,6 +18,7 @@ from ai_bic import config
 from ai_bic.errors import AIError
 from ai_bic.models import (
     AnalysisResult,
+    Attachment,
     BusinessInfo,
     Framework,
     HearingState,
@@ -68,7 +69,11 @@ class ClaudeClient:
         )
 
     def analyze(
-        self, info: BusinessInfo, state: HearingState, framework: Framework
+        self,
+        info: BusinessInfo,
+        state: HearingState,
+        framework: Framework,
+        attachments: list[Attachment] | None = None,
     ) -> AnalysisResult:
         return self._call_checked(
             call_type="analysis",
@@ -76,7 +81,7 @@ class ClaudeClient:
             effort=config.EFFORT_ANALYSIS,
             max_tokens=config.MAX_TOKENS_ANALYSIS,
             system_name="analysis_system",
-            user_input=build_analysis_input(info, state, framework),
+            user_input=build_analysis_input(info, state, framework, attachments),
             output_format=AnalysisResult,
             check=lambda r: check_analysis(r, framework),
         )

@@ -51,6 +51,12 @@ FIELD_LIMITS = {
 }
 ANSWER_MAX_CHARS = 1_000
 
+# --- 添付ファイル（F09） ---
+ATTACHMENT_EXTENSIONS = (".csv", ".txt", ".xlsx")
+MAX_ATTACHMENTS = 3  # ファイル数の上限
+MAX_ATTACHMENT_CHARS = 10_000  # 全ファイルの合計文字数の上限（超えたら切り捨てずにエラー）
+MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024  # 1ファイルの大きさの上限（2MB。読み込みの負荷を抑える）
+
 # --- 日本時間（日本にはサマータイムがないため、UTC+9の固定値で扱う） ---
 JST = timezone(timedelta(hours=9), "JST")
 

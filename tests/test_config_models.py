@@ -50,7 +50,7 @@ def issue_data(**override) -> dict:
         "summary": "Excelからの転記に時間がかかる",
         "viewpoint_ids": ["V1"],
         "evidence_type": "事実",
-        "evidences": [{"source": "業務情報", "turn_no": None, "quote": "転記に時間がかかり"}],
+        "evidences": [{"source": "業務情報", "turn_no": None, "file_no": None, "quote": "転記に時間がかかり"}],
         "assumed_cause": "フォーマットが統一されていない",
         "impact": "月末の残業",
         "severity": "高",

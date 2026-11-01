@@ -208,8 +208,8 @@ def test_問題なしの観点に存在しないIDがあれば違反():
 # ---------------------------------------------------------------
 # ② 引用の照合（この設計の重要な工夫）
 # ---------------------------------------------------------------
-def ev(quote, source="業務情報", turn_no=None) -> Evidence:
-    return Evidence(source=source, turn_no=turn_no, quote=quote)
+def ev(quote, source="業務情報", turn_no=None, file_no=None) -> Evidence:
+    return Evidence(source=source, turn_no=turn_no, file_no=file_no, quote=quote)
 
 
 def test_業務情報に実在する引用なら事実のまま():

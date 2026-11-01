@@ -12,6 +12,7 @@ import unicodedata
 from ai_bic.config import MAX_ISSUES, MAX_PROPOSALS, MIN_QUOTE_CHARS
 from ai_bic.models import (
     AnalysisResult,
+    Attachment,
     BusinessInfo,
     Framework,
     HearingState,
@@ -109,7 +110,10 @@ def _quote_found(quote: str, texts: list[str]) -> bool:
 
 
 def verify_evidences(
-    analysis: AnalysisResult, info: BusinessInfo, state: HearingState
+    analysis: AnalysisResult,
+    info: BusinessInfo,
+    state: HearingState,
+    attachments: list[Attachment] | None = None,
 ) -> tuple[AnalysisResult, list[str]]:
     """「事実」の課題の引用が、利用者の実際の入力に存在するかを照合する（詳細設計 1.6）。
 
@@ -117,6 +121,7 @@ def verify_evidences(
     戻り値：(格下げを反映した分析結果, 格下げした課題IDの一覧)
     元の analysis は変更しない。
     """
+    attachments = attachments or []
     business_texts = [
         info.company_name or "",
         info.department,
@@ -137,6 +142,10 @@ def verify_evidences(
         for ev in issue.evidences:
             if ev.source == "業務情報":
                 texts = business_texts
+            elif ev.source == "添付ファイル":
+                # 添付ファイルの引用は、指定された番号のファイルとだけ照合する
+                valid = ev.file_no is not None and 1 <= ev.file_no <= len(attachments)
+                texts = [attachments[ev.file_no - 1].text] if valid else []
             else:
                 # 回答の引用は、指定された回の回答とだけ照合する（安全側に倒す）
                 texts = [answers_by_turn.get(ev.turn_no, "")]

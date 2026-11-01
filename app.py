@@ -1,10 +1,11 @@
 """AI-BIC の画面（Streamlit）。起動：streamlit run app.py
 
 画面は表示と入力の受け取りだけを行い、業務ロジックは ai_bic パッケージに任せる（方針P3）。
-1ページの中で「トップ → 業務情報 → ヒアリング → 診断結果」を切り替える（決定事項B1）。
+1ページの中で「トップ → 業務情報 → ヒアリング → 資料の添付 → 診断結果」を切り替える（決定事項B1）。
 
 Streamlit は操作のたびにこのファイルを最初から実行し直す。
-AIの呼び出しは advance() の1か所にまとめ、ボタンが押されたときだけ呼ぶ（二重呼び出しの防止 K04）。
+AIの呼び出しは advance()（質問）と diagnose()（分析・提案）の2か所にまとめ、
+ボタンが押されたときだけ呼ぶ（二重呼び出しの防止 K04）。
 """
 
 import uuid
@@ -13,7 +14,8 @@ import streamlit as st
 
 from ai_bic import config, guard
 from ai_bic.ai_client import ClaudeClient
-from ai_bic.demo_client import DemoClient, demo_answer, load_scenarios
+from ai_bic.attachments import load_attachments
+from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
 from ai_bic.errors import AIError, is_retryable, user_message
 from ai_bic.hearing import (
     add_answer,
@@ -31,7 +33,12 @@ ITEM_NAMES = {item.id: item.name for item in FRAMEWORK.hearing_items}
 VIEWPOINT_NAMES = {v.id: v.name for v in FRAMEWORK.viewpoints}
 
 NOTICE = "個人情報や社外秘の情報は入力しないでください。企業名は空欄または架空の名前をおすすめします。"
-STEPS = [("input", "① 業務情報"), ("hearing", "② ヒアリング"), ("result", "③ 診断結果")]
+STEPS = [
+    ("input", "① 業務情報"),
+    ("hearing", "② ヒアリング"),
+    ("attach", "③ 資料の添付"),
+    ("result", "④ 診断結果"),
+]
 SEVERITY_LABEL = {"高": ":red[**重要度：高**]", "中": ":orange[**重要度：中**]", "低": ":gray[**重要度：低**]"}
 EVIDENCE_LABEL = {
     "事実": "✅ 事実（発言で確認済み）",
@@ -45,7 +52,7 @@ EVIDENCE_LABEL = {
 # ---------------------------------------------------------------
 def init_state() -> None:
     defaults = {
-        "stage": "top",  # top / input / hearing / result
+        "stage": "top",  # top / input / hearing / attach / result
         "mode": None,  # ai / demo
         "scenario": None,  # デモのシナリオ
         "session_id": None,  # 診断ごとのランダムなID
@@ -53,6 +60,8 @@ def init_state() -> None:
         "input_errors": {},
         "business_info": None,
         "hearing_state": None,
+        "attachments": [],  # 読み込んだ添付ファイル（保存はしない）
+        "attach_errors": [],
         "diagnosis": None,
         "error_kind": None,  # 直前のAIエラーの種類
         "answer_error": None,
@@ -90,25 +99,35 @@ def get_client():
 
 
 def advance() -> None:
-    """ヒアリングを1歩進める。ヒアリングが終われば診断（分析・提案）まで行う。
+    """ヒアリングを1歩進める（次の質問を作る）。終われば「資料の添付」に進む。
 
-    AIを呼ぶのはこの関数だけ。エラーが起きたら種類を記録し、再試行ボタンから再度呼ぶ。
+    エラーが起きたら種類を記録し、再試行ボタンから再度呼ぶ。
     """
     s = st.session_state
     s.error_kind = None
-    client = get_client()
     try:
-        if not s.hearing_state.finished_reason:
-            with st.spinner("AIが次の質問を考えています…"):
-                turn = request_next_question(client, s.business_info, s.hearing_state, FRAMEWORK)
-            if turn is not None:
-                return  # 次の質問がある → ヒアリングを続ける
-
-        with st.spinner("AIが課題を分析し、改善案を考えています…（1分ほどかかることがあります）"):
-            s.diagnosis = run_diagnosis(client, s.business_info, s.hearing_state, FRAMEWORK)
-        s.stage = "result"
+        with st.spinner("AIが次の質問を考えています…"):
+            turn = request_next_question(get_client(), s.business_info, s.hearing_state, FRAMEWORK)
     except AIError as e:
         s.error_kind = e.kind
+        return
+    if turn is None:
+        s.stage = "attach"  # ヒアリング終了 → 資料の添付へ（ここではAIを呼ばない）
+
+
+def diagnose() -> None:
+    """課題分析と改善提案を行い、結果画面に進む。添付ファイルは課題分析にだけ使う。"""
+    s = st.session_state
+    s.error_kind = None
+    try:
+        with st.spinner("AIが課題を分析し、改善案を考えています…（1分ほどかかることがあります）"):
+            s.diagnosis = run_diagnosis(
+                get_client(), s.business_info, s.hearing_state, FRAMEWORK, s.attachments
+            )
+    except AIError as e:
+        s.error_kind = e.kind
+        return
+    s.stage = "result"
 
 
 # ---------------------------------------------------------------
@@ -135,13 +154,13 @@ def render_header() -> None:
         st.divider()
 
 
-def render_error() -> None:
-    """AIエラーのメッセージと、再試行／トップに戻るボタン。"""
+def render_error(retry) -> None:
+    """AIエラーのメッセージと、再試行／トップに戻るボタン。retry は再試行で呼ぶ関数。"""
     kind = st.session_state.error_kind
     st.error(user_message(kind), icon="⚠️")
     if is_retryable(kind):
         if st.button("再試行する", type="primary", key="retry"):
-            advance()
+            retry()
             st.rerun()
     elif st.button("トップに戻る", key="error_back"):
         reset()
@@ -265,7 +284,7 @@ def render_hearing() -> None:
                 st.write(turn.answer)
 
     if s.error_kind:
-        render_error()
+        render_error(retry=advance)
         return
 
     current = state.turns[-1] if state.turns and state.turns[-1].answer is None else None
@@ -297,9 +316,9 @@ def render_hearing() -> None:
     st.divider()
     col_finish, col_cancel = st.columns(2)
     with col_finish:
-        if st.button("ここまでの情報で診断する", key="finish", help="残りの質問をせずに診断結果を出します"):
+        if st.button("ここまでの情報で診断する", key="finish", help="残りの質問をせずに、資料の添付に進みます"):
             finish_by_user(state)
-            advance()
+            s.stage = "attach"
             st.rerun()
     with col_cancel:
         if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
@@ -308,8 +327,84 @@ def render_hearing() -> None:
 
 
 # ---------------------------------------------------------------
+# 資料の添付（F09。任意）
+# ---------------------------------------------------------------
+def render_attach() -> None:
+    s = st.session_state
+    st.subheader("資料の添付（任意）")
+    st.markdown(
+        "業務で使っている集計表・記録・手順書などがあれば添付してください。"
+        "AIが課題分析の根拠として使います。添付しなくても診断できます。"
+    )
+    st.caption(
+        f"対応形式：CSV・テキスト・Excel（.xlsx）／{config.MAX_ATTACHMENTS}ファイルまで／"
+        f"合計{config.MAX_ATTACHMENT_CHARS:,}文字まで"
+    )
+    st.warning(
+        "個人情報（氏名・住所・電話番号など）や社外秘の情報を含むファイルは添付しないでください。"
+        "必要な部分だけを残したファイルをおすすめします。添付ファイルは保存されません。",
+        icon="🔒",
+    )
+
+    if s.error_kind:
+        render_error(retry=diagnose)
+        return
+
+    if s.mode == "demo":
+        # デモでは架空の見本ファイルを添付済みの状態で表示する（決定事項）
+        attachments = demo_attachments(s.scenario)
+        st.info("デモでは、架空の見本ファイルを添付済みです。")
+        for a in attachments:
+            with st.expander(f"📎 {a.name}"):
+                st.text(a.text)
+        if st.button("この資料で診断する", type="primary", key="diagnose"):
+            s.attachments = attachments
+            diagnose()
+            st.rerun()
+    else:
+        files = st.file_uploader(
+            "ファイルを選ぶ",
+            type=[ext.lstrip(".") for ext in config.ATTACHMENT_EXTENSIONS],
+            accept_multiple_files=True,
+            key="uploader",
+        )
+        for message in s.attach_errors:
+            st.error(message)
+
+        col_with, col_without = st.columns(2)
+        with col_with:
+            if st.button("添付して診断する", type="primary", key="diagnose", disabled=not files):
+                attachments, errors = load_attachments([(f.name, f.getvalue()) for f in files])
+                s.attach_errors = errors
+                if not errors:
+                    s.attachments = attachments
+                    diagnose()
+                st.rerun()
+        with col_without:
+            if st.button("添付せずに診断する", key="diagnose_without"):
+                s.attachments, s.attach_errors = [], []
+                diagnose()
+                st.rerun()
+
+    st.divider()
+    if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
+        reset()
+        st.rerun()
+
+
+# ---------------------------------------------------------------
 # 画面04：診断結果（F03・F04）
 # ---------------------------------------------------------------
+def evidence_source(ev, attachment_names: list[str]) -> str:
+    """根拠の出どころの表示（例：「2問目の回答」「添付ファイル『記録.csv』」）。"""
+    if ev.source == "回答":
+        return f"{ev.turn_no}問目の回答"
+    if ev.source == "添付ファイル":
+        valid = ev.file_no is not None and 1 <= ev.file_no <= len(attachment_names)
+        return f"添付ファイル『{attachment_names[ev.file_no - 1]}』" if valid else "添付ファイル"
+    return "業務情報"
+
+
 def render_result() -> None:
     s = st.session_state
     result = s.diagnosis
@@ -320,6 +415,8 @@ def render_result() -> None:
     st.markdown(f"**{info.department}／{info.task_name}**")
     st.write(analysis.business_summary)
     st.caption(s.hearing_state.finished_reason)
+    if result.attachment_names:
+        st.caption("診断に使った資料：" + "、".join(f"📎 {n}" for n in result.attachment_names))
 
     if result.missing_item_ids:
         names = "、".join(ITEM_NAMES[i] for i in result.missing_item_ids)
@@ -339,10 +436,10 @@ def render_result() -> None:
                 st.caption("⚠️ AIは「事実」と判断しましたが、根拠となる発言を入力内容の中に確認できなかったため「要確認」としています。")
             st.write(issue.summary)
 
-            st.markdown("**判断根拠（ご本人の発言）**")
+            st.markdown("**判断根拠（ご本人の発言・添付資料）**")
             if issue.evidences:
                 for ev in issue.evidences:
-                    where = f"{ev.turn_no}問目の回答" if ev.source == "回答" else "業務情報"
+                    where = evidence_source(ev, result.attachment_names)
                     st.markdown(f"> {ev.quote}　:gray[（{where}）]")
             else:
                 st.caption("根拠となる発言はありません")
@@ -399,6 +496,7 @@ def main() -> None:
         "top": render_top,
         "input": render_input,
         "hearing": render_hearing,
+        "attach": render_attach,
         "result": render_result,
     }[st.session_state.stage]()
 

@@ -14,6 +14,7 @@ from typing import Protocol
 from ai_bic.config import MAX_HEARING_TURNS
 from ai_bic.models import (
     AnalysisResult,
+    Attachment,
     BusinessInfo,
     DiagnosisResult,
     Framework,
@@ -43,7 +44,11 @@ class AIClient(Protocol):
     ) -> QuestionResult: ...
 
     def analyze(
-        self, info: BusinessInfo, state: HearingState, framework: Framework
+        self,
+        info: BusinessInfo,
+        state: HearingState,
+        framework: Framework,
+        attachments: list[Attachment],
     ) -> AnalysisResult: ...
 
     def propose(
@@ -136,19 +141,28 @@ def missing_items(state: HearingState, framework: Framework) -> list[HearingItem
 
 
 def run_diagnosis(
-    client: AIClient, info: BusinessInfo, state: HearingState, framework: Framework
+    client: AIClient,
+    info: BusinessInfo,
+    state: HearingState,
+    framework: Framework,
+    attachments: list[Attachment] | None = None,
 ) -> DiagnosisResult:
-    """課題分析 → 根拠の照合 → 改善提案 を順に行い、結果をまとめて返す（F03・F04）。"""
+    """課題分析 → 根拠の照合 → 改善提案 を順に行い、結果をまとめて返す（F03・F04）。
+
+    添付ファイル（F09）は課題分析にだけ渡し、引用の照合にも使う。
+    """
     if not state.finished_reason:
         raise ValueError("ヒアリングが終了していません")
+    attachments = attachments or []
 
-    analysis = client.analyze(info, state, framework)
-    checked, downgraded = verify_evidences(analysis, info, state)
+    analysis = client.analyze(info, state, framework, attachments)
+    checked, downgraded = verify_evidences(analysis, info, state, attachments)
 
     # 課題が0件なら改善提案のAIを呼ばない（費用削減・課題の捏造防止）
     proposals = client.propose(info, state, checked) if checked.issues else None
 
     return DiagnosisResult(
+        attachment_names=[a.name for a in attachments],
         analysis=checked,
         proposals=proposals,
         downgraded_issue_ids=downgraded,

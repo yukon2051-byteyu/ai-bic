@@ -62,16 +62,24 @@ def test_デモモードで最後まで診断できる(secrets):
     assert at.session_state.stage == "hearing"
     assert len(at.session_state.hearing_state.turns) == 1
 
-    # 用意された回答で4問に答えると、診断結果が表示される
+    # 用意された回答で4問に答えると、資料の添付に進む（ここではAIを呼ばない）
     for _ in range(4):
         at.button(key="submit_answer").click().run()
         assert not at.exception
+    assert at.session_state.stage == "attach"
+    assert at.session_state.diagnosis is None
+    assert "集計差異の記録.csv" in at.expander[0].label  # 見本ファイルを添付済みで表示
+
+    at.button(key="diagnose").click().run()
 
     assert at.session_state.stage == "result"
     text = all_text(at)
     assert "集計作業が担当者1人に依存している" in text
     assert "根拠となる発言を入力内容の中に確認できなかった" in text  # I5 の格下げ表示
     assert "表計算ソフトの集計機能による自動集計" in text
+    # 添付ファイルからの根拠が、ファイル名つきで表示される（F09）
+    assert "添付ファイル『集計差異の記録.csv』" in text
+    assert "診断に使った資料" in text
 
     # 新しい診断を始めるとトップに戻り、内容は消える
     at.button(key="new").click().run()
@@ -100,9 +108,12 @@ def test_プルダウンで別のシナリオを選んで最後まで診断で�
     for _ in range(answers):
         at.button(key="submit_answer").click().run()
         assert not at.exception
+    assert at.session_state.stage == "attach"
+    at.button(key="diagnose").click().run()
 
     assert at.session_state.stage == "result"
     assert expected_text in all_text(at)
+    assert "添付ファイル『" in all_text(at)  # どのシナリオも添付ファイルを根拠に使っている
 
 
 def test_修理受付のデモは不足項目を表示する(secrets):
@@ -112,6 +123,7 @@ def test_修理受付のデモは不足項目を表示する(secrets):
     at.button(key="submit_info").click().run()
     for _ in range(5):
         at.button(key="submit_answer").click().run()
+    at.button(key="diagnose").click().run()
     assert "改善に向けた制約条件" in at.warning[-1].value  # 5問で終わり、不足項目を表示
 
 
@@ -122,9 +134,23 @@ def test_ヒアリングの途中で_ここまでの情報で診断できる(sec
     at.button(key="submit_answer").click().run()  # 1問だけ回答
 
     at.button(key="finish").click().run()
+    assert at.session_state.stage == "attach"
+    at.button(key="diagnose").click().run()
 
     assert at.session_state.stage == "result"
     assert "情報が不足しています" in at.warning[-1].value  # 不足項目を明示（R6）
+
+
+def test_資料の添付の段階で中止するとトップに戻る(secrets):
+    at = new_app(secrets)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    at.button(key="finish").click().run()
+
+    at.button(key="cancel").click().run()
+
+    assert at.session_state.stage == "top"
+    assert at.session_state.attachments == []
 
 
 def test_診断を中止するとトップに戻り内容が消える(secrets):

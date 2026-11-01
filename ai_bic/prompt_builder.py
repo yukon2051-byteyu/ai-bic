@@ -13,7 +13,7 @@ AIに指示を出す攻撃（プロンプトインジェクション）を防ぐ
 from pathlib import Path
 
 from ai_bic.config import MAX_HEARING_TURNS
-from ai_bic.models import AnalysisResult, BusinessInfo, Framework, HearingState
+from ai_bic.models import AnalysisResult, Attachment, BusinessInfo, Framework, HearingState
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
@@ -96,12 +96,29 @@ def build_question_input(info: BusinessInfo, state: HearingState, framework: Fra
     )
 
 
-def build_analysis_input(info: BusinessInfo, state: HearingState, framework: Framework) -> str:
-    """課題分析のAIに渡す文章。"""
+def _attachments_block(attachments: list[Attachment]) -> str:
+    """添付ファイル（F09）。根拠に使えるよう、ファイルに番号を付ける。"""
+    if not attachments:
+        return "<attachments>\n（添付ファイルはありません）\n</attachments>"
+    lines = ["<attachments>"]
+    for no, a in enumerate(attachments, start=1):
+        lines += [f'<file no="{no}" name="{_escape(a.name)}">', _escape(a.text), "</file>"]
+    lines.append("</attachments>")
+    return "\n".join(lines)
+
+
+def build_analysis_input(
+    info: BusinessInfo,
+    state: HearingState,
+    framework: Framework,
+    attachments: list[Attachment] | None = None,
+) -> str:
+    """課題分析のAIに渡す文章。添付ファイルは課題分析にだけ渡す（決定事項：費用の抑制）。"""
     return "\n\n".join(
         [
             _business_info_block(info),
             _hearing_log_block(state),
+            _attachments_block(attachments or []),
             _hearing_items_block(state, framework),
             _viewpoints_block(framework),
             "評価観点ごとに業務の課題を分析してください。",
