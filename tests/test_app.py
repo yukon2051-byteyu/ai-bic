@@ -1,0 +1,176 @@
+"""画面の結合テスト（Streamlit の AppTest で app.py を実際に動かす）。
+
+ブラウザを使わずに、ボタンを押す・入力するといった操作を再現する。
+AIモードは本物のAPIを呼ばない範囲（パスワード・回数制限）まで確認する。
+"""
+
+from datetime import datetime
+
+import pytest
+from streamlit.testing.v1 import AppTest
+
+from ai_bic import config, guard
+from ai_bic.config import DAILY_DIAGNOSIS_LIMIT, JST
+from ai_bic.usage_log import init_db, record_call
+
+
+@pytest.fixture
+def secrets(monkeypatch):
+    """Secrets を偽物に差し替える（本物の secrets.toml や環境変数に左右されないように）。"""
+    values = {}
+    monkeypatch.setattr(guard, "get_secret", lambda name: values.get(name) or None)
+    return values
+
+
+@pytest.fixture
+def db(tmp_path, monkeypatch):
+    path = str(tmp_path / "usage_test.db")
+    monkeypatch.setattr(config, "DB_PATH", path)
+    return path
+
+
+APP_PATH = str(config.BASE_DIR / "app.py")  # 相対パスはテストファイルの場所が基準になるため絶対パスにする
+
+
+def new_app(secrets) -> AppTest:
+    at = AppTest.from_file(APP_PATH, default_timeout=30)
+    at.run()
+    assert not at.exception
+    return at
+
+
+def all_text(at) -> str:
+    parts = [m.value for m in at.markdown] + [e.value for e in at.error] + [c.value for c in at.caption]
+    return "\n".join(str(p) for p in parts)
+
+
+# ---------------------------------------------------------------
+# デモモード：トップ → 業務情報 → ヒアリング → 診断結果
+# ---------------------------------------------------------------
+def test_デモモードで最後まで診断できる(secrets):
+    at = new_app(secrets)
+    assert at.session_state.stage == "top"
+
+    at.button(key="start_demo").click().run()
+    assert at.session_state.stage == "input"
+    assert at.session_state.mode == "demo"
+    assert "デモモード" in at.info[0].value  # デモであることを常に表示（F05）
+
+    # 入力欄にはシナリオの内容が入っている（決定事項E2）
+    assert at.text_input(key="f_department").value == "営業管理部"
+    at.button(key="submit_info").click().run()
+    assert at.session_state.stage == "hearing"
+    assert len(at.session_state.hearing_state.turns) == 1
+
+    # 用意された回答で4問に答えると、診断結果が表示される
+    for _ in range(4):
+        at.button(key="submit_answer").click().run()
+        assert not at.exception
+
+    assert at.session_state.stage == "result"
+    text = all_text(at)
+    assert "集計作業が担当者1人に依存している" in text
+    assert "根拠となる発言を入力内容の中に確認できなかった" in text  # I5 の格下げ表示
+    assert "表計算ソフトの集計機能による自動集計" in text
+
+    # 新しい診断を始めるとトップに戻り、内容は消える
+    at.button(key="new").click().run()
+    assert at.session_state.stage == "top"
+    assert at.session_state.business_info is None
+
+
+def test_ヒアリングの途中で_ここまでの情報で診断できる(secrets):
+    at = new_app(secrets)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    at.button(key="submit_answer").click().run()  # 1問だけ回答
+
+    at.button(key="finish").click().run()
+
+    assert at.session_state.stage == "result"
+    assert "情報が不足しています" in at.warning[-1].value  # 不足項目を明示（R6）
+
+
+def test_診断を中止するとトップに戻り内容が消える(secrets):
+    at = new_app(secrets)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+
+    at.button(key="cancel").click().run()
+
+    assert at.session_state.stage == "top"
+    assert at.session_state.hearing_state is None
+
+
+# ---------------------------------------------------------------
+# 入力ミス（異常系）
+# ---------------------------------------------------------------
+def test_必須項目が空なら次に進めず_項目ごとにエラーを表示する(secrets):
+    at = new_app(secrets)
+    at.button(key="start_demo").click().run()
+    at.text_input(key="f_department").set_value("")
+    at.text_area(key="f_pain_points").set_value("   ")
+    at.button(key="submit_info").click().run()
+
+    assert at.session_state.stage == "input"
+    errors = [e.value for e in at.error]
+    assert "部署名を入力してください" in errors
+    assert "現在困っていることを入力してください" in errors
+    # 入力済みの他の項目は消えていない
+    assert at.text_input(key="f_task_name").value == "月次売上集計"
+
+
+def test_回答が空なら次の質問に進まない(secrets):
+    at = new_app(secrets)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    at.text_area(key="answer_1").set_value("")
+    at.button(key="submit_answer").click().run()
+
+    assert "回答を入力してください" in [e.value for e in at.error]
+    assert len(at.session_state.hearing_state.turns) == 1
+
+
+# ---------------------------------------------------------------
+# AIモードの入口（APIは呼ばない範囲）
+# ---------------------------------------------------------------
+def test_APIキーやパスワードが未設定ならAI診断は使えない(secrets):
+    at = new_app(secrets)
+    assert "AI診断は現在利用できません" in at.info[0].value
+    assert not [b for b in at.button if b.key == "start_ai"]
+
+
+def test_パスワードが違えばAI診断を始められない(secrets, db):
+    secrets.update(ANTHROPIC_API_KEY="dummy", APP_PASSWORD="correct")
+    at = new_app(secrets)
+    at.text_input(key="password").set_value("wrong")
+    at.button(key="start_ai").click().run()
+
+    assert at.session_state.stage == "top"
+    assert "パスワードが正しくありません。" in [e.value for e in at.error]
+
+
+def test_正しいパスワードならAI診断の入力画面に進む(secrets, db):
+    secrets.update(ANTHROPIC_API_KEY="dummy", APP_PASSWORD="correct")
+    at = new_app(secrets)
+    at.text_input(key="password").set_value("correct")
+    at.button(key="start_ai").click().run()
+
+    assert at.session_state.stage == "input"
+    assert at.session_state.mode == "ai"
+    assert at.text_input(key="f_department").value == ""  # AI診断では入力欄は空
+
+
+def test_1日の上限に達していればAI診断を始められない(secrets, db):
+    secrets.update(ANTHROPIC_API_KEY="dummy", APP_PASSWORD="correct")
+    init_db(db)
+    now = datetime.now(JST)
+    for n in range(DAILY_DIAGNOSIS_LIMIT):
+        record_call(db, f"s{n}", "question", "m", 0, 0, "success", None, now)
+
+    at = new_app(secrets)
+    at.text_input(key="password").set_value("correct")
+    at.button(key="start_ai").click().run()
+
+    assert at.session_state.stage == "top"
+    assert any("上限" in e.value for e in at.error)
