@@ -97,6 +97,7 @@ class HearingTurn(BaseModel):
     turn_no: int
     item_id: str
     question: str
+    answer_example: str | None = None  # 画面で回答欄の近くに表示する
     answer: str | None = None  # 回答前は None
 
 
@@ -165,3 +166,15 @@ class ProposalResult(BaseModel):
     """改善提案のAIが返す内容。"""
 
     proposals: list[Proposal]
+
+
+# ---------------------------------------------------------------
+# 診断結果のまとめ（プログラムが作る。結果画面に表示する）
+# ---------------------------------------------------------------
+class DiagnosisResult(BaseModel):
+    """課題分析・改善提案と、画面に添える補足情報。"""
+
+    analysis: AnalysisResult  # 引用照合（格下げ）を反映したもの
+    proposals: ProposalResult | None  # 課題が0件のときは None（提案のAIを呼ばない）
+    downgraded_issue_ids: list[str]  # 根拠を確認できず「要確認」に格下げした課題
+    missing_item_ids: list[str]  # 情報が不足している診断項目（R6）
