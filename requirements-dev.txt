@@ -1,0 +1,3 @@
+# 開発・テスト用（公開環境には不要）
+-r requirements.txt
+pytest==9.2.0

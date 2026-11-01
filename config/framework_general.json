@@ -1,0 +1,51 @@
+{
+  "framework_id": "general",
+  "name": "汎用業務診断",
+  "hearing_items": [
+    {
+      "id": "H1",
+      "name": "業務の目的",
+      "description": "誰のため、何のための業務か。成果物は何か",
+      "sufficient_when": "業務の利用者（誰に渡すか）と目的が分かる"
+    },
+    {
+      "id": "H2",
+      "name": "作業内容",
+      "description": "手順、入力するもの、出力するもの",
+      "sufficient_when": "主な手順が3つ程度に分けて説明できる"
+    },
+    {
+      "id": "H3",
+      "name": "作業時間・頻度",
+      "description": "1回あたりの時間、頻度、担当人数",
+      "sufficient_when": "時間と頻度がおおよその数値で分かる"
+    },
+    {
+      "id": "H4",
+      "name": "使用ツール",
+      "description": "Excel、メール、基幹システム、紙など",
+      "sufficient_when": "使っているツールの名前が分かる"
+    },
+    {
+      "id": "H5",
+      "name": "業務上の問題点",
+      "description": "ミス、手戻り、待ち時間、特定の人しかできない等",
+      "sufficient_when": "具体的な問題の場面が1つ以上分かる"
+    },
+    {
+      "id": "H6",
+      "name": "改善に向けた制約条件",
+      "description": "予算、使えるツールの制限、社内ルール、IT担当の有無",
+      "sufficient_when": "制約の有無が分かる（「特にない」も充足）"
+    }
+  ],
+  "viewpoints": [
+    {"id": "V1", "name": "業務効率"},
+    {"id": "V2", "name": "業務標準化"},
+    {"id": "V3", "name": "自動化可能性"},
+    {"id": "V4", "name": "データ管理"},
+    {"id": "V5", "name": "人的ミス"},
+    {"id": "V6", "name": "属人化"},
+    {"id": "V7", "name": "システム連携"}
+  ]
+}

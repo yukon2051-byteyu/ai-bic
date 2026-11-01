@@ -1,0 +1,4 @@
+# pytest の設定（プロジェクトのフォルダから ai_bic を読み込めるようにする）
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

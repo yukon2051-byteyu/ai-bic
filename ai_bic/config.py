@@ -1,0 +1,91 @@
+"""設定値の一元管理（詳細設計書 4章）。
+
+数値やモデル名をプログラムのあちこちに書かず、ここにまとめる。
+値を変えるときは、このファイルだけを直せばよい（保守性 M02）。
+"""
+
+import os
+from datetime import timedelta, timezone
+from pathlib import Path
+
+from ai_bic.models import Framework
+
+# --- フォルダの場所 ---
+BASE_DIR = Path(__file__).resolve().parent.parent
+CONFIG_DIR = BASE_DIR / "config"
+
+# --- AIモデル（決定事項Q2） ---
+MODEL_QUESTION = "claude-haiku-5-5"
+MODEL_ANALYSIS = "claude-sonnet-5-5"
+MODEL_PROPOSAL = "claude-sonnet-5-5"
+
+# --- AIの考える深さ（詳細設計 2.7。品質評価の結果で調整する） ---
+EFFORT_QUESTION = "low"
+EFFORT_ANALYSIS = "medium"
+EFFORT_PROPOSAL = "medium"
+
+# --- 出力の上限（暴走したときの歯止め。料金は実際に出力した分だけかかる） ---
+MAX_TOKENS_QUESTION = 4_000
+MAX_TOKENS_ANALYSIS = 16_000
+MAX_TOKENS_PROPOSAL = 16_000
+
+# --- 件数・回数の上限 ---
+MAX_HEARING_TURNS = 5  # ヒアリングの質問回数（R5）
+MAX_ISSUES = 5  # 課題の件数（決定事項C2）
+MAX_PROPOSALS = 3  # 改善案の件数
+DAILY_DIAGNOSIS_LIMIT = 20  # 1日の診断回数（決定事項Q4）
+INVALID_OUTPUT_RETRY = 1  # AI出力のチェックに失敗したときの呼び直し回数
+
+# --- API呼び出し ---
+API_MAX_RETRIES = 2  # SDKによる自動再試行（利用制限・サーバー障害・通信エラー）
+API_TIMEOUT_SECONDS = 90
+
+# --- 入力文字数の上限（F01） ---
+FIELD_LIMITS = {
+    "company_name": 50,
+    "department": 50,
+    "task_name": 50,
+    "overview": 1_000,
+    "pain_points": 1_000,
+}
+ANSWER_MAX_CHARS = 1_000
+
+# --- 日本時間（日本にはサマータイムがないため、UTC+9の固定値で扱う） ---
+JST = timezone(timedelta(hours=9), "JST")
+
+# --- 利用状況の記録先（テストでは環境変数で一時ファイルを指定する） ---
+DB_PATH = os.environ.get("AI_BIC_DB_PATH", str(BASE_DIR / "usage.db"))
+
+# --- Secrets の名前（値は .streamlit/secrets.toml に書く。Gitには含めない） ---
+SECRET_API_KEY = "ANTHROPIC_API_KEY"
+SECRET_APP_PASSWORD = "APP_PASSWORD"
+
+
+def get_secret(name: str) -> str | None:
+    """Streamlit Secrets → 環境変数 の順に探して値を返す。見つからなければ None。
+
+    空文字（設定はあるが中身がない）も「未設定」として None を返す。
+    """
+    value = None
+    try:
+        import streamlit as st
+
+        value = st.secrets.get(name)
+    except Exception:
+        # secrets.toml がない場合などは例外になるので、環境変数を探しに行く
+        value = None
+
+    if not value:
+        value = os.environ.get(name)
+
+    return value or None
+
+
+def load_framework(framework_id: str = "general") -> Framework:
+    """config/framework_<id>.json を読み込んで返す。
+
+    ファイルがなければ FileNotFoundError、形が正しくなければ
+    pydantic の ValidationError が発生する。
+    """
+    path = CONFIG_DIR / f"framework_{framework_id}.json"
+    return Framework.model_validate_json(path.read_text(encoding="utf-8"))
