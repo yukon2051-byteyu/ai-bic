@@ -4,7 +4,7 @@
 
 AIの回答をそのまま信じず、「AIが事実と言った根拠が、利用者の発言に本当にあるか」をプログラムで照合する仕組みを持っています。
 
-> **公開URL：** 公開後に追記します（Streamlit Community Cloud）
+> **公開URL：** https://ai-bic.streamlit.app/ （Streamlit Community Cloud。デモモードはどなたでもお試しいただけます）
 > **開発の状況（2026-11-01）：** MVPの機能を実装し、自動テスト272件と、本物のAI（Claude API）による3つの業務シナリオでの品質評価を完了しました。
 
 ---
