@@ -9,7 +9,7 @@ check_* 関数は「違反の一覧」を返す。空のリストなら合格。
 
 import unicodedata
 
-from ai_bic.config import MAX_ISSUES, MAX_PROPOSALS, MIN_QUOTE_CHARS
+from ai_bic.config import MAX_ISSUES, MAX_PROPOSALS, MAX_QUESTIONS_PER_ITEM, MIN_QUOTE_CHARS
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
@@ -62,11 +62,17 @@ def check_question_result(
         problems.append("未確認の項目があるのに次の質問がない")
 
     if result.next_item_id:
+        asked = sum(1 for turn in state.turns if turn.item_id == result.next_item_id)
         if result.next_item_id not in item_ids:
             problems.append(f"存在しない診断項目を質問しようとした: {result.next_item_id}")
         elif status_by_id.get(result.next_item_id) == "充足":
             # 回答済みの内容を繰り返し聞かない（R3）
             problems.append(f"充足済みの項目を質問しようとした: {result.next_item_id}")
+        elif asked >= MAX_QUESTIONS_PER_ITEM:
+            # 「分かりません」などで埋まらない項目を、言い換えて聞き続けない（R3）
+            problems.append(
+                f"同じ項目を{MAX_QUESTIONS_PER_ITEM}回質問済みなのに、さらに質問しようとした: {result.next_item_id}"
+            )
 
     return problems
 

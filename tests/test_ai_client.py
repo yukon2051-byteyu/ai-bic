@@ -16,7 +16,7 @@ from ai_bic import config
 from ai_bic.ai_client import ClaudeClient
 from ai_bic.errors import AIError
 from ai_bic.hearing import start_hearing
-from ai_bic.models import AnalysisResult, BusinessInfo, ProposalResult
+from ai_bic.models import AnalysisResult, BusinessInfo, HearingTurn, ProposalResult
 from tests.fakes import make_question
 
 FW = config.load_framework("general")
@@ -134,6 +134,35 @@ def test_2回とも失敗したらinvalid_outputのエラー_3回目は呼ばな
 
     assert e.value.kind == "invalid_output"
     assert len(sdk.calls) == 2
+
+
+def state_asked_h4_twice():
+    state = start_hearing(FW)
+    for n in (1, 2):
+        state.turns.append(
+            HearingTurn(turn_no=n, item_id="H4", question="ツールは？", answer="分かりません")
+        )
+    return state
+
+
+def test_同じ項目の3回目の質問は表示せず_呼び直して別の項目なら採用する(db):
+    third_h4 = make_question({"H4": "不十分"}, next_item_id="H4")
+    other = make_question({"H4": "不十分"}, next_item_id="H6")
+    client, sdk = client_with(db, response(third_h4), response(other))
+
+    result = client.ask_next_question(INFO, state_asked_h4_twice(), FW)
+
+    assert result.next_item_id == "H6"
+    assert len(sdk.calls) == 2
+
+
+def test_呼び直しても同じ項目を選び続けたら_invalid_outputのエラーになる(db):
+    # プロンプトでルールを伝えていないため、呼び直しでも同じ項目を選ぶ可能性がある
+    third_h4 = make_question({"H4": "不十分"}, next_item_id="H4")
+    client, _ = client_with(db, response(third_h4), response(third_h4))
+    with pytest.raises(AIError) as e:
+        client.ask_next_question(INFO, state_asked_h4_twice(), FW)
+    assert e.value.kind == "invalid_output"
 
 
 def test_改善案のルール違反も呼び直しの対象になる(db):

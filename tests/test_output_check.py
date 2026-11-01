@@ -159,6 +159,33 @@ def test_充足済みの項目を再び質問したら違反():
     assert any("充足済み" in p for p in problems)
 
 
+def asked(*item_ids) -> HearingState:
+    """指定した項目を順に質問・回答済みのヒアリング記録。"""
+    return HearingState(
+        turns=[
+            HearingTurn(turn_no=n, item_id=i, question="質問", answer="分かりません")
+            for n, i in enumerate(item_ids, start=1)
+        ]
+    )
+
+
+def test_同じ項目を2回聞いた後に_3回目を聞こうとしたら違反():
+    # 実際のAIで、「分かりません」と答えた使用ツール（H4）を3回聞き続けた問題への対策
+    result = question_result({"H4": "不十分"}, next_item_id="H4", question_type="確認")
+    problems = check_question_result(result, asked("H3", "H4", "H4"), FW)
+    assert any("2回質問済み" in p for p in problems)
+
+
+def test_同じ項目でも1回しか聞いていなければ_確認の質問はできる():
+    result = question_result({"H4": "不十分"}, next_item_id="H4", question_type="確認")
+    assert check_question_result(result, asked("H3", "H4"), FW) == []
+
+
+def test_他の項目を2回聞いていても_別の項目なら質問できる():
+    result = question_result({"H4": "不十分"}, next_item_id="H6")
+    assert check_question_result(result, asked("H4", "H4"), FW) == []
+
+
 def test_不十分な項目への確認質問は合格():
     result = question_result({"H3": "不十分"}, next_item_id="H3", question_type="確認")
     assert check_question_result(result, HearingState(), FW) == []
