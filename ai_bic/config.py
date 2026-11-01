@@ -35,6 +35,7 @@ MAX_ISSUES = 5  # 課題の件数（決定事項C2）
 MAX_PROPOSALS = 3  # 改善案の件数
 DAILY_DIAGNOSIS_LIMIT = 20  # 1日の診断回数（決定事項Q4）
 INVALID_OUTPUT_RETRY = 1  # AI出力のチェックに失敗したときの呼び直し回数
+MIN_QUOTE_CHARS = 4  # 根拠の引用の最小文字数。「時間」のような短すぎる引用は根拠と認めない
 
 # --- API呼び出し ---
 API_MAX_RETRIES = 2  # SDKによる自動再試行（利用制限・サーバー障害・通信エラー）
