@@ -30,8 +30,15 @@ CSS = f"""
   --accent-soft: #EEF1F6;
 }}
 
-html, body, [class*="st-"], .stMarkdown, button, input, textarea, select {{
+/* 書体は画面全体に設定し、各部品には引き継がせる。
+   Streamlit のアイコン（目のマークや▶など）は、専用のアイコン用書体で文字を絵に変えて表示している。
+   部品ごとに書体を上書きすると、アイコンが「visibility」のような文字のまま表示されてしまうため、
+   アイコンには書体を上書きしない（下の2つ目の指定で、アイコン用書体を明示して守る）。 */
+html, body, .stApp, .stMarkdown, label, input, textarea, button {{
   font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+}}
+[data-testid="stIconMaterial"], .material-symbols-rounded {{
+  font-family: "Material Symbols Rounded" !important;
 }}
 .stApp {{ background: #FFFFFF; color: var(--ink); }}
 .block-container {{ max-width: 880px; padding-top: 2.5rem; padding-bottom: 6rem; }}

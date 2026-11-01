@@ -66,6 +66,14 @@ def test_改善案カードには導入前後と最初の一歩が出る():
     assert "現在の様式を集めて違いを一覧にする" in card
 
 
+def test_書体の指定でアイコンを壊さない():
+    # 部品全体（class に st- を含む要素）に書体を指定すると、アイコンが
+    # 「visibility」「arrow_right」のような文字のまま表示される不具合が起きた（再発防止）
+    assert '[class*="st-"]' not in ui.CSS
+    assert '[data-testid="stIconMaterial"]' in ui.CSS
+    assert '"Material Symbols Rounded" !important' in ui.CSS
+
+
 def test_進み具合は今の段階を強調する():
     steps = [("input", "01 業務情報"), ("hearing", "02 ヒアリング")]
     bar = ui.topbar(steps, "hearing")
