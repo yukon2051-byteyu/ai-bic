@@ -14,10 +14,10 @@ from ai_bic.models import Framework
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 
-# --- AIモデル（決定事項Q2） ---
-MODEL_QUESTION = "claude-haiku-5-5"
-MODEL_ANALYSIS = "claude-sonnet-5-5"
-MODEL_PROPOSAL = "claude-sonnet-5-5"
+# --- AIモデル（決定事項Q2。2026-11-01 に分析・提案を Sonnet 5.5 から Opus 5.5 に変更） ---
+MODEL_QUESTION = "claude-haiku-5-5"  # 1問ごとに利用者を待たせるため、速いモデル
+MODEL_ANALYSIS = "claude-opus-5-5"  # 成果物の価値を決める部分のため、最も高性能なモデル
+MODEL_PROPOSAL = "claude-opus-5-5"
 
 # --- AIの考える深さ（詳細設計 2.7。品質評価の結果で調整する） ---
 EFFORT_QUESTION = "low"
