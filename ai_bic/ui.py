@@ -28,7 +28,8 @@ CSS = f"""
   --surface: #F6F6F7;
   --accent: {ACCENT};
   --accent-soft: #EEF1F6;
-  --gold: #C9B37E;  /* 紺の面の上だけで使う、控えめな強調色 */
+  --gold: #C9B37E;  /* 控えめな強調色（紺の面の上） */
+  --gold-deep: #A88B4E;  /* 白い背景の上で使う、少し濃い金色 */
 }}
 
 /* 書体は画面全体に設定し、各部品には引き継がせる。
@@ -60,7 +61,9 @@ header[data-testid="stHeader"] {{ display: none; }}
 .bic-label {{
   font-family: "Inter", sans-serif; font-size: 11px; font-weight: 600;
   letter-spacing: .2em; color: var(--accent); text-transform: uppercase; margin: 2.75rem 0 .35rem;
+  display: flex; align-items: center; gap: .6rem;
 }}
+.bic-label::before {{ content: ""; width: 18px; height: 2px; background: var(--gold-deep); }}
 .bic-h2 {{ font-size: 1.45rem; font-weight: 500; letter-spacing: .06em; margin: 0 0 1.25rem; }}
 /* トップページ用の詰めた見出し（1画面に収めるため） */
 .bic-label.tight {{ margin-top: .9rem; }}
@@ -77,7 +80,7 @@ header[data-testid="stHeader"] {{ display: none; }}
   background: radial-gradient(circle, rgba(140,170,210,.35) 0%, rgba(140,170,210,0) 70%);
 }}
 .bic-hero .en {{
-  position: relative; font-family: "Inter", sans-serif; font-size: 12px; letter-spacing: .28em; color: rgba(255,255,255,.65);
+  position: relative; font-family: "Inter", sans-serif; font-size: 12px; letter-spacing: .28em; color: var(--gold);
 }}
 .bic-hero h1 {{
   position: relative; font-size: 2.2rem; font-weight: 300; letter-spacing: .08em; line-height: 1.35;
@@ -97,7 +100,7 @@ header[data-testid="stHeader"] {{ display: none; }}
 .bic-features > div:nth-child(3) {{ background: linear-gradient(160deg, #2B4A63 0%, #4E7488 100%); }}
 .bic-features .no {{
   font-family: "Inter", sans-serif; font-size: 2rem; font-weight: 300; line-height: 1;
-  letter-spacing: .04em; color: rgba(255,255,255,.5);
+  letter-spacing: .04em; color: var(--gold);
 }}
 .bic-features h3 {{ font-size: .98rem; font-weight: 500; letter-spacing: .05em; margin: .6rem 0 .35rem; color: #fff; }}
 .bic-features p {{ font-size: .82rem; color: rgba(255,255,255,.78); line-height: 1.7; margin: 0; }}
@@ -162,43 +165,68 @@ header[data-testid="stHeader"] {{ display: none; }}
   .bic-summary .stats {{ grid-template-columns: 1fr 1fr; gap: .8rem 0; }}
 }}
 
-/* 課題・改善案のカード */
-.bic-card {{ border: 1px solid var(--line); border-radius: 4px; padding: 1.7rem 1.9rem; margin-bottom: 1.1rem; background: #fff; }}
+/* 課題・改善案のカード
+   読む順番：太字（タイトル・要点）→ 根拠や改善後の姿 → 小さく薄い補足（表形式） */
+.bic-card {{ border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 4px;
+  padding: 1.6rem 1.9rem 1.5rem; margin-bottom: 1.1rem; background: #fff; }}
+.bic-card.sev-high {{ border-left-color: var(--gold-deep); }}  /* 重要度「高」は左端を金色に */
+.bic-card.sev-mid {{ border-left-color: var(--accent); }}
 .bic-card .head {{ display: flex; gap: 1.2rem; align-items: flex-start; }}
-.bic-card .num {{ font-family: "Inter", sans-serif; font-size: 2rem; font-weight: 400; color: var(--line);
-  line-height: 1; min-width: 2.6rem; }}
-.bic-card h3 {{ font-size: 1.12rem; font-weight: 500; letter-spacing: .04em; line-height: 1.6; margin: 0 0 .55rem; }}
-.bic-card p {{ line-height: 1.95; margin: .6rem 0; font-size: .93rem; }}
-.bic-card .k {{ font-size: .72rem; letter-spacing: .12em; color: var(--mute); margin: 1.1rem 0 .3rem; }}
+.bic-card .num {{ font-family: "Inter", sans-serif; font-size: 2.1rem; font-weight: 300; color: #C9CCD2;
+  line-height: 1; min-width: 2.7rem; }}
+.bic-card.sev-high .num, .bic-card.recommended .num {{ color: var(--gold-deep); }}
+.bic-card h3 {{ font-size: 1.15rem; font-weight: 700; letter-spacing: .03em; line-height: 1.6; margin: .2rem 0 .55rem; }}
+.bic-card .gist {{ font-size: .98rem; font-weight: 500; line-height: 1.9; color: var(--ink); margin: .7rem 0 .2rem; }}
+.bic-card p {{ line-height: 1.9; margin: .5rem 0; font-size: .92rem; }}
+.bic-card .k {{ font-size: .72rem; font-weight: 700; letter-spacing: .12em; color: var(--accent); margin: 1.2rem 0 .35rem; }}
 .bic-badge {{ display: inline-block; font-size: .72rem; letter-spacing: .06em; padding: .18rem .6rem;
   border-radius: 2px; margin: 0 .35rem .3rem 0; border: 1px solid var(--accent); color: var(--accent); }}
-.bic-badge.fill {{ background: var(--accent); color: #fff; }}
+.bic-badge.fill {{ background: var(--accent); color: var(--gold); border-color: var(--accent); font-weight: 700; }}
 .bic-badge.gray {{ border-color: var(--line); color: var(--sub); }}
-.bic-quote {{ border-left: 2px solid var(--line); padding: .15rem 0 .15rem .9rem; margin: .45rem 0;
-  font-size: .9rem; line-height: 1.8; }}
-.bic-quote small {{ color: var(--mute); margin-left: .5rem; }}
+.bic-badge.gold {{ border-color: var(--gold-deep); color: var(--gold-deep); font-weight: 700; }}
+.bic-quote {{ border-left: 2px solid var(--accent); padding: .2rem 0 .2rem .9rem; margin: .45rem 0;
+  font-size: .92rem; font-weight: 500; line-height: 1.8; }}
+.bic-quote small {{ color: var(--mute); margin-left: .6rem; font-weight: 400; }}
 .bic-warn {{ font-size: .8rem; color: var(--accent); background: var(--accent-soft); padding: .5rem .8rem;
   border-radius: 4px; margin: .6rem 0; }}
 
+/* 補足情報（原因・影響・リスクなど）：小さく薄い文字の表にまとめ、要点より目立たせない */
+.bic-dl {{ display: grid; grid-template-columns: 8.5rem 1fr; margin: 1.2rem 0 0; border-top: 1px solid var(--line); }}
+.bic-dl dt, .bic-dl dd {{ border-bottom: 1px solid var(--line); padding: .6rem 0; margin: 0;
+  font-size: .84rem; line-height: 1.8; }}
+.bic-dl dt {{ color: var(--mute); letter-spacing: .06em; padding-right: 1rem; }}
+.bic-dl dd {{ color: var(--sub); }}
+.bic-dl dd ul {{ margin: 0; padding-left: 1.1rem; }}
+@media (max-width: 720px) {{ .bic-dl {{ grid-template-columns: 1fr; }} .bic-dl dt {{ border-bottom: none; padding-bottom: 0; }} }}
+
+/* 改善案：1つ目（最も推奨）に印、BEFORE/AFTER、推奨理由を強調 */
+.bic-card.recommended {{ border-left-color: var(--gold-deep); }}
+.bic-reco {{ display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .14em; color: #fff;
+  background: linear-gradient(120deg, var(--gold-deep), var(--gold)); padding: .2rem .7rem; border-radius: 2px; margin-bottom: .5rem; }}
 .bic-ba {{ display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line);
   border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin: 1rem 0; }}
-.bic-ba div {{ background: #fff; padding: 1rem 1.1rem; font-size: .88rem; line-height: 1.85; }}
-.bic-ba div.after {{ background: var(--accent-soft); }}
+.bic-ba div {{ background: #fff; padding: 1rem 1.1rem; font-size: .88rem; line-height: 1.85; color: var(--sub); }}
+.bic-ba div.after {{ background: var(--accent-soft); color: var(--ink); font-weight: 500; }}
 .bic-ba b {{ display: block; font-family: "Inter", sans-serif; font-size: .68rem; letter-spacing: .2em;
   color: var(--mute); margin-bottom: .35rem; font-weight: 600; }}
 .bic-ba div.after b {{ color: var(--accent); }}
 @media (max-width: 720px) {{ .bic-ba {{ grid-template-columns: 1fr; }} }}
+.bic-reason {{ border-left: 3px solid var(--gold-deep); background: #FBF8F1; padding: .8rem 1.1rem;
+  margin: .9rem 0; border-radius: 0 4px 4px 0; font-size: .92rem; line-height: 1.85; }}
+.bic-reason b {{ display: block; font-size: .72rem; letter-spacing: .12em; color: var(--gold-deep); margin-bottom: .2rem; }}
 
 .bic-steps-list {{ list-style: none; padding: 0; margin: .3rem 0 .4rem; }}
-.bic-steps-list li {{ position: relative; padding: .35rem 0 .35rem 1.7rem; line-height: 1.75; font-size: .92rem; }}
+.bic-steps-list li {{ position: relative; padding: .35rem 0 .35rem 1.7rem; line-height: 1.75;
+  font-size: .93rem; font-weight: 500; }}
 .bic-steps-list li::before {{ content: ""; position: absolute; left: 0; top: .72rem; width: .8rem; height: .8rem;
-  border: 1.5px solid var(--accent); border-radius: 2px; }}
+  border: 1.5px solid var(--gold-deep); border-radius: 2px; }}
 .bic-list {{ margin: .2rem 0; padding-left: 1.2rem; font-size: .88rem; line-height: 1.85; color: var(--sub); }}
 .bic-footnote {{ font-size: .78rem; color: var(--mute); line-height: 1.9; margin-top: 2rem; }}
 </style>
 """
 
-SEVERITY_CLASS = {"高": "fill", "中": "", "低": "gray"}
+SEVERITY_CLASS = {"高": "fill", "中": "", "低": "gray"}  # 重要度のバッジ
+SEVERITY_CARD = {"高": "sev-high", "中": "sev-mid", "低": "sev-low"}  # カードの左端の線の色
 EVIDENCE_TEXT = {"事実": "事実：発言で確認済み", "推測": "推測：発言からの推測", "要確認": "要確認：判断材料が不足"}
 
 
@@ -312,41 +340,51 @@ def issue_card(no: int, issue: Issue, viewpoints: str, sources: list[str], downg
         f'<div class="bic-quote">{esc(ev.quote)}<small>{esc(src)}</small></div>'
         for ev, src in zip(issue.evidences, sources)
     ) or '<p class="bic-list">根拠となる発言はありません</p>'
-    followups = (
-        '<div class="k">追加で確認したいこと</div><ul class="bic-list">'
-        + "".join(f"<li>{esc(q)}</li>" for q in issue.followup_questions)
-        + "</ul>"
-        if issue.followup_questions
-        else ""
-    )
+
+    # 補足（原因・影響・重要度の理由・追加確認）は小さく薄い表にまとめる
+    rows = [
+        ("想定原因（推測）", esc(issue.assumed_cause)),
+        ("業務への影響", esc(issue.impact)),
+        ("重要度の理由", esc(issue.severity_reason)),
+    ]
+    if issue.followup_questions:
+        rows.append(
+            ("追加で確認したいこと", "<ul>" + "".join(f"<li>{esc(q)}</li>" for q in issue.followup_questions) + "</ul>")
+        )
+    details = "".join(f"<dt>{name}</dt><dd>{value}</dd>" for name, value in rows)
+
     return (
-        f'<div class="bic-card"><div class="head"><div class="num">{no:02d}</div><div style="flex:1">'
-        f"<h3>{esc(issue.title)}</h3>{badges}{warn}<p>{esc(issue.summary)}</p>"
+        f'<div class="bic-card {SEVERITY_CARD[issue.severity]}"><div class="head">'
+        f'<div class="num">{no:02d}</div><div style="flex:1">'
+        f"<h3>{esc(issue.title)}</h3>{badges}{warn}"
+        f'<div class="gist">{esc(issue.summary)}</div>'
         f'<div class="k">判断根拠（ご本人の発言・添付資料）</div>{quotes}'
-        f'<div class="k">想定原因（推測）</div><p>{esc(issue.assumed_cause)}</p>'
-        f'<div class="k">業務への影響</div><p>{esc(issue.impact)}</p>'
-        f'<div class="k">重要度の理由</div><p>{esc(issue.severity_reason)}</p>'
-        f"{followups}</div></div></div>"
+        f'<dl class="bic-dl">{details}</dl></div></div></div>'
     )
 
 
 def proposal_card(no: int, p: Proposal) -> str:
+    """改善案のカード。改善案は推奨順に並ぶため、1つ目に「最初に取り組む案」の印をつける。"""
+
     def items(values: list[str]) -> str:
         return "".join(f"<li>{esc(v)}</li>" for v in values)
 
-    why = (
-        f'<div class="k">より簡単な方法では不十分な理由</div><p>{esc(p.why_not_simpler)}</p>'
-        if p.why_not_simpler
-        else ""
-    )
-    risks = f'<div class="k">想定リスク</div><ul class="bic-list">{items(p.risks)}</ul>' if p.risks else ""
-    pre = (
-        f'<div class="k">実施前に確認すべき事項</div><ul class="bic-list">{items(p.prerequisites)}</ul>'
-        if p.prerequisites
-        else ""
-    )
+    recommended = no == 1
+    reco = '<div class="bic-reco">最初に取り組む案</div><br>' if recommended else ""
+
+    # 補足（効果・より簡単な方法では不十分な理由・リスク・事前確認）は小さく薄い表にまとめる
+    rows = [("期待できる効果（想定）", esc(p.expected_effect))]
+    if p.why_not_simpler:
+        rows.append(("より簡単な方法では不十分な理由", esc(p.why_not_simpler)))
+    if p.risks:
+        rows.append(("想定リスク", f"<ul>{items(p.risks)}</ul>"))
+    if p.prerequisites:
+        rows.append(("実施前に確認すべき事項", f"<ul>{items(p.prerequisites)}</ul>"))
+    details = "".join(f"<dt>{name}</dt><dd>{value}</dd>" for name, value in rows)
+
     return (
-        f'<div class="bic-card"><div class="head"><div class="num">{no:02d}</div><div style="flex:1">'
+        f'<div class="bic-card{" recommended" if recommended else ""}"><div class="head">'
+        f'<div class="num">{no:02d}</div><div style="flex:1">{reco}'
         f'<span class="bic-badge">{esc(p.category)}</span>'
         f'<span class="bic-badge gray">導入難易度 {esc(p.difficulty)}</span>'
         f'<span class="bic-badge gray">対応する課題 {esc("・".join(p.target_issue_ids))}</span>'
@@ -354,9 +392,8 @@ def proposal_card(no: int, p: Proposal) -> str:
         f'<div class="bic-ba"><div><b>BEFORE　今</b>{esc(p.before)}</div>'
         f'<div class="after"><b>AFTER　改善後（想定）</b>{esc(p.after)}</div></div>'
         f'<div class="k">最初の一歩（今週から始められること）</div><ul class="bic-steps-list">{items(p.first_steps)}</ul>'
-        f'<div class="k">推奨理由</div><p>{esc(p.reason)}</p>{why}'
-        f'<div class="k">期待できる効果（想定）</div><p>{esc(p.expected_effect)}</p>'
-        f"{risks}{pre}</div></div></div>"
+        f'<div class="bic-reason"><b>推奨理由</b>{esc(p.reason)}</div>'
+        f'<dl class="bic-dl">{details}</dl></div></div></div>'
     )
 
 

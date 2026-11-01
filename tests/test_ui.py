@@ -97,6 +97,32 @@ def test_最重要課題が見つからなくても表示が崩れない():
     assert "課題を特定できませんでした" in card
 
 
+def test_重要度高の課題だけ_カードを金色で強調する():
+    high = ui.issue_card(1, make_issue(severity="高"), "観点", ["業務情報"], downgraded=False)
+    mid = ui.issue_card(2, make_issue(severity="中"), "観点", ["業務情報"], downgraded=False)
+    assert 'class="bic-card sev-high"' in high
+    assert 'class="bic-card sev-mid"' in mid
+
+
+def test_課題の補足は表にまとめる():
+    card = ui.issue_card(1, make_issue(), "観点", ["業務情報"], downgraded=False)
+    assert '<dl class="bic-dl">' in card
+    assert "<dt>想定原因（推測）</dt><dd>様式の違い</dd>" in card
+    assert "<dt>追加で確認したいこと</dt>" in card
+
+
+def test_1つ目の改善案にだけ_最初に取り組む案の印がつく():
+    first = ui.proposal_card(1, make_proposal())
+    second = ui.proposal_card(2, make_proposal())
+    assert "最初に取り組む案" in first and "recommended" in first
+    assert "最初に取り組む案" not in second and "recommended" not in second
+
+
+def test_改善案の推奨理由を強調枠で示す():
+    card = ui.proposal_card(1, make_proposal(reason="費用をかけずに始められる"))
+    assert '<div class="bic-reason"><b>推奨理由</b>費用をかけずに始められる</div>' in card
+
+
 def test_書体の指定でアイコンを壊さない():
     # 部品全体（class に st- を含む要素）に書体を指定すると、アイコンが
     # 「visibility」「arrow_right」のような文字のまま表示される不具合が起きた（再発防止）
