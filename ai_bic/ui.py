@@ -42,8 +42,10 @@ html, body, .stApp, .stMarkdown, label, input, textarea, button {{
 }}
 /* 背景：真っ白にせず、上部にごく薄い青みを入れて奥行きを出す */
 .stApp {{ background: linear-gradient(180deg, #EEF1F6 0px, #F7F8FA 360px, #FFFFFF 720px); color: var(--ink); }}
-.block-container {{ max-width: 880px; padding-top: 2.5rem; padding-bottom: 6rem; }}
-header[data-testid="stHeader"] {{ background: transparent; }}
+.block-container {{ max-width: 880px; padding-top: 1rem; padding-bottom: 4rem; }}
+/* 上部に固定された Streamlit のバー（メニューは非表示にしている）。上の余白を詰めると
+   内容に重なるため、バーごと表示しない */
+header[data-testid="stHeader"] {{ display: none; }}
 #MainMenu, footer, [data-testid="stToolbar"] {{ visibility: hidden; }}
 
 /* ボタン・入力欄：控えめな角丸と、広めの字間 */
@@ -59,10 +61,13 @@ header[data-testid="stHeader"] {{ background: transparent; }}
   letter-spacing: .2em; color: var(--accent); text-transform: uppercase; margin: 2.75rem 0 .35rem;
 }}
 .bic-h2 {{ font-size: 1.45rem; font-weight: 500; letter-spacing: .06em; margin: 0 0 1.25rem; }}
+/* トップページ用の詰めた見出し（1画面に収めるため） */
+.bic-label.tight {{ margin-top: .9rem; }}
+.bic-h2.tight {{ font-size: 1.15rem; margin-bottom: .5rem; }}
 
 /* トップの見出し：紺からスレートへのグラデーションの面に、白い文字 */
 .bic-hero {{
-  position: relative; overflow: hidden; border-radius: 6px; padding: 2.8rem 2.6rem 2.6rem; margin-bottom: 1.2rem;
+  position: relative; overflow: hidden; border-radius: 6px; padding: 1.8rem 2.4rem 1.7rem; margin-bottom: .75rem;
   color: #fff; background: linear-gradient(120deg, #14213D 0%, #1B2B4B 45%, #3A5778 100%);
 }}
 /* 右上に、ぼかした光を重ねて奥行きを出す（装飾） */
@@ -74,38 +79,38 @@ header[data-testid="stHeader"] {{ background: transparent; }}
   position: relative; font-family: "Inter", sans-serif; font-size: 12px; letter-spacing: .28em; color: rgba(255,255,255,.65);
 }}
 .bic-hero h1 {{
-  position: relative; font-size: 2.3rem; font-weight: 300; letter-spacing: .08em; line-height: 1.4;
-  margin: .9rem 0 1rem; color: #fff; white-space: nowrap;
+  position: relative; font-size: 2.2rem; font-weight: 300; letter-spacing: .08em; line-height: 1.35;
+  margin: .5rem 0 .6rem; color: #fff; white-space: nowrap;
 }}
-.bic-hero p {{ position: relative; color: rgba(255,255,255,.8); line-height: 2; letter-spacing: .04em; margin: 0; }}
+.bic-hero p {{ position: relative; color: rgba(255,255,255,.8); line-height: 1.8; letter-spacing: .04em; margin: 0; font-size: .92rem; }}
 @media (max-width: 720px) {{
-  .bic-hero {{ padding: 2rem 1.4rem; }}
+  .bic-hero {{ padding: 1.5rem 1.3rem; }}
   .bic-hero h1 {{ font-size: 1.6rem; white-space: normal; }}
 }}
 
 /* 3つの特長：紺の濃淡で少しずつ色を変えたカード。番号を大きく見せる */
 .bic-features {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 .5rem; }}
-.bic-features > div {{ border-radius: 6px; padding: 1.6rem 1.4rem 1.7rem; color: #fff; }}
+.bic-features > div {{ border-radius: 6px; padding: 1.1rem 1.3rem 1.2rem; color: #fff; }}
 .bic-features > div:nth-child(1) {{ background: linear-gradient(160deg, #1B2B4B 0%, #2D4369 100%); }}
 .bic-features > div:nth-child(2) {{ background: linear-gradient(160deg, #22385A 0%, #3B5A7E 100%); }}
 .bic-features > div:nth-child(3) {{ background: linear-gradient(160deg, #2B4A63 0%, #4E7488 100%); }}
 .bic-features .no {{
-  font-family: "Inter", sans-serif; font-size: 2.6rem; font-weight: 300; line-height: 1;
+  font-family: "Inter", sans-serif; font-size: 2rem; font-weight: 300; line-height: 1;
   letter-spacing: .04em; color: rgba(255,255,255,.5);
 }}
-.bic-features h3 {{ font-size: 1rem; font-weight: 500; letter-spacing: .05em; margin: 1.1rem 0 .5rem; color: #fff; }}
-.bic-features p {{ font-size: .84rem; color: rgba(255,255,255,.78); line-height: 1.85; margin: 0; }}
+.bic-features h3 {{ font-size: .98rem; font-weight: 500; letter-spacing: .05em; margin: .6rem 0 .35rem; color: #fff; }}
+.bic-features p {{ font-size: .82rem; color: rgba(255,255,255,.78); line-height: 1.7; margin: 0; }}
 @media (max-width: 720px) {{ .bic-features {{ grid-template-columns: 1fr; }} }}
 
 /* 注記 */
-.bic-note {{ font-size: .82rem; color: var(--sub); line-height: 1.9; background: var(--surface);
-  border-left: 2px solid var(--accent); padding: .9rem 1.1rem; margin: 1rem 0; border-radius: 0 4px 4px 0; }}
+.bic-note {{ font-size: .8rem; color: var(--sub); line-height: 1.75; background: var(--surface);
+  border-left: 2px solid var(--accent); padding: .65rem 1rem; margin: .75rem 0; border-radius: 0 4px 4px 0; }}
 .bic-tag {{ display: inline-block; font-size: .72rem; letter-spacing: .08em; padding: .2rem .65rem;
   border: 1px solid var(--line); border-radius: 2px; color: var(--sub); margin: 0 .4rem .3rem 0; }}
 
 /* 上部のブランドと進み具合 */
 .bic-bar {{ display: flex; justify-content: space-between; align-items: baseline;
-  border-bottom: 1px solid var(--line); padding-bottom: .9rem; margin-bottom: 1.6rem; }}
+  border-bottom: 1px solid var(--line); padding-bottom: .6rem; margin-bottom: 1rem; }}
 .bic-brand {{ font-family: "Inter", sans-serif; font-weight: 600; letter-spacing: .22em; font-size: .95rem; }}
 .bic-brand span {{ font-weight: 400; color: var(--mute); letter-spacing: .12em; font-size: .72rem; margin-left: .8rem; }}
 .bic-steps {{ display: flex; gap: 1.2rem; font-size: .78rem; letter-spacing: .06em; color: var(--mute); }}
@@ -180,9 +185,10 @@ def esc(text) -> str:
     return html.escape(str(text or "")).replace("$", "&#36;")
 
 
-def label(en: str, ja: str) -> str:
-    """英字の小さなラベル＋日本語の見出し。"""
-    return f'<div class="bic-label">{esc(en)}</div><div class="bic-h2">{esc(ja)}</div>'
+def label(en: str, ja: str, tight: bool = False) -> str:
+    """英字の小さなラベル＋日本語の見出し。tight=True は余白を詰めた版（トップページ用）。"""
+    extra = " tight" if tight else ""
+    return f'<div class="bic-label{extra}">{esc(en)}</div><div class="bic-h2{extra}">{esc(ja)}</div>'
 
 
 def hero() -> str:

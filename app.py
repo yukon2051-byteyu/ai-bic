@@ -170,7 +170,7 @@ def render_top() -> None:
     col_ai, col_demo = st.columns(2, gap="large")
 
     with col_ai:
-        html(ui.label("AI Diagnosis", "AI診断"))
+        html(ui.label("AI Diagnosis", "AI診断", tight=True))
         if guard.ai_available():
             password = st.text_input("アクセス用パスワード", type="password", key="password")
             if st.button("診断を始める", type="primary", key="start_ai"):
@@ -185,7 +185,7 @@ def render_top() -> None:
             html(ui.note("AI診断は現在利用できません。デモモードをお試しください。"))
 
     with col_demo:
-        html(ui.label("Demo", "デモで試す"))
+        html(ui.label("Demo", "デモで試す", tight=True))
         scenarios = load_scenarios()
         titles = [sc["title"] for sc in scenarios]
         chosen = st.selectbox("架空の業務シナリオ（APIキー不要）", titles, key="demo_scenario")
