@@ -73,6 +73,13 @@ def test_提案のプロンプトは検討の順序と新規システムの条�
     assert "why_not_simpler" in text
 
 
+def test_提案のプロンプトは_具体性と追加項目の書き方を含む():
+    text = load_system_prompt("proposal_system")
+    assert "一般論は避けて" in text
+    for field in ["before", "after", "first_steps", "headline", "top_issue_id", "first_action"]:
+        assert field in text
+
+
 def test_存在しないプロンプトはエラー():
     with pytest.raises(FileNotFoundError):
         load_system_prompt("not_exists")

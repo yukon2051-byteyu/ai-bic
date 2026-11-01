@@ -17,7 +17,7 @@ from ai_bic.ai_client import ClaudeClient
 from ai_bic.errors import AIError
 from ai_bic.hearing import start_hearing
 from ai_bic.models import AnalysisResult, BusinessInfo, HearingTurn, ProposalResult
-from tests.fakes import make_question
+from tests.fakes import make_proposal_result, make_question
 
 FW = config.load_framework("general")
 INFO = BusinessInfo(
@@ -167,7 +167,7 @@ def test_呼び直しても同じ項目を選び続けたら_invalid_outputの�
 
 def test_改善案のルール違反も呼び直しの対象になる(db):
     analysis = AnalysisResult(business_summary="", issues=[], no_issue_viewpoints=[])
-    empty = ProposalResult(proposals=[])  # 0件は違反
+    empty = make_proposal_result(proposals=[])  # 0件は違反
     client, sdk = client_with(db, response(empty), response(empty))
     with pytest.raises(AIError):
         client.propose(INFO, start_hearing(FW), analysis)

@@ -9,7 +9,13 @@ check_* 関数は「違反の一覧」を返す。空のリストなら合格。
 
 import unicodedata
 
-from ai_bic.config import MAX_ISSUES, MAX_PROPOSALS, MAX_QUESTIONS_PER_ITEM, MIN_QUOTE_CHARS
+from ai_bic.config import (
+    MAX_FIRST_STEPS,
+    MAX_ISSUES,
+    MAX_PROPOSALS,
+    MAX_QUESTIONS_PER_ITEM,
+    MIN_QUOTE_CHARS,
+)
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
@@ -177,6 +183,12 @@ def check_proposals(result: ProposalResult, analysis: AnalysisResult) -> list[st
     if not 1 <= len(result.proposals) <= MAX_PROPOSALS:
         problems.append(f"改善案の件数が1〜{MAX_PROPOSALS}件でない: {len(result.proposals)}件")
 
+    # 診断サマリーが、実在する課題を最重要として指しているか
+    if result.summary.top_issue_id not in issue_ids:
+        problems.append(f"サマリーが存在しない課題を指している: {result.summary.top_issue_id}")
+    if not result.summary.headline.strip() or not result.summary.first_action.strip():
+        problems.append("サマリーの要点または最初の一手が空")
+
     for i, p in enumerate(result.proposals, start=1):
         if not p.target_issue_ids:
             problems.append(f"改善案{i}: 対応する課題がない")
@@ -186,5 +198,11 @@ def check_proposals(result: ProposalResult, analysis: AnalysisResult) -> list[st
         # 新規システム導入を安易に推奨しない：より簡単な方法では不十分な理由を必須にする
         if p.category == "新規システム導入" and not (p.why_not_simpler or "").strip():
             problems.append(f"改善案{i}: 新規システム導入なのに、より簡単な方法では不十分な理由がない")
+        # 導入前後の比較と、最初の一歩（訴求力のための項目）
+        if not p.before.strip() or not p.after.strip():
+            problems.append(f"改善案{i}: 導入前後の比較が空")
+        steps = [s for s in p.first_steps if s.strip()]
+        if not 1 <= len(steps) <= MAX_FIRST_STEPS:
+            problems.append(f"改善案{i}: 最初の一歩が1〜{MAX_FIRST_STEPS}個でない: {len(steps)}個")
 
     return problems

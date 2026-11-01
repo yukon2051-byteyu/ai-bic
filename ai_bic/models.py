@@ -161,11 +161,23 @@ class Proposal(BaseModel):
     prerequisites: list[str]
     reason: str
     why_not_simpler: str | None  # 新規システム導入のときは必須（output_check.py で確認）
+    before: str  # 今の業務の姿（導入前後の比較）
+    after: str  # 改善後の業務の姿（想定）
+    first_steps: list[str]  # 今週から始められる具体的な行動（1〜3個）
+
+
+class DiagnosisSummary(BaseModel):
+    """診断サマリー。結果画面の冒頭で、最も重要な課題と最初の一手を短く示す。"""
+
+    headline: str  # 診断全体の要点（1文）
+    top_issue_id: str  # 最も重要な課題のID
+    first_action: str  # 最初に取り組むべきこと（1文）
 
 
 class ProposalResult(BaseModel):
     """改善提案のAIが返す内容。"""
 
+    summary: DiagnosisSummary
     proposals: list[Proposal]
 
 

@@ -6,7 +6,49 @@ AIを呼ばないので料金はかからず、毎回同じ結果になる。
 """
 
 from ai_bic.errors import AIError
-from ai_bic.models import AnalysisResult, ItemStatus, ProposalResult, QuestionResult
+from ai_bic.models import (
+    AnalysisResult,
+    DiagnosisSummary,
+    ItemStatus,
+    Proposal,
+    ProposalResult,
+    QuestionResult,
+)
+
+
+def make_proposal(**override) -> Proposal:
+    """チェックに合格する改善案。override で一部の項目を変えられる。"""
+    data = {
+        "title": "集計表の様式統一",
+        "category": "業務標準化",
+        "description": "",
+        "target_issue_ids": ["I1"],
+        "expected_effect": "",
+        "difficulty": "低",
+        "risks": [],
+        "prerequisites": [],
+        "reason": "",
+        "why_not_simpler": None,
+        "before": "営業所ごとに様式が違い、手作業で転記している",
+        "after": "様式がそろい、転記の手間が減る想定",
+        "first_steps": ["現在の様式を集めて違いを一覧にする"],
+    }
+    data.update(override)
+    return Proposal(**data)
+
+
+def make_proposal_result(proposals=None, top_issue_id="I1", **summary_override) -> ProposalResult:
+    """チェックに合格する改善提案の結果（診断サマリーつき）。"""
+    summary = {
+        "headline": "最大の課題は転記の手作業です",
+        "top_issue_id": top_issue_id,
+        "first_action": "現在の様式を集めて違いを一覧にする",
+    }
+    summary.update(summary_override)
+    return ProposalResult(
+        summary=DiagnosisSummary(**summary),
+        proposals=proposals if proposals is not None else [make_proposal()],
+    )
 
 ITEM_IDS = ["H1", "H2", "H3", "H4", "H5", "H6"]
 

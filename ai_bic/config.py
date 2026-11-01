@@ -34,6 +34,7 @@ MAX_HEARING_TURNS = 5  # ヒアリングの質問回数（R5）
 MAX_QUESTIONS_PER_ITEM = 2  # 同じ診断項目への質問回数の上限（同じことを聞き続けるのを防ぐ。R3）
 MAX_ISSUES = 5  # 課題の件数（決定事項C2）
 MAX_PROPOSALS = 3  # 改善案の件数
+MAX_FIRST_STEPS = 3  # 改善案ごとの「最初の一歩」の件数
 DAILY_DIAGNOSIS_LIMIT = 20  # 1日の診断回数（決定事項Q4）
 INVALID_OUTPUT_RETRY = 1  # AI出力のチェックに失敗したときの呼び直し回数
 MIN_QUOTE_CHARS = 4  # 根拠の引用の最小文字数。「時間」のような短すぎる引用は根拠と認めない

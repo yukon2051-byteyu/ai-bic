@@ -27,7 +27,7 @@ from ai_bic.models import (
     Proposal,
     ProposalResult,
 )
-from tests.fakes import FakeClient, make_question
+from tests.fakes import FakeClient, make_proposal_result, make_question
 
 FW = load_framework("general")
 INFO = BusinessInfo(
@@ -241,22 +241,7 @@ def make_issue(issue_id, quote) -> Issue:
 
 
 def make_proposals() -> ProposalResult:
-    return ProposalResult(
-        proposals=[
-            Proposal(
-                title="様式の統一",
-                category="業務標準化",
-                description="",
-                target_issue_ids=["I1"],
-                expected_effect="",
-                difficulty="低",
-                risks=[],
-                prerequisites=[],
-                reason="",
-                why_not_simpler=None,
-            )
-        ]
-    )
+    return make_proposal_result()
 
 
 def finished_state():

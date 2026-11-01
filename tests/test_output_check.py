@@ -27,6 +27,8 @@ from ai_bic.output_check import (
     verify_evidences,
 )
 
+from tests.fakes import make_proposal, make_proposal_result
+
 FW = load_framework("general")
 ITEM_IDS = ["H1", "H2", "H3", "H4", "H5", "H6"]
 
@@ -94,19 +96,12 @@ def analysis(*issues: Issue, no_issue_viewpoints=None) -> AnalysisResult:
     )
 
 
-def proposal(category="業務標準化", target_issue_ids=None, why_not_simpler=None) -> Proposal:
-    return Proposal(
-        title="集計表の様式統一",
-        category=category,
-        description="",
-        target_issue_ids=target_issue_ids if target_issue_ids is not None else ["I1"],
-        expected_effect="",
-        difficulty="低",
-        risks=[],
-        prerequisites=[],
-        reason="",
-        why_not_simpler=why_not_simpler,
-    )
+def proposal(**override) -> Proposal:
+    return make_proposal(**override)
+
+
+def proposals(*items: Proposal, **summary_override) -> ProposalResult:
+    return make_proposal_result(list(items), **summary_override)
 
 
 # ---------------------------------------------------------------
@@ -351,42 +346,69 @@ ANALYSIS_2 = analysis(issue("I1"), issue("I2"))
 
 
 def test_正しい改善提案は合格():
-    result = ProposalResult(proposals=[proposal(), proposal(target_issue_ids=["I1", "I2"])])
+    result = proposals(proposal(), proposal(target_issue_ids=["I1", "I2"]))
     assert check_proposals(result, ANALYSIS_2) == []
 
 
 @pytest.mark.parametrize("count", [0, 4])
 def test_改善案が0件や4件以上は違反(count):
-    result = ProposalResult(proposals=[proposal() for _ in range(count)])
+    result = proposals(*[proposal() for _ in range(count)])
     assert check_proposals(result, ANALYSIS_2)
 
 
 def test_対応する課題がない改善案は違反():
-    result = ProposalResult(proposals=[proposal(target_issue_ids=[])])
-    assert check_proposals(result, ANALYSIS_2)
+    assert check_proposals(proposals(proposal(target_issue_ids=[])), ANALYSIS_2)
 
 
 def test_存在しない課題を指す改善案は違反():
-    result = ProposalResult(proposals=[proposal(target_issue_ids=["I3"])])
-    assert check_proposals(result, ANALYSIS_2)
+    assert check_proposals(proposals(proposal(target_issue_ids=["I3"])), ANALYSIS_2)
 
 
 @pytest.mark.parametrize("why", [None, "", "  "])
 def test_新規システム導入で理由がなければ違反(why):
-    result = ProposalResult(proposals=[proposal(category="新規システム導入", why_not_simpler=why)])
+    result = proposals(proposal(category="新規システム導入", why_not_simpler=why))
     problems = check_proposals(result, ANALYSIS_2)
     assert any("新規システム導入" in p for p in problems)
 
 
 def test_新規システム導入でも理由があれば合格():
-    result = ProposalResult(
-        proposals=[
-            proposal(
-                category="新規システム導入",
-                why_not_simpler="拠点が20か所あり、表の統一だけでは集約の手間が残るため",
-            )
-        ]
+    result = proposals(
+        proposal(
+            category="新規システム導入",
+            why_not_simpler="拠点が20か所あり、表の統一だけでは集約の手間が残るため",
+        )
     )
+    assert check_proposals(result, ANALYSIS_2) == []
+
+
+# --- 訴求力のための項目（診断サマリー・導入前後の比較・最初の一歩） ---
+
+
+def test_サマリーが存在しない課題を最重要としたら違反():
+    problems = check_proposals(proposals(proposal(), top_issue_id="I9"), ANALYSIS_2)
+    assert any("サマリー" in p for p in problems)
+
+
+@pytest.mark.parametrize("field", ["headline", "first_action"])
+def test_サマリーの要点や最初の一手が空なら違反(field):
+    problems = check_proposals(proposals(proposal(), **{field: "  "}), ANALYSIS_2)
+    assert any("サマリー" in p for p in problems)
+
+
+@pytest.mark.parametrize("field", ["before", "after"])
+def test_導入前後の比較が空なら違反(field):
+    problems = check_proposals(proposals(proposal(**{field: ""})), ANALYSIS_2)
+    assert any("導入前後" in p for p in problems)
+
+
+@pytest.mark.parametrize("steps", [[], ["  "], ["1", "2", "3", "4"]])
+def test_最初の一歩が0個や4個以上は違反(steps):
+    problems = check_proposals(proposals(proposal(first_steps=steps)), ANALYSIS_2)
+    assert any("最初の一歩" in p for p in problems)
+
+
+def test_最初の一歩は3個まで合格():
+    result = proposals(proposal(first_steps=["様式を集める", "違いを一覧にする", "案を作る"]))
     assert check_proposals(result, ANALYSIS_2) == []
 
 
