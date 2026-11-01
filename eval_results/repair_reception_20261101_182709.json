@@ -1,0 +1,118 @@
+{
+  "scenario_id": "repair_reception",
+  "attachments": [
+    "お客様の声_抜粋.txt"
+  ],
+  "models": {
+    "question": "claude-haiku-5-5",
+    "analysis": "claude-opus-5-5",
+    "proposal": "claude-opus-5-5"
+  },
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H5",
+        "question": "お客様に対応状況を聞かれたとき、どのくらいの時間で答えられず、どんなやりとりになりますか？",
+        "answer_example": "例：お客様から電話で聞かれ、受付票を探して業者に確認するため、折り返しまで半日ほどかかる",
+        "answer": "受付票の束から探したり、受けた人に聞いたりします。担当者が休みだと分からないこともあります。"
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H3",
+        "question": "修理依頼の受付から業者手配までを、1件あたりどのくらいの時間で行っていますか？また1週間に何件ほどですか？",
+        "answer_example": "例：1件あたり10分ほどで、1週間に20件くらい",
+        "answer": "けっこう多いです。忙しい日は大変です。"
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H3",
+        "question": "修理依頼は1週間に何件ほどありますか？また1件の受付から業者手配まで、だいたい何分くらいかかりますか？",
+        "answer_example": "例：1週間に20件ほど、1件あたり15分くらい",
+        "answer": "1日に40件ほどを4人で受けています。お客様からの状況確認の電話も1日に10件以上あります。"
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "未確認",
+        "known_facts": ""
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "お客様からの給湯器・トイレ修理依頼を電話で受け、紙の受付票に記入し、協力業者へFAXまたはメールで手配している。"
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "不十分",
+        "known_facts": "「けっこう多いです。忙しい日は大変です。」とのみ回答。件数・時間は未確認。"
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "不十分",
+        "known_facts": "紙の受付票を使用し、業者へFAXまたはメールで連絡している。"
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "お客様から対応状況を聞かれてもすぐに答えられない。受付票の束から探したり、受けた人に聞いたりしており、担当者が休みだと分からないこともある。"
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "未確認",
+        "known_facts": ""
+      }
+    },
+    "finished_reason": null
+  },
+  "diagnosis": null,
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 2685,
+      "output_tokens": 390,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00046
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 2913,
+      "output_tokens": 413,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.0005
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3044,
+      "output_tokens": 449,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00053
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3204,
+      "output_tokens": 447,
+      "status": "error",
+      "error_type": "invalid_output",
+      "dollars": 0.00054
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3204,
+      "output_tokens": 448,
+      "status": "error",
+      "error_type": "invalid_output",
+      "dollars": 0.00054
+    }
+  ],
+  "total_dollars": 0.00257
+}

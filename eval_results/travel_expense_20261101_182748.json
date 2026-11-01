@@ -1,0 +1,134 @@
+{
+  "scenario_id": "travel_expense",
+  "attachments": [
+    "差し戻し記録_9月.xlsx"
+  ],
+  "models": {
+    "question": "claude-haiku-5-5",
+    "analysis": "claude-opus-5-5",
+    "proposal": "claude-opus-5-5"
+  },
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H6",
+        "question": "今の交通費精算の進め方を変えるうえで、予算の上限や社内ルールなど、守る必要がある条件はありますか？",
+        "answer_example": "例：予算は特に決まっていない。紙の精算書は社内規程で残す必要がある",
+        "answer": "社内規定で、外部のクラウドサービスは使えません。会計ソフトはパソコンにインストールして使っています。紙の領収書の原本は保管が必要です。"
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H3",
+        "question": "締め後の3日間で、2名はおおよそ合計何時間ほど確認と入力をしていますか？",
+        "answer_example": "例：2人で合計20時間ほど、毎月末から3営業日かけて",
+        "answer": "すみません、その点は分かりません。"
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H4",
+        "question": "精算の確認や入力では、紙と会計ソフト以外に使っているものはありますか？",
+        "answer_example": "例：社員とのやり取りはメールでしている、表計算ソフトで集計している",
+        "answer": "すみません、その点は分かりません。"
+      },
+      {
+        "turn_no": 4,
+        "item_id": "H3",
+        "question": "締め後の3日間で、確認や入力に使っている時間のおおよその感覚はありますか？",
+        "answer_example": "例：毎月、2人で1日半ずつくらい",
+        "answer": "すみません、その点は分かりません。"
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "充足",
+        "known_facts": "社員約120名への交通費精算。総務部が内容と金額を確認し、振込データを作成する"
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "社員が紙の精算書に記入、領収書を貼付、上長が押印して総務部に提出。総務部2名が確認し会計ソフトに手入力して振込データを作成"
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "不十分",
+        "known_facts": "毎月末に精算書を提出。締め後3日間ほど2名で確認と入力にかかりきり。合計時間は利用者が分からないと回答"
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "不十分",
+        "known_facts": "紙の精算書、領収書、会計ソフトを使用している。それ以外のツールは不明"
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "記入漏れや計算間違いによる差し戻しが多い"
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "充足",
+        "known_facts": "社内規定で外部のクラウドサービスは使えない。会計ソフトはパソコンにインストール。紙の領収書原本は保管が必要"
+      }
+    },
+    "finished_reason": null
+  },
+  "diagnosis": null,
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 2733,
+      "output_tokens": 485,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00052
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3103,
+      "output_tokens": 490,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00056
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3205,
+      "output_tokens": 503,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00057
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3291,
+      "output_tokens": 495,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00058
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3363,
+      "output_tokens": 437,
+      "status": "error",
+      "error_type": "invalid_output",
+      "dollars": 0.00055
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3363,
+      "output_tokens": 442,
+      "status": "error",
+      "error_type": "invalid_output",
+      "dollars": 0.00056
+    }
+  ],
+  "total_dollars": 0.00334
+}
