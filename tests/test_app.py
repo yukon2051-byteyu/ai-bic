@@ -79,6 +79,24 @@ def test_デモモードで最後まで診断できる(secrets):
     assert at.session_state.business_info is None
 
 
+def test_プルダウンで2本目のシナリオを選んで最後まで診断できる(secrets):
+    at = new_app(secrets)
+    assert len(at.selectbox(key="demo_scenario").options) >= 2
+
+    at.selectbox(key="demo_scenario").set_value("修理依頼の受付・手配（お客様相談室）").run()
+    at.button(key="start_demo").click().run()
+    assert at.text_input(key="f_department").value == "お客様相談室"
+    at.button(key="submit_info").click().run()
+
+    for _ in range(5):
+        at.button(key="submit_answer").click().run()
+        assert not at.exception
+
+    assert at.session_state.stage == "result"
+    assert "改善に向けた制約条件" in at.warning[-1].value  # 5問で終わり、不足項目を表示
+    assert "より簡単な方法では不十分な理由" in all_text(at)  # 新規システム導入の理由
+
+
 def test_ヒアリングの途中で_ここまでの情報で診断できる(secrets):
     at = new_app(secrets)
     at.button(key="start_demo").click().run()

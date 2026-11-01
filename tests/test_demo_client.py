@@ -7,7 +7,14 @@ import pytest
 
 from ai_bic.config import load_framework
 from ai_bic.demo_client import DemoClient, demo_answer, load_scenarios
-from ai_bic.hearing import add_answer, request_next_question, run_diagnosis, start_hearing
+from ai_bic.hearing import (
+    FINISH_MAX_TURNS,
+    FINISH_SUFFICIENT,
+    add_answer,
+    request_next_question,
+    run_diagnosis,
+    start_hearing,
+)
 from ai_bic.models import BusinessInfo
 from ai_bic.output_check import check_analysis, check_proposals, check_question_result
 from ai_bic.validation import validate_business_info
@@ -35,7 +42,54 @@ def test_デモシナリオは最後まで進み_全データがチェックに�
     result = run_diagnosis(client, info, state, FW)
     assert check_analysis(client.analyze(info, state, FW), FW) == []
     assert check_proposals(result.proposals, result.analysis) == []
+
+
+def test_シナリオが2本以上あり_IDとタイトルが重複しない():
+    assert len(SCENARIOS) >= 2
+    assert len({s["id"] for s in SCENARIOS}) == len(SCENARIOS)
+    assert len({s["title"] for s in SCENARIOS}) == len(SCENARIOS)
+
+
+def run_demo(scenario_id):
+    """デモを最後まで進め、(ヒアリングの記録, 診断結果) を返す。"""
+    scenario = next(s for s in SCENARIOS if s["id"] == scenario_id)
+    info = BusinessInfo(**scenario["business_info"])
+    client = DemoClient(scenario)
+    state = start_hearing(FW)
+    while (turn := request_next_question(client, info, state, FW)) is not None:
+        add_answer(state, demo_answer(scenario, turn.turn_no))
+    return state, run_diagnosis(client, info, state, FW)
+
+
+def test_売上集計のデモは_4問で全項目がそろって終了する():
+    state, result = run_demo("sales_report")
+    assert len(state.turns) == 4
+    assert state.finished_reason == FINISH_SUFFICIENT
     assert result.missing_item_ids == []
+
+
+def test_修理受付のデモは_5問の上限で終了し_不足項目が残る():
+    state, result = run_demo("repair_reception")
+    assert len(state.turns) == 5
+    assert state.finished_reason == FINISH_MAX_TURNS
+    assert result.missing_item_ids == ["H6"]  # 「予算は相談次第」で制約条件が確認できていない
+
+
+def test_修理受付のデモには_あいまいな回答への確認質問がある():
+    scenario = next(s for s in SCENARIOS if s["id"] == "repair_reception")
+    # 2問目の「けっこう多いです」を受けて、3問目で同じ項目（H3）を確認する
+    assert scenario["turns"][1]["next_item_id"] == scenario["turns"][2]["next_item_id"] == "H3"
+    assert scenario["turns"][2]["question_type"] == "確認"
+
+
+def test_修理受付のデモは_格下げがなく_新規システム導入には理由がある():
+    _, result = run_demo("repair_reception")
+    assert result.downgraded_issue_ids == []
+    new_system = [p for p in result.proposals.proposals if p.category == "新規システム導入"]
+    assert len(new_system) == 1
+    assert new_system[0].why_not_simpler
+    # 新規システム導入は、より簡単な案の後（最後）に置かれている
+    assert result.proposals.proposals[-1].category == "新規システム導入"
 
 
 def test_売上集計のデモでは_根拠のない事実の課題だけが格下げされる():
