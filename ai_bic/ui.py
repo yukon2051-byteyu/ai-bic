@@ -1,7 +1,7 @@
 """画面デザイン（配色・書体・カード）の部品。
 
 参考にした考え方（デザイン会社の実績ページ）：
-- モノクロを基本に、差し色は深い紺の1色だけ
+- モノクロを基本に、差し色は深い紺の1色だけ（トップの見出しと特長は、紺からスレートへの濃淡のグラデーション）
 - 細めの書体と広めの字間、英字の小さな見出し＋日本語の見出し
 - 大きな余白と、同じ形のカードの繰り返し、控えめな角丸
 
@@ -40,7 +40,8 @@ html, body, .stApp, .stMarkdown, label, input, textarea, button {{
 [data-testid="stIconMaterial"], .material-symbols-rounded {{
   font-family: "Material Symbols Rounded" !important;
 }}
-.stApp {{ background: #FFFFFF; color: var(--ink); }}
+/* 背景：真っ白にせず、上部にごく薄い青みを入れて奥行きを出す */
+.stApp {{ background: linear-gradient(180deg, #EEF1F6 0px, #F7F8FA 360px, #FFFFFF 720px); color: var(--ink); }}
 .block-container {{ max-width: 880px; padding-top: 2.5rem; padding-bottom: 6rem; }}
 header[data-testid="stHeader"] {{ background: transparent; }}
 #MainMenu, footer, [data-testid="stToolbar"] {{ visibility: hidden; }}
@@ -59,23 +60,41 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 }}
 .bic-h2 {{ font-size: 1.45rem; font-weight: 500; letter-spacing: .06em; margin: 0 0 1.25rem; }}
 
-/* トップの見出し */
-.bic-hero {{ padding: 1.5rem 0 2rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem; }}
+/* トップの見出し：紺からスレートへのグラデーションの面に、白い文字 */
+.bic-hero {{
+  position: relative; overflow: hidden; border-radius: 6px; padding: 2.8rem 2.6rem 2.6rem; margin-bottom: 1.2rem;
+  color: #fff; background: linear-gradient(120deg, #14213D 0%, #1B2B4B 45%, #3A5778 100%);
+}}
+/* 右上に、ぼかした光を重ねて奥行きを出す（装飾） */
+.bic-hero::after {{
+  content: ""; position: absolute; right: -120px; top: -140px; width: 380px; height: 380px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(140,170,210,.35) 0%, rgba(140,170,210,0) 70%);
+}}
 .bic-hero .en {{
-  font-family: "Inter", sans-serif; font-size: 12px; letter-spacing: .28em; color: var(--sub);
+  position: relative; font-family: "Inter", sans-serif; font-size: 12px; letter-spacing: .28em; color: rgba(255,255,255,.65);
 }}
 .bic-hero h1 {{
-  font-size: 2.4rem; font-weight: 300; letter-spacing: .08em; line-height: 1.45; margin: .9rem 0 1rem; color: var(--ink);
+  position: relative; font-size: 2.3rem; font-weight: 300; letter-spacing: .08em; line-height: 1.4;
+  margin: .9rem 0 1rem; color: #fff; white-space: nowrap;
 }}
-.bic-hero p {{ color: var(--sub); line-height: 2; letter-spacing: .04em; margin: 0; }}
+.bic-hero p {{ position: relative; color: rgba(255,255,255,.8); line-height: 2; letter-spacing: .04em; margin: 0; }}
+@media (max-width: 720px) {{
+  .bic-hero {{ padding: 2rem 1.4rem; }}
+  .bic-hero h1 {{ font-size: 1.6rem; white-space: normal; }}
+}}
 
-/* 3つの特長 */
-.bic-features {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line);
-  border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin: 1.5rem 0 .5rem; }}
-.bic-features div {{ background: #fff; padding: 1.4rem 1.3rem; }}
-.bic-features .no {{ font-family: "Inter", sans-serif; font-size: 12px; color: var(--accent); letter-spacing: .15em; }}
-.bic-features h3 {{ font-size: 1rem; font-weight: 500; letter-spacing: .05em; margin: .5rem 0 .4rem; }}
-.bic-features p {{ font-size: .85rem; color: var(--sub); line-height: 1.8; margin: 0; }}
+/* 3つの特長：紺の濃淡で少しずつ色を変えたカード。番号を大きく見せる */
+.bic-features {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 .5rem; }}
+.bic-features > div {{ border-radius: 6px; padding: 1.6rem 1.4rem 1.7rem; color: #fff; }}
+.bic-features > div:nth-child(1) {{ background: linear-gradient(160deg, #1B2B4B 0%, #2D4369 100%); }}
+.bic-features > div:nth-child(2) {{ background: linear-gradient(160deg, #22385A 0%, #3B5A7E 100%); }}
+.bic-features > div:nth-child(3) {{ background: linear-gradient(160deg, #2B4A63 0%, #4E7488 100%); }}
+.bic-features .no {{
+  font-family: "Inter", sans-serif; font-size: 2.6rem; font-weight: 300; line-height: 1;
+  letter-spacing: .04em; color: rgba(255,255,255,.5);
+}}
+.bic-features h3 {{ font-size: 1rem; font-weight: 500; letter-spacing: .05em; margin: 1.1rem 0 .5rem; color: #fff; }}
+.bic-features p {{ font-size: .84rem; color: rgba(255,255,255,.78); line-height: 1.85; margin: 0; }}
 @media (max-width: 720px) {{ .bic-features {{ grid-template-columns: 1fr; }} }}
 
 /* 注記 */
@@ -169,7 +188,7 @@ def label(en: str, ja: str) -> str:
 def hero() -> str:
     return (
         '<div class="bic-hero"><div class="en">AI BUSINESS IMPROVEMENT CONSULTANT</div>'
-        "<h1>業務改善を、<br>根拠から始める。</h1>"
+        "<h1>業務改善を、根拠から始める。</h1>"
         "<p>AIが業務改善コンサルタントとして担当者にヒアリングし、"
         "業務の課題と改善案を、ご本人の発言と資料にもとづいて整理します。</p></div>"
     )
