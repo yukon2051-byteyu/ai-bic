@@ -420,7 +420,7 @@ def render_result() -> None:
     for no, issue in enumerate(analysis.issues, start=1):
         viewpoints = "観点：" + "・".join(VIEWPOINT_NAMES.get(v, v) for v in issue.viewpoint_ids)
         sources = [ui.evidence_source(ev, result.attachment_names) for ev in issue.evidences]
-        downgraded = issue.issue_id in result.downgraded_issue_ids
+        downgraded = result.downgraded.get(issue.issue_id)
         html(ui.issue_card(no, issue, viewpoints, sources, downgraded))
     if analysis.no_issue_viewpoints:
         names = "、".join(VIEWPOINT_NAMES.get(v, v) for v in analysis.no_issue_viewpoints)
