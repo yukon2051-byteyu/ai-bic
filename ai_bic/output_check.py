@@ -46,9 +46,13 @@ def normalize(text: str | None) -> str:
 # ① 質問生成（F02）
 # ---------------------------------------------------------------
 def check_question_result(
-    result: QuestionResult, state: HearingState, framework: Framework
+    result: QuestionResult, state: HearingState, framework: Framework, final: bool = False
 ) -> list[str]:
-    """質問生成の結果を確認する（詳細設計 1.5）。"""
+    """質問生成の結果を確認する（詳細設計 1.5）。
+
+    final=True（ヒアリング終了後の、判定だけの依頼）は、判定がそろっているかだけを確認する。
+    質問が付いていても使わないので、質問の内容は確認しない。
+    """
     problems: list[str] = []
     item_ids = [item.id for item in framework.hearing_items]
 
@@ -56,6 +60,8 @@ def check_question_result(
     returned_ids = [s.item_id for s in result.item_status]
     if sorted(returned_ids) != sorted(item_ids):
         problems.append(f"充足状況の項目が設定と一致しない: {returned_ids}")
+    if final:
+        return problems
 
     status_by_id = {s.item_id: s.status for s in result.item_status}
     has_question = bool(result.next_item_id and result.question and result.question.strip())

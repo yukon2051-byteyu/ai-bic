@@ -37,10 +37,27 @@ class DemoClient:
         self.scenario = scenario
 
     def ask_next_question(
-        self, info: BusinessInfo, state: HearingState, framework: Framework
+        self, info: BusinessInfo, state: HearingState, framework: Framework, final: bool = False
     ) -> QuestionResult:
         turns = self.scenario["turns"]
         n = len(state.turns)  # これまでの質問数で、次に返すデータを決める
+
+        # 用意した質問をすべて終えたあとの最終判定は、シナリオの final_statuses を使う
+        # （書いていなければ「全項目充足」）
+        if final and n >= len(turns):
+            return QuestionResult(
+                item_status=_statuses(
+                    self.scenario.get("final_statuses", {}),
+                    framework,
+                    default="充足",
+                    lacking=self.scenario.get("final_lacking", {}),
+                ),
+                is_sufficient=True,
+                next_item_id=None,
+                question_type=None,
+                question=None,
+                answer_example=None,
+            )
 
         if n < len(turns):
             t = turns[n]
@@ -89,8 +106,16 @@ def demo_attachments(scenario: dict) -> list[Attachment]:
     return [Attachment(**a) for a in scenario.get("attachments", [])]
 
 
-def _statuses(values: dict, framework: Framework, default: str = "未確認") -> list[ItemStatus]:
+def _statuses(
+    values: dict, framework: Framework, default: str = "未確認", lacking: dict | None = None
+) -> list[ItemStatus]:
+    lacking = lacking or {}
     return [
-        ItemStatus(item_id=item.id, status=values.get(item.id, default), known_facts="")
+        ItemStatus(
+            item_id=item.id,
+            status=values.get(item.id, default),
+            known_facts="",
+            lacking=lacking.get(item.id, ""),
+        )
         for item in framework.hearing_items
     ]

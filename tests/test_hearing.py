@@ -310,3 +310,97 @@ def test_提案でエラーが起きたらAIErrorが伝わる():
     with pytest.raises(AIError) as e:
         run_diagnosis(client, INFO, finished_state(), FW)
     assert e.value.kind == "server"
+
+
+# ---------------------------------------------------------------
+# 最後の回答の判定（B01：目的を回答したのに「情報が不足」と表示された不具合）
+# ---------------------------------------------------------------
+NO_ISSUES = AnalysisResult(business_summary="", issues=[], no_issue_viewpoints=[])
+ALL_SUFFICIENT = {i: "充足" for i in ["H1", "H2", "H3", "H4", "H5", "H6"]}
+
+
+def hear_until_max_turns(client):
+    """上限の5問まで回答し、6回目でAIを呼ばずに終了した状態にする。"""
+    state = start_hearing(FW)
+    while ask_and_answer(client, state) is not None:
+        pass
+    assert state.finished_reason == FINISH_MAX_TURNS
+    return state
+
+
+def test_上限で終わったら_診断の前に最後の回答を判定し_不足表示に反映する():
+    questions = [make_question({"H2": "充足"}, next_item_id="H1") for _ in range(MAX_HEARING_TURNS)]
+    final = make_question(ALL_SUFFICIENT, next_item_id=None, is_sufficient=True)  # 5問目の回答で目的も充足
+    client = FakeClient(questions=[*questions, final], analysis=NO_ISSUES)
+    state = hear_until_max_turns(client)
+
+    result = run_diagnosis(client, INFO, state, FW)
+
+    assert client.final_calls == 1
+    assert result.missing_item_ids == []  # 回答済みの項目を「不足」と表示しない
+
+
+def test_最後の回答を判定しても足りなければ_不足表示は残る():
+    questions = [make_question({"H2": "充足"}, next_item_id="H1") for _ in range(MAX_HEARING_TURNS)]
+    final = make_question({**ALL_SUFFICIENT, "H1": "不十分"}, next_item_id=None, is_sufficient=True)
+    client = FakeClient(questions=[*questions, final], analysis=NO_ISSUES)
+    state = hear_until_max_turns(client)
+
+    result = run_diagnosis(client, INFO, state, FW)
+
+    assert result.missing_item_ids == ["H1"]  # 本当に目的が分からないケースは不足のまま
+
+
+def test_回答のあとにAIが判定して終わったなら_判定し直さない():
+    client = FakeClient(
+        questions=[make_question(), make_question(ALL_SUFFICIENT, next_item_id=None, is_sufficient=True)],
+        analysis=NO_ISSUES,
+    )
+    state = start_hearing(FW)
+    ask_and_answer(client, state)
+    ask_and_answer(client, state)  # 1問目の回答を判定して「全項目充足」で終了
+    assert state.finished_reason == FINISH_SUFFICIENT
+
+    run_diagnosis(client, INFO, state, FW)
+
+    assert client.final_calls == 0
+    assert client.calls["question"] == 2
+
+
+def test_回答前の質問を残して途中終了したら_判定し直さない():
+    client = FakeClient(questions=[make_question(), make_question()], analysis=NO_ISSUES)
+    state = start_hearing(FW)
+    ask_and_answer(client, state)
+    request_next_question(client, INFO, state, FW)  # 2問目を表示したが、回答せずに終了
+    finish_by_user(state)
+
+    run_diagnosis(client, INFO, state, FW)
+
+    assert client.final_calls == 0  # 1問目の回答は2問目を作るときに判定済み
+
+
+def test_回答直後の質問作成で失敗し_途中終了したら_最後の回答を判定する():
+    client = FakeClient(
+        questions=[make_question(), AIError("timeout"), make_question(ALL_SUFFICIENT, next_item_id=None)],
+        analysis=NO_ISSUES,
+    )
+    state = start_hearing(FW)
+    ask_and_answer(client, state)
+    with pytest.raises(AIError):
+        request_next_question(client, INFO, state, FW)
+    finish_by_user(state)
+
+    result = run_diagnosis(client, INFO, state, FW)
+
+    assert client.final_calls == 1
+    assert result.missing_item_ids == []
+
+
+def test_最後の回答の判定でエラーが起きたら_診断のAIは呼ばない():
+    questions = [make_question(next_item_id="H1") for _ in range(MAX_HEARING_TURNS)]
+    client = FakeClient(questions=[*questions, AIError("timeout")], analysis=NO_ISSUES)
+    state = hear_until_max_turns(client)
+
+    with pytest.raises(AIError):
+        run_diagnosis(client, INFO, state, FW)
+    assert client.calls["analysis"] == 0

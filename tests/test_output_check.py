@@ -41,7 +41,7 @@ def question_result(statuses: dict | None = None, **override) -> QuestionResult:
     statuses = statuses or {}
     data = {
         "item_status": [
-            ItemStatus(item_id=i, status=statuses.get(i, "未確認"), known_facts="") for i in ITEM_IDS
+            ItemStatus(item_id=i, status=statuses.get(i, "未確認"), known_facts="", lacking="") for i in ITEM_IDS
         ],
         "is_sufficient": False,
         "next_item_id": "H5",
@@ -130,7 +130,7 @@ def test_診断項目が欠けていたら違反():
 
 def test_診断項目が重複していたら違反():
     result = question_result()
-    result.item_status[5] = ItemStatus(item_id="H1", status="未確認", known_facts="")
+    result.item_status[5] = ItemStatus(item_id="H1", status="未確認", known_facts="", lacking="")
     assert check_question_result(result, HearingState(), FW)
 
 
@@ -452,3 +452,14 @@ def test_AIErrorは種類と補足を持つ():
     err = AIError("connection", "timeout")
     assert err.kind == "connection"
     assert err.detail == "timeout"
+
+
+def test_判定だけの依頼なら_未確認が残っていても質問なしで合格():
+    result = question_result({"H1": "充足"}, is_sufficient=False, next_item_id=None, question=None)
+    assert check_question_result(result, HearingState(), FW, final=True) == []
+
+
+def test_判定だけの依頼でも_診断項目が欠けていたら違反():
+    result = question_result(next_item_id=None, question=None)
+    result.item_status.pop()
+    assert check_question_result(result, HearingState(), FW, final=True)

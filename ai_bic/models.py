@@ -75,6 +75,7 @@ class ItemStatus(BaseModel):
     item_id: str
     status: ItemStatusValue
     known_facts: str  # その項目について分かっていること（短い要約）
+    lacking: str  # 「充足」の条件を満たすのに足りないこと。「充足」なら空（結果画面で不足の理由として表示する）
 
 
 class QuestionResult(BaseModel):
@@ -107,6 +108,7 @@ class HearingState(BaseModel):
     turns: list[HearingTurn] = Field(default_factory=list)
     item_status: dict[str, ItemStatus] = Field(default_factory=dict)  # 項目ID → 最新の状況
     finished_reason: str | None = None  # 終了したときに理由を記録
+    judged_answers: int = 0  # 充足状況の判定に反映済みの回答の数（最後の回答の判定漏れを防ぐ）
 
 
 # ---------------------------------------------------------------

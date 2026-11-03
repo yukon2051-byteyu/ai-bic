@@ -55,7 +55,7 @@ class ClaudeClient:
     # 共通の呼び出し方（hearing.AIClient）
     # -----------------------------------------------------------
     def ask_next_question(
-        self, info: BusinessInfo, state: HearingState, framework: Framework
+        self, info: BusinessInfo, state: HearingState, framework: Framework, final: bool = False
     ) -> QuestionResult:
         return self._call_checked(
             call_type="question",
@@ -63,9 +63,9 @@ class ClaudeClient:
             effort=config.EFFORT_QUESTION,
             max_tokens=config.MAX_TOKENS_QUESTION,
             system_name="question_system",
-            user_input=build_question_input(info, state, framework),
+            user_input=build_question_input(info, state, framework, final),
             output_format=QuestionResult,
-            check=lambda r: check_question_result(r, state, framework),
+            check=lambda r: check_question_result(r, state, framework, final),
         )
 
     def analyze(

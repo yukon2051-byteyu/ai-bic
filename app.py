@@ -30,7 +30,6 @@ from ai_bic.validation import validate_answer, validate_business_info
 st.set_page_config(page_title="AI-BIC 業務改善診断", page_icon="📋", layout="centered")
 
 FRAMEWORK = config.load_framework("general")
-ITEM_NAMES = {item.id: item.name for item in FRAMEWORK.hearing_items}
 VIEWPOINT_NAMES = {v.id: v.name for v in FRAMEWORK.viewpoints}
 
 NOTICE = "個人情報や社外秘の情報は入力しないでください。企業名は空欄または架空の名前をおすすめします。"
@@ -373,6 +372,20 @@ def evidence_source(ev, attachment_names: list[str]) -> str:
     return "業務情報"
 
 
+def missing_item_text(item_id: str, status) -> str:
+    """不足している診断項目と、その理由の表示（B01。例：「業務の目的（不十分）　足りないこと：…」）。
+
+    AIが理由を書かなかったときは、その項目で確認したいこと（description）を代わりに出す。
+    """
+    item = next(i for i in FRAMEWORK.hearing_items if i.id == item_id)
+    label = status.status if status else "未確認"
+    lacking = (status.lacking if status else "") or item.description
+    text = f"{item.name}（{label}）　足りないこと：{lacking}"
+    if status and status.known_facts:
+        text += f"　／　分かっていること：{status.known_facts}"
+    return text
+
+
 def render_result() -> None:
     s = st.session_state
     result = s.diagnosis
@@ -401,8 +414,9 @@ def render_result() -> None:
         meta.append("診断に使った資料：" + "、".join(result.attachment_names))
     html(ui.footnote("　／　".join(meta)))
     if result.missing_item_ids:
-        names = "、".join(ITEM_NAMES[i] for i in result.missing_item_ids)
-        html(ui.note(f"次の項目は情報が不足しています。結果は参考としてご覧ください：{names}"))
+        html(ui.note("次の項目は情報が不足しています。結果は参考としてご覧ください。"))
+        for item_id in result.missing_item_ids:
+            html(ui.footnote(missing_item_text(item_id, s.hearing_state.item_status.get(item_id))))
 
     # --- 課題（F03） ---
     html(ui.label("Issues", f"抽出された課題（{len(analysis.issues)}件）"))

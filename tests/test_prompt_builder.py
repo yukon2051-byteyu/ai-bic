@@ -37,7 +37,7 @@ def info(**override) -> BusinessInfo:
 
 def state_with_turns():
     state = start_hearing(FW)
-    state.item_status["H3"] = ItemStatus(item_id="H3", status="不十分", known_facts="月末に作業")
+    state.item_status["H3"] = ItemStatus(item_id="H3", status="不十分", known_facts="月末に作業", lacking="1回あたりの時間")
     state.turns = [
         HearingTurn(turn_no=1, item_id="H3", question="時間は？", answer="月末に半日"),
         HearingTurn(turn_no=2, item_id="H4", question="ツールは？", answer=None),
@@ -204,3 +204,21 @@ def test_改善提案の入力に分析結果が含まれ_引用もエスケー�
     assert '"issue_id": "I1"' in text
     assert '"evidence_type": "要確認"' in text  # 格下げの結果も提案のAIに伝わる
     assert text.count("</analysis>") == 1
+
+
+def test_質問生成の入力に_充足でない項目の足りないことを含む():
+    text = build_question_input(info(), state_with_turns(), FW)
+    assert "足りないこと：1回あたりの時間" in text
+
+
+def test_判定だけの依頼では_質問を作らないよう伝える():
+    text = build_question_input(info(), state_with_turns(), FW, final=True)
+    assert "質問は作らず" in text
+    assert "残りの質問回数" not in text
+    assert "<hearing_items>" in text  # 判定に必要な情報は通常と同じく渡す
+
+
+def test_質問のプロンプトは_不足の理由を書かせ_条件にないことを求めないルールを含む():
+    prompt = load_system_prompt("question_system")
+    assert "lacking" in prompt
+    assert "「充足の条件」に書かれていないこと" in prompt

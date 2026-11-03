@@ -34,7 +34,7 @@ def state_with(*turns: tuple[str, str], statuses: dict | None = None) -> Hearing
     for n, (item_id, answer) in enumerate(turns, start=1):
         state.turns.append(HearingTurn(turn_no=n, item_id=item_id, question="質問", answer=answer))
     for item_id, status in (statuses or {}).items():
-        state.item_status[item_id] = ItemStatus(item_id=item_id, status=status, known_facts="")
+        state.item_status[item_id] = ItemStatus(item_id=item_id, status=status, known_facts="", lacking="")
     return state
 
 

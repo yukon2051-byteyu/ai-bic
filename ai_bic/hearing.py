@@ -3,6 +3,7 @@
 ハイブリッド型ヒアリングの「プログラムが確実に守る部分」を担当する。
 - 質問回数を数え、上限（5回）に達したらAIを呼ばずに終了する
 - AIの充足判定を記録し、終了してよいかをプログラムが確認する
+- 判定に反映していない回答が残ったまま終了したら、診断の前に判定だけをやり直す
 - 回答前に同じ質問を再要求されても、AIを呼び直さない（二重呼び出しの防止 K04）
 
 AIクライアント（本物・デモ・テスト用の偽物）が誰かは知らない。
@@ -42,8 +43,10 @@ class AIClient(Protocol):
     """
 
     def ask_next_question(
-        self, info: BusinessInfo, state: HearingState, framework: Framework
-    ) -> QuestionResult: ...
+        self, info: BusinessInfo, state: HearingState, framework: Framework, final: bool = False
+    ) -> QuestionResult:
+        """final=True のときは、質問を作らず充足状況の判定だけを行う（ヒアリング終了後）。"""
+        ...
 
     def analyze(
         self,
@@ -62,7 +65,7 @@ def start_hearing(framework: Framework) -> HearingState:
     """全診断項目を「未確認」にした、ヒアリングの記録を作る。"""
     return HearingState(
         item_status={
-            item.id: ItemStatus(item_id=item.id, status="未確認", known_facts="")
+            item.id: ItemStatus(item_id=item.id, status="未確認", known_facts="", lacking="")
             for item in framework.hearing_items
         }
     )
@@ -89,10 +92,7 @@ def request_next_question(
         return None
 
     result = client.ask_next_question(info, state, framework)
-
-    # AIの充足判定を記録する（次回のAIに渡し、再質問を防ぐ：R3）
-    for status in result.item_status:
-        state.item_status[status.item_id] = status
+    _record_statuses(state, result)
 
     reason = _finish_reason(result, state, framework)
     if reason:
@@ -107,6 +107,29 @@ def request_next_question(
     )
     state.turns.append(turn)
     return turn
+
+
+def _answered_count(state: HearingState) -> int:
+    return sum(1 for turn in state.turns if turn.answer is not None)
+
+
+def _record_statuses(state: HearingState, result: QuestionResult) -> None:
+    """AIの充足判定を記録する（次回のAIに渡し、再質問を防ぐ：R3）。"""
+    for status in result.item_status:
+        state.item_status[status.item_id] = status
+    state.judged_answers = _answered_count(state)
+
+
+def judge_last_answers(
+    client: AIClient, info: BusinessInfo, state: HearingState, framework: Framework
+) -> None:
+    """判定に反映していない回答があれば、充足状況の判定だけをAIにやり直させる（B01）。
+
+    質問回数の上限で終了したときや、利用者が「ここまでの情報で診断する」を押したときは、
+    最後の回答のあとにAIを呼ばないため、その回答が充足状況に反映されていなかった。
+    """
+    if _answered_count(state) > state.judged_answers:
+        _record_statuses(state, client.ask_next_question(info, state, framework, final=True))
 
 
 def _finish_reason(result: QuestionResult, state: HearingState, framework: Framework) -> str | None:
@@ -156,13 +179,16 @@ def run_diagnosis(
     framework: Framework,
     attachments: list[Attachment] | None = None,
 ) -> DiagnosisResult:
-    """課題分析 → 根拠の照合 → 改善提案 を順に行い、結果をまとめて返す（F03・F04）。
+    """充足状況の最終判定 → 課題分析 → 根拠の照合 → 改善提案 を順に行い、結果をまとめて返す（F03・F04）。
 
     添付ファイル（F09）は課題分析にだけ渡し、引用の照合にも使う。
+    課題分析と結果画面の不足項目は、どちらも最終判定のあとの充足状況を使う。
     """
     if not state.finished_reason:
         raise ValueError("ヒアリングが終了していません")
     attachments = attachments or []
+
+    judge_last_answers(client, info, state, framework)
 
     analysis = client.analyze(info, state, framework, attachments)
     checked, downgraded = verify_evidences(analysis, info, state, attachments)

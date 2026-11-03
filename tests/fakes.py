@@ -63,7 +63,7 @@ def make_question(
     statuses = statuses or {}
     return QuestionResult(
         item_status=[
-            ItemStatus(item_id=i, status=statuses.get(i, "未確認"), known_facts="")
+            ItemStatus(item_id=i, status=statuses.get(i, "未確認"), known_facts="", lacking="")
             for i in ITEM_IDS
         ],
         is_sufficient=is_sufficient,
@@ -82,6 +82,7 @@ class FakeClient:
         self.analysis = analysis  # AnalysisResult または AIError
         self.proposals = proposals  # ProposalResult または AIError
         self.calls = {"question": 0, "analysis": 0, "proposal": 0}
+        self.final_calls = 0  # 判定だけの依頼（final=True）の回数。calls["question"] にも含む
 
     @staticmethod
     def _give(value):
@@ -89,8 +90,9 @@ class FakeClient:
             raise value
         return value
 
-    def ask_next_question(self, info, state, framework) -> QuestionResult:
+    def ask_next_question(self, info, state, framework, final=False) -> QuestionResult:
         self.calls["question"] += 1
+        self.final_calls += final
         return self._give(self.questions.pop(0))
 
     def analyze(self, info, state, framework, attachments=None) -> AnalysisResult:

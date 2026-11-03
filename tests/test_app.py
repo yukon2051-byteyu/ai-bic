@@ -129,7 +129,10 @@ def test_修理受付のデモは不足項目を表示する(secrets):
     for _ in range(5):
         at.button(key="submit_answer").click().run()
     at.button(key="diagnose").click().run()
-    assert "情報が不足しています。結果は参考としてご覧ください：改善に向けた制約条件" in all_text(at)  # 5問で終わり、不足項目を表示
+    # 5問で終わり、5問目の回答（予算は相談次第）も判定したうえで、不足項目と理由を表示（B01）
+    text = all_text(at)
+    assert "情報が不足しています。結果は参考としてご覧ください。" in text
+    assert "改善に向けた制約条件（不十分）　足りないこと：予算の目安や、使ってよいツール・社内ルールの有無" in text
 
 
 def test_ヒアリングの途中で_ここまでの情報で診断できる(secrets):

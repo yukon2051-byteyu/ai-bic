@@ -79,6 +79,8 @@ def _hearing_items_block(state: HearingState, framework: Framework) -> str:
             lines.append(f"  ※この項目はもう質問できません（{reason}）")
         if status and status.known_facts:
             lines.append(f"  分かっていること：{_escape(status.known_facts)}")
+        if status and status.status != "充足" and status.lacking:
+            lines.append(f"  足りないこと：{_escape(status.lacking)}")
     lines.append("</hearing_items>")
     askable = askable_item_ids(state, framework)
     lines.append(f"質問してよい項目：{'、'.join(askable) if askable else 'なし'}")
@@ -92,16 +94,27 @@ def _viewpoints_block(framework: Framework) -> str:
     return "\n".join(lines)
 
 
-def build_question_input(info: BusinessInfo, state: HearingState, framework: Framework) -> str:
-    """質問生成のAIに渡す文章。"""
-    remaining = MAX_HEARING_TURNS - len(state.turns)
+def build_question_input(
+    info: BusinessInfo, state: HearingState, framework: Framework, final: bool = False
+) -> str:
+    """質問生成のAIに渡す文章。final=True はヒアリング終了後の、判定だけの依頼。"""
+    if final:
+        request = [
+            "ヒアリングは終了しました。最後の回答も含めて、各診断項目の充足状況を判定してください。"
+            "質問は作らず、is_sufficient を true、next_item_id・question_type・question・answer_example を null にしてください。"
+        ]
+    else:
+        remaining = MAX_HEARING_TURNS - len(state.turns)
+        request = [
+            f"残りの質問回数: {remaining}回",
+            "各診断項目の充足状況を判定し、次の質問を1つ作ってください。",
+        ]
     return "\n\n".join(
         [
             _business_info_block(info),
             _hearing_log_block(state),
             _hearing_items_block(state, framework),
-            f"残りの質問回数: {remaining}回",
-            "各診断項目の充足状況を判定し、次の質問を1つ作ってください。",
+            *request,
         ]
     )
 
