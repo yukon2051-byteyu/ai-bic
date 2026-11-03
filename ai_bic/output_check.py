@@ -7,14 +7,17 @@ check_* 関数は「違反の一覧」を返す。空のリストなら合格。
 違反があれば、呼び出し側（ai_client.py）がAIを1回だけ呼び直す。
 """
 
+import re
 import unicodedata
 
 from ai_bic.config import (
+    CALCULATION_CONSTANTS,
     MAX_FIRST_STEPS,
     MAX_ISSUES,
     MAX_PROPOSALS,
     MAX_QUESTIONS_PER_ITEM,
     MIN_QUOTE_CHARS,
+    NEGATION_SUFFIXES,
 )
 from ai_bic.item_rules import askable_item_ids, is_unknown_answer
 from ai_bic.models import (
@@ -23,12 +26,18 @@ from ai_bic.models import (
     BusinessInfo,
     Framework,
     HearingState,
+    Issue,
     ProposalResult,
     QuestionResult,
 )
 
 # 引用の前後についていても無視する括弧類（AIが「」で囲んで引用することがあるため）
 QUOTE_BRACKETS = "「」『』\"'“”‘’"
+
+# 格下げの理由（画面とレポートに表示する。B04）
+REASON_NOT_FOUND = "根拠となる発言を入力内容の中に確認できなかった"
+REASON_NEGATED = "引用した発言のすぐ後に否定の言葉（「ない」など）が続き、発言の意味と逆になっているおそれがある"
+REASON_NO_CALCULATION = "計算式が示されていない"
 
 
 def normalize(text: str | None) -> str:
@@ -122,13 +131,62 @@ def check_analysis(result: AnalysisResult, framework: Framework) -> list[str]:
     return problems
 
 
-def _quote_found(quote: str, texts: list[str]) -> bool:
-    """引用が、いずれかの文章に含まれているかを返す。"""
+def _check_quote(quote: str, texts: list[str]) -> str | None:
+    """引用を照合し、根拠と認められなければその理由を返す（認められれば None）。
+
+    - 引用が、いずれかの文章に含まれていること
+    - 含まれている場所のすぐ後が、否定の言葉でないこと（「ミスがある」＋「ことはない」の切り取りを防ぐ。B04）
+    """
     target = normalize(quote).strip(QUOTE_BRACKETS)
     # 空や短すぎる引用（例：「時間」）は、どこにでも含まれてしまい根拠にならない
     if len(target) < MIN_QUOTE_CHARS:
-        return False
-    return any(target in normalize(text) for text in texts)
+        return REASON_NOT_FOUND
+    negated = False
+    for text in texts:
+        normalized = normalize(text)
+        start = normalized.find(target)
+        while start != -1:
+            if not normalized[start + len(target):].startswith(NEGATION_SUFFIXES):
+                return None
+            negated = True
+            start = normalized.find(target, start + 1)
+    return REASON_NEGATED if negated else REASON_NOT_FOUND
+
+
+def _quote_found(quote: str, texts: list[str]) -> bool:
+    """引用が、根拠として認められる形で、いずれかの文章に含まれているかを返す。"""
+    return _check_quote(quote, texts) is None
+
+
+def _numbers(text: str) -> list[float]:
+    """文章に含まれる数値（「2,500」のような桁区切りも1つの数値として読む）。"""
+    text = unicodedata.normalize("NFKC", text or "")
+    return [float(n.replace(",", "")) for n in re.findall(r"\d+(?:,\d{3})*(?:\.\d+)?", text)]
+
+
+def _check_calculation(calculation: str | None, all_texts: list[str]) -> str | None:
+    """「計算結果」の計算式を確かめ、問題があればその理由を返す（B04）。
+
+    「＝」より左（計算に使った数値）が、入力に実在する数値か、単位の換算の数値であることを確かめる。
+    計算の答えが正しいかまでは確かめない（式の書き方がばらばらで、誤判定しやすいため）。
+    """
+    if not (calculation or "").strip():
+        return REASON_NO_CALCULATION
+    left = unicodedata.normalize("NFKC", calculation).split("=")[0]
+    operands = _numbers(left)
+    if not operands:
+        return REASON_NO_CALCULATION
+    known = {n for text in all_texts for n in _numbers(text)} | set(CALCULATION_CONSTANTS)
+    missing = [n for n in operands if n not in known]
+    if missing:
+        shown = "・".join(f"{n:g}" for n in missing)
+        return f"計算式の数値（{shown}）を入力内容の中に確認できなかった"
+    return None
+
+
+def downgrade_message(original_type: str, reason: str) -> str:
+    """格下げを利用者に説明する文（画面とレポートで共通）。"""
+    return f"AIは「{original_type}」と判断しましたが、{reason}ため「要確認」としています。"
 
 
 def verify_evidences(
@@ -136,11 +194,13 @@ def verify_evidences(
     info: BusinessInfo,
     state: HearingState,
     attachments: list[Attachment] | None = None,
-) -> tuple[AnalysisResult, list[str]]:
-    """「事実」の課題の引用が、利用者の実際の入力に存在するかを照合する（詳細設計 1.6）。
+) -> tuple[AnalysisResult, dict[str, str]]:
+    """「本人の申告」「計算結果」の課題の根拠を、利用者の実際の入力と照合する（詳細設計 1.6・B04）。
 
-    1つも確認できない課題は「要確認」に格下げする（決定事項B3）。
-    戻り値：(格下げを反映した分析結果, 格下げした課題IDの一覧)
+    - 本人の申告：引用が1つ以上、入力に（否定の切り取りでなく）実在すること
+    - 計算結果：上に加えて、計算式に使った数値が入力に実在すること
+    確認できない課題は「要確認」に格下げする（決定事項B3）。
+    戻り値：(格下げを反映した分析結果, 格下げした課題ID → 格下げの説明)
     元の analysis は変更しない。
     """
     attachments = attachments or []
@@ -152,36 +212,41 @@ def verify_evidences(
         info.pain_points,
     ]
     answers_by_turn = {turn.turn_no: turn.answer or "" for turn in state.turns}
+    all_texts = business_texts + list(answers_by_turn.values()) + [a.text for a in attachments]
+
+    def texts_for(ev) -> list[str]:
+        if ev.source == "業務情報":
+            return business_texts
+        if ev.source == "添付ファイル":
+            # 添付ファイルの引用は、指定された番号のファイルとだけ照合する
+            valid = ev.file_no is not None and 1 <= ev.file_no <= len(attachments)
+            return [attachments[ev.file_no - 1].text] if valid else []
+        # 回答の引用は、指定された回の回答とだけ照合する（安全側に倒す）
+        return [answers_by_turn.get(ev.turn_no, "")]
+
+    def problem(issue: Issue) -> str | None:
+        reasons = [_check_quote(ev.quote, texts_for(ev)) for ev in issue.evidences]
+        if None not in reasons:
+            # 否定の切り取りがあれば、それを優先して伝える
+            return REASON_NEGATED if REASON_NEGATED in reasons else REASON_NOT_FOUND
+        if issue.evidence_type == "計算結果":
+            return _check_calculation(issue.calculation, all_texts)
+        return None
 
     checked = analysis.model_copy(deep=True)
-    downgraded: list[str] = []
+    downgraded: dict[str, str] = {}
 
     for issue in checked.issues:
         # 「分かりません」のような情報のない回答は、どの区分の課題でも根拠として扱わない
         # （本物のAIが「すみません、その点は分かりません。」を根拠に引用したため）
         issue.evidences = [ev for ev in issue.evidences if not is_unknown_answer(ev.quote)]
 
-        if issue.evidence_type != "事実":
+        if issue.evidence_type not in ("本人の申告", "計算結果"):
             continue
-
-        verified = False
-        for ev in issue.evidences:
-            if ev.source == "業務情報":
-                texts = business_texts
-            elif ev.source == "添付ファイル":
-                # 添付ファイルの引用は、指定された番号のファイルとだけ照合する
-                valid = ev.file_no is not None and 1 <= ev.file_no <= len(attachments)
-                texts = [attachments[ev.file_no - 1].text] if valid else []
-            else:
-                # 回答の引用は、指定された回の回答とだけ照合する（安全側に倒す）
-                texts = [answers_by_turn.get(ev.turn_no, "")]
-            if _quote_found(ev.quote, texts):
-                verified = True
-                break
-
-        if not verified:
+        reason = problem(issue)
+        if reason:
+            downgraded[issue.issue_id] = downgrade_message(issue.evidence_type, reason)
             issue.evidence_type = "要確認"
-            downgraded.append(issue.issue_id)
 
     return checked, downgraded
 

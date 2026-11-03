@@ -130,10 +130,15 @@ def main() -> int:
         result = None
 
     for issue in result.analysis.issues if result else []:
-        mark = "（格下げ）" if issue.issue_id in result.downgraded_issue_ids else ""
+        mark = "（格下げ）" if issue.issue_id in result.downgraded else ""
         print(f"{issue.issue_id} [{issue.severity}・{issue.evidence_type}{mark}] {issue.title}")
+        if issue.issue_id in result.downgraded:
+            print(f"    {result.downgraded[issue.issue_id]}")
+        if issue.calculation:
+            print(f"    計算式：{issue.calculation}")
         for ev in issue.evidences:
             print(f"    根拠（{ev.source} turn={ev.turn_no} file={ev.file_no}）：{ev.quote}")
+            print(f"      → 言えること：{ev.supports}")
     if result and result.proposals:
         s = result.proposals.summary
         print(f"\n■ 診断サマリー（最重要課題：{s.top_issue_id}）\n  要点：{s.headline}\n  最初の一手：{s.first_action}")

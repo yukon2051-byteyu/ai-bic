@@ -187,6 +187,7 @@ header[data-testid="stHeader"] {{ display: none; }}
 .bic-quote {{ border-left: 2px solid var(--accent); padding: .2rem 0 .2rem .9rem; margin: .45rem 0;
   font-size: .92rem; font-weight: 500; line-height: 1.8; }}
 .bic-quote small {{ color: var(--mute); margin-left: .6rem; font-weight: 400; }}
+.bic-quote .supports {{ display: block; font-size: .8rem; color: var(--sub); font-weight: 400; line-height: 1.6; }}
 .bic-warn {{ font-size: .8rem; color: var(--accent); background: var(--accent-soft); padding: .5rem .8rem;
   border-radius: 4px; margin: .6rem 0; }}
 
@@ -227,7 +228,13 @@ header[data-testid="stHeader"] {{ display: none; }}
 
 SEVERITY_CLASS = {"高": "fill", "中": "", "低": "gray"}  # 重要度のバッジ
 SEVERITY_CARD = {"高": "sev-high", "中": "sev-mid", "低": "sev-low"}  # カードの左端の線の色
-EVIDENCE_TEXT = {"事実": "事実：発言で確認済み", "推測": "推測：発言からの推測", "要確認": "要確認：判断材料が不足"}
+# 根拠の区分の表示（B04：「事実」は、発言にそう書かれていることを「本人の申告」と呼ぶよう改めた）
+EVIDENCE_TEXT = {
+    "本人の申告": "本人の申告：発言で確認済み",
+    "計算結果": "計算結果：発言の数値から計算",
+    "推測": "推測（仮説）：発言からの推測",
+    "要確認": "要確認：判断材料が不足",
+}
 DISCLAIMER = "診断結果はAIによる参考情報です。効果は想定であり、実施前に関係者と事実を確認してください。"
 
 
@@ -324,26 +331,27 @@ def summary_card(
     )
 
 
-def issue_card(no: int, issue: Issue, viewpoints: str, sources: list[str], downgraded: bool) -> str:
-    """課題のカード。sources は各根拠の出どころの表示（evidences と同じ順）。"""
+def issue_card(no: int, issue: Issue, viewpoints: str, sources: list[str], downgraded: str | None) -> str:
+    """課題のカード。sources は各根拠の出どころの表示（evidences と同じ順）。
+
+    downgraded は、根拠を確認できず「要確認」に格下げしたときの説明（格下げしていなければ None）。
+    """
     badges = (
         f'<span class="bic-badge {SEVERITY_CLASS[issue.severity]}">重要度 {esc(issue.severity)}</span>'
         f'<span class="bic-badge gray">{esc(EVIDENCE_TEXT[issue.evidence_type])}</span>'
         f'<span class="bic-badge gray">{esc(viewpoints)}</span>'
     )
-    warn = (
-        '<div class="bic-warn">AIは「事実」と判断しましたが、根拠となる発言を入力内容の中に'
-        "確認できなかったため「要確認」としています。</div>"
-        if downgraded
-        else ""
-    )
+    warn = f'<div class="bic-warn">{esc(downgraded)}</div>' if downgraded else ""
+    # 引用と、その引用から言えることを並べ、対応が正しいかを読む人が確かめられるようにする（B04）
     quotes = "".join(
-        f'<div class="bic-quote">{esc(ev.quote)}<small>{esc(src)}</small></div>'
+        f'<div class="bic-quote">{esc(ev.quote)}<small>{esc(src)}</small>'
+        f'<span class="supports">→ この引用から言えること：{esc(ev.supports)}</span></div>'
         for ev, src in zip(issue.evidences, sources)
     ) or '<p class="bic-list">根拠となる発言はありません</p>'
 
     # 補足（原因・影響・重要度の理由・追加確認）は小さく薄い表にまとめる
-    rows = [
+    rows = [("計算式", esc(issue.calculation))] if issue.calculation else []
+    rows += [
         ("想定原因（推測）", esc(issue.assumed_cause)),
         ("業務への影響", esc(issue.impact)),
         ("重要度の理由", esc(issue.severity_reason)),

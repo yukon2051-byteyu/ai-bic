@@ -230,8 +230,9 @@ def make_issue(issue_id, quote) -> Issue:
         title="課題",
         summary="",
         viewpoint_ids=["V1"],
-        evidence_type="事実",
-        evidences=[Evidence(source="業務情報", turn_no=None, file_no=None, quote=quote)],
+        evidence_type="本人の申告",
+        evidences=[Evidence(source="業務情報", turn_no=None, file_no=None, quote=quote, supports="")],
+        calculation=None,
         assumed_cause="",
         impact="",
         severity="中",
@@ -250,7 +251,7 @@ def finished_state():
     return state
 
 
-def test_診断で分析と提案が行われ_根拠のない事実は格下げされる():
+def test_診断で分析と提案が行われ_根拠のない本人の申告は格下げされる():
     analysis = AnalysisResult(
         business_summary="",
         issues=[make_issue("I1", "数字が合わない"), make_issue("I2", "利用者が言っていない内容")],
@@ -260,7 +261,7 @@ def test_診断で分析と提案が行われ_根拠のない事実は格下げ�
 
     result = run_diagnosis(client, INFO, finished_state(), FW)
 
-    assert result.downgraded_issue_ids == ["I2"]
+    assert list(result.downgraded) == ["I2"]
     assert result.analysis.issues[1].evidence_type == "要確認"
     assert result.proposals is not None
     assert result.missing_item_ids == ["H1", "H2", "H3", "H4", "H5", "H6"]

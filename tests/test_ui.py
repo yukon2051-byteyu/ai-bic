@@ -14,8 +14,9 @@ ATTACK = '<script>alert("x")</script><img src=x onerror=alert(1)>'
 def make_issue(**override) -> Issue:
     data = {
         "issue_id": "I1", "title": "転記の負担", "summary": "転記に時間がかかる",
-        "viewpoint_ids": ["V1"], "evidence_type": "事実",
-        "evidences": [Evidence(source="業務情報", turn_no=None, file_no=None, quote="転記に時間がかかり")],
+        "viewpoint_ids": ["V1"], "evidence_type": "本人の申告",
+        "evidences": [Evidence(source="業務情報", turn_no=None, file_no=None, quote="転記に時間がかかり", supports="転記に時間がかかっている")],
+        "calculation": None,
         "assumed_cause": "様式の違い", "impact": "残業", "severity": "高",
         "severity_reason": "月20時間以上", "followup_questions": ["何時間かかりますか"],
     }
@@ -35,7 +36,7 @@ def test_escはドル記号も数式にならない形にする():
 
 def test_課題カードに埋め込まれた攻撃の文字列は動かない():
     issue = make_issue(title=ATTACK, summary=ATTACK, followup_questions=[ATTACK])
-    card = ui.issue_card(1, issue, ATTACK, [ATTACK], downgraded=False)
+    card = ui.issue_card(1, issue, ATTACK, [ATTACK], downgraded=None)
     assert "<script>" not in card
     assert "<img" not in card
     assert "&lt;script&gt;" in card
@@ -52,12 +53,22 @@ def test_改善案カードと質問とサマリーも攻撃の文字列を無�
 
 
 def test_課題カードには重要度と根拠の種別と格下げの注記が出る():
-    card = ui.issue_card(2, make_issue(), "観点：業務効率", ["業務情報"], downgraded=True)
+    message = "AIは「本人の申告」と判断しましたが、根拠となる発言を確認できなかったため「要確認」としています。"
+    card = ui.issue_card(2, make_issue(), "観点：業務効率", ["業務情報"], downgraded=message)
     assert "02" in card
     assert "重要度 高" in card
-    assert "事実：発言で確認済み" in card
-    assert "確認できなかったため「要確認」" in card
+    assert "本人の申告：発言で確認済み" in card
+    assert message in card  # 格下げの理由を、そのまま表示する
     assert "転記に時間がかかり" in card
+    assert "→ この引用から言えること：転記に時間がかかっている" in card  # 引用と主張の対応（B04）
+
+
+def test_計算結果の課題には計算式が出る():
+    card = ui.issue_card(
+        1, make_issue(evidence_type="計算結果", calculation="90分×20日÷60＝30時間"), "観点", ["業務情報"], None
+    )
+    assert "計算結果：発言の数値から計算" in card
+    assert "90分×20日÷60＝30時間" in card
 
 
 def test_改善案カードには導入前後と最初の一歩が出る():
@@ -98,14 +109,14 @@ def test_最重要課題が見つからなくても表示が崩れない():
 
 
 def test_重要度高の課題だけ_カードを金色で強調する():
-    high = ui.issue_card(1, make_issue(severity="高"), "観点", ["業務情報"], downgraded=False)
-    mid = ui.issue_card(2, make_issue(severity="中"), "観点", ["業務情報"], downgraded=False)
+    high = ui.issue_card(1, make_issue(severity="高"), "観点", ["業務情報"], downgraded=None)
+    mid = ui.issue_card(2, make_issue(severity="中"), "観点", ["業務情報"], downgraded=None)
     assert 'class="bic-card sev-high"' in high
     assert 'class="bic-card sev-mid"' in mid
 
 
 def test_課題の補足は表にまとめる():
-    card = ui.issue_card(1, make_issue(), "観点", ["業務情報"], downgraded=False)
+    card = ui.issue_card(1, make_issue(), "観点", ["業務情報"], downgraded=None)
     assert '<dl class="bic-dl">' in card
     assert "<dt>想定原因（推測）</dt><dd>様式の違い</dd>" in card
     assert "<dt>追加で確認したいこと</dt>" in card

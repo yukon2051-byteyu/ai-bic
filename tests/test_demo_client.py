@@ -49,7 +49,7 @@ def test_デモシナリオは最後まで進み_全データがチェックに�
     assert check_proposals(result.proposals, result.analysis) == []
 
 
-# わざと根拠のない「事実」にしてある課題（引用照合の仕組みを見せるため）
+# わざと根拠のない「本人の申告」にしてある課題（引用照合の仕組みを見せるため）
 INTENTIONALLY_UNSUPPORTED = {("sales_report", "I5")}
 
 
@@ -128,7 +128,7 @@ def test_交通費精算のデモは_AIが最初から要確認とした課題�
     _, result = run_demo("travel_expense")
     by_id = {i.issue_id: i.evidence_type for i in result.analysis.issues}
     assert by_id["I3"] == "要確認"
-    assert result.downgraded_issue_ids == []  # 格下げではなく、AI自身の判断
+    assert result.downgraded == {}  # 格下げではなく、AI自身の判断
 
 
 def test_交通費精算のデモは_制約を守り自動化を含む():
@@ -150,7 +150,7 @@ def test_3本のシナリオで_5種類の改善の種類のうち4種類以上�
 
 def test_修理受付のデモは_格下げがなく_新規システム導入には理由がある():
     _, result = run_demo("repair_reception")
-    assert result.downgraded_issue_ids == []
+    assert result.downgraded == {}
     new_system = [p for p in result.proposals.proposals if p.category == "新規システム導入"]
     assert len(new_system) == 1
     assert new_system[0].why_not_simpler
@@ -158,7 +158,7 @@ def test_修理受付のデモは_格下げがなく_新規システム導入に
     assert result.proposals.proposals[-1].category == "新規システム導入"
 
 
-def test_売上集計のデモでは_根拠のない事実の課題だけが格下げされる():
+def test_売上集計のデモでは_根拠のない本人の申告の課題だけが格下げされる():
     scenario = next(s for s in SCENARIOS if s["id"] == "sales_report")
     info = BusinessInfo(**scenario["business_info"])
     client = DemoClient(scenario)
@@ -169,9 +169,9 @@ def test_売上集計のデモでは_根拠のない事実の課題だけが格�
     result = run_diagnosis(client, info, state, FW)
 
     # I5 は「提出が遅れる営業所がある」という、利用者が言っていない引用を根拠にしている
-    assert result.downgraded_issue_ids == ["I5"]
+    assert list(result.downgraded) == ["I5"]
     by_id = {i.issue_id: i.evidence_type for i in result.analysis.issues}
-    assert by_id == {"I1": "事実", "I2": "事実", "I3": "事実", "I4": "推測", "I5": "要確認"}
+    assert by_id == {"I1": "本人の申告", "I2": "本人の申告", "I3": "本人の申告", "I4": "推測", "I5": "要確認"}
 
 
 def test_デモの回答は範囲外の回なら空():

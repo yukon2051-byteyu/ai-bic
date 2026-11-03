@@ -200,6 +200,6 @@ def run_diagnosis(
         attachment_names=[a.name for a in attachments],
         analysis=checked,
         proposals=proposals,
-        downgraded_issue_ids=downgraded,
+        downgraded=downgraded,
         missing_item_ids=[item.id for item in missing_items(state, framework)],
     )

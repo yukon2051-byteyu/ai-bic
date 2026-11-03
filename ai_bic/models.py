@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field
 
 # 値の候補（画面表示・プロンプトでも同じ言葉を使う）
 ItemStatusValue = Literal["充足", "不十分", "未確認"]
-EvidenceType = Literal["事実", "推測", "要確認"]
+# 「本人の申告」は、発言にそう書かれていること（内容が正しいかまでは確かめていない）。B04で「事実」から改めた
+EvidenceType = Literal["本人の申告", "計算結果", "推測", "要確認"]
 Level = Literal["高", "中", "低"]
 ProposalCategory = Literal[
     "業務ルールの見直し",
@@ -121,6 +122,7 @@ class Evidence(BaseModel):
     turn_no: int | None  # 回答の場合、何回目の回答か
     file_no: int | None  # 添付ファイルの場合、何番目のファイルか（照合に必要なため省略不可）
     quote: str  # 利用者の発言や添付ファイルの文字を、そのまま引用したもの
+    supports: str  # この引用から言えること（引用と主張の対応を、読む人が確かめられるようにする。B04）
 
 
 class Issue(BaseModel):
@@ -132,6 +134,7 @@ class Issue(BaseModel):
     viewpoint_ids: list[str]
     evidence_type: EvidenceType
     evidences: list[Evidence]
+    calculation: str | None  # 「計算結果」の課題の計算式（例：90分×20日÷60＝30時間）。それ以外は None
     assumed_cause: str  # 画面では常に「推測」として表示する
     impact: str
     severity: Level
@@ -202,5 +205,5 @@ class DiagnosisResult(BaseModel):
     attachment_names: list[str]  # 診断に使った添付ファイルの名前（file_no の順）
     analysis: AnalysisResult  # 引用照合（格下げ）を反映したもの
     proposals: ProposalResult | None  # 課題が0件のときは None（提案のAIを呼ばない）
-    downgraded_issue_ids: list[str]  # 根拠を確認できず「要確認」に格下げした課題
+    downgraded: dict[str, str]  # 根拠を確認できず「要確認」に格下げした課題ID → 格下げの理由
     missing_item_ids: list[str]  # 情報が不足している診断項目（R6）

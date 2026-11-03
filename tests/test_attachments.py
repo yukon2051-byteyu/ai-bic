@@ -165,8 +165,8 @@ def analysis_with(evidence: Evidence) -> AnalysisResult:
         business_summary="",
         issues=[
             Issue(
-                issue_id="I1", title="", summary="", viewpoint_ids=["V5"], evidence_type="事実",
-                evidences=[evidence], assumed_cause="", impact="", severity="中",
+                issue_id="I1", title="", summary="", viewpoint_ids=["V5"], evidence_type="本人の申告",
+                evidences=[evidence], calculation=None, assumed_cause="", impact="", severity="中",
                 severity_reason="", followup_questions=[],
             )
         ],
@@ -175,14 +175,14 @@ def analysis_with(evidence: Evidence) -> AnalysisResult:
 
 
 def file_ev(quote, file_no):
-    return Evidence(source="添付ファイル", turn_no=None, file_no=file_no, quote=quote)
+    return Evidence(source="添付ファイル", turn_no=None, file_no=file_no, quote=quote, supports="")
 
 
-def test_添付ファイルに実在する引用なら事実のまま():
+def test_添付ファイルに実在する引用なら本人の申告のまま():
     _, downgraded = verify_evidences(
         analysis_with(file_ev("運賃の計算間違い", 1)), INFO, start_hearing(FW), FILES
     )
-    assert downgraded == []
+    assert downgraded == {}
 
 
 @pytest.mark.parametrize(
@@ -198,14 +198,14 @@ def test_添付ファイルで確認できない引用は格下げ(quote, file_n
     _, downgraded = verify_evidences(
         analysis_with(file_ev(quote, file_no)), INFO, start_hearing(FW), FILES
     )
-    assert downgraded == ["I1"]
+    assert list(downgraded) == ["I1"]
 
 
 def test_添付ファイルがない診断で添付ファイルを根拠にしたら格下げ():
     _, downgraded = verify_evidences(
         analysis_with(file_ev("運賃の計算間違い", 1)), INFO, start_hearing(FW)
     )
-    assert downgraded == ["I1"]
+    assert list(downgraded) == ["I1"]
 
 
 # ---------------------------------------------------------------

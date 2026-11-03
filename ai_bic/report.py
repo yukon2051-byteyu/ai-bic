@@ -102,12 +102,15 @@ def _summary_sheet(ws, info, state, result, framework, created_at, demo) -> None
 def _issues_sheet(ws, result: DiagnosisResult, framework: Framework) -> None:
     viewpoints = {v.id: v.name for v in framework.viewpoints}
     headers = [
-        "No", "課題", "重要度", "根拠の区分", "観点", "内容", "判断根拠（ご本人の発言・添付資料）",
-        "想定原因（推測）", "業務への影響", "重要度の理由", "追加で確認したいこと",
+        "No", "課題", "重要度", "根拠の区分", "観点", "内容", "判断根拠（ご本人の発言・添付資料）と、そこから言えること",
+        "計算式", "想定原因（推測）", "業務への影響", "重要度の理由", "追加で確認したいこと",
     ]
     rows = []
     for no, issue in enumerate(result.analysis.issues, start=1):
-        quotes = [f"「{ev.quote}」（{evidence_source(ev, result.attachment_names)}）" for ev in issue.evidences]
+        quotes = [
+            f"「{ev.quote}」（{evidence_source(ev, result.attachment_names)}）\n　→ 言えること：{ev.supports}"
+            for ev in issue.evidences
+        ]
         rows.append([
             no,
             issue.title,
@@ -116,12 +119,13 @@ def _issues_sheet(ws, result: DiagnosisResult, framework: Framework) -> None:
             "・".join(viewpoints.get(v, v) for v in issue.viewpoint_ids),
             issue.summary,
             _bullets(quotes) or "根拠となる発言はありません",
+            issue.calculation or "",
             issue.assumed_cause,
             issue.impact,
             issue.severity_reason,
             _bullets(issue.followup_questions),
         ])
-    _table(ws, headers, rows, [5, 28, 8, 24, 16, 40, 45, 35, 35, 35, 40])
+    _table(ws, headers, rows, [5, 28, 8, 30, 16, 40, 55, 24, 35, 35, 35, 40])
 
 
 def _proposals_sheet(ws, result: DiagnosisResult) -> None:
@@ -157,10 +161,14 @@ def _proposals_sheet(ws, result: DiagnosisResult) -> None:
 # 共通の部品
 # ---------------------------------------------------------------
 def _issue_label(issue, result: DiagnosisResult, with_severity: bool = True) -> str:
-    """課題の「重要度・根拠の区分」。根拠を確認できず格下げした課題は、その旨も残す（画面と同じ）。"""
+    """課題の「重要度・根拠の区分」。根拠を確認できず格下げした課題は、その旨も残す（画面と同じ）。
+
+    サマリー（with_severity=True）は短く「格下げ」とだけ書き、課題のシートには理由まで書く。
+    """
     label = EVIDENCE_TEXT[issue.evidence_type]
-    if issue.issue_id in result.downgraded_issue_ids:
-        label += "（AIは「事実」と判断したが、根拠を入力内容の中に確認できなかったため格下げ）"
+    reason = result.downgraded.get(issue.issue_id)
+    if reason:
+        label += "（格下げ）" if with_severity else f"\n{reason}"
     return f"重要度 {issue.severity}・{label}" if with_severity else label
 
 

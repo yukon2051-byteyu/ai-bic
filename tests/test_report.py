@@ -67,17 +67,18 @@ def test_不足項目とその理由がレポートにも残る():
 
 def test_課題のシートに根拠の区分と引用が残り_格下げも分かる():
     info, state, result = run_demo("sales_report")
-    assert result.downgraded_issue_ids  # デモには、わざと根拠のない「事実」を含めている
+    assert result.downgraded  # デモには、わざと根拠のない「本人の申告」を含めている
     ws = open_report(info, state, result)["課題"]
     text = sheet_text(ws)
 
     assert ws.max_row == len(result.analysis.issues) + 1  # 見出し＋課題の数
     for issue in result.analysis.issues:
         assert issue.title in text
-    assert "要確認：判断材料が不足（AIは「事実」と判断したが" in text
-    assert "想定原因（推測）" in text
-    quote = next(ev.quote for i in result.analysis.issues for ev in i.evidences)
-    assert f"「{quote}」" in text
+    assert "要確認：判断材料が不足\nAIは「本人の申告」と判断しましたが、根拠となる発言を入力内容の中に確認できなかった" in text
+    assert "想定原因（推測）" in text and "計算式" in text
+    ev = next(ev for i in result.analysis.issues for ev in i.evidences)
+    assert f"「{ev.quote}」" in text
+    assert f"→ 言えること：{ev.supports}" in text  # 引用と主張の対応をレポートでも確かめられる（B04）
 
 
 def test_改善案のシートに導入前後と想定の効果が残る():
@@ -97,7 +98,7 @@ def test_課題が0件でもレポートを作れる():
         attachment_names=[],
         analysis=AnalysisResult(business_summary="概要", issues=[], no_issue_viewpoints=[]),
         proposals=None,
-        downgraded_issue_ids=[],
+        downgraded={},
         missing_item_ids=[],
     )
     wb = open_report(info, state, empty)

@@ -20,9 +20,13 @@ from ai_bic.models import (
     QuestionResult,
 )
 from ai_bic.output_check import (
+    REASON_NEGATED,
+    REASON_NO_CALCULATION,
+    REASON_NOT_FOUND,
     check_analysis,
     check_proposals,
     check_question_result,
+    downgrade_message,
     normalize,
     verify_evidences,
 )
@@ -74,7 +78,7 @@ def hearing_state() -> HearingState:
     )
 
 
-def issue(issue_id="I1", evidence_type="事実", evidences=None, viewpoint_ids=None) -> Issue:
+def issue(issue_id="I1", evidence_type="本人の申告", evidences=None, viewpoint_ids=None, calculation=None) -> Issue:
     return Issue(
         issue_id=issue_id,
         title="転記作業の負担",
@@ -82,6 +86,7 @@ def issue(issue_id="I1", evidence_type="事実", evidences=None, viewpoint_ids=N
         viewpoint_ids=viewpoint_ids if viewpoint_ids is not None else ["V1"],
         evidence_type=evidence_type,
         evidences=evidences if evidences is not None else [],
+        calculation=calculation,
         assumed_cause="",
         impact="",
         severity="高",
@@ -231,24 +236,24 @@ def test_問題なしの観点に存在しないIDがあれば違反():
 # ② 引用の照合（この設計の重要な工夫）
 # ---------------------------------------------------------------
 def ev(quote, source="業務情報", turn_no=None, file_no=None) -> Evidence:
-    return Evidence(source=source, turn_no=turn_no, file_no=file_no, quote=quote)
+    return Evidence(source=source, turn_no=turn_no, file_no=file_no, quote=quote, supports="")
 
 
-def test_業務情報に実在する引用なら事実のまま():
+def test_業務情報に実在する引用なら本人の申告のまま():
     result, downgraded = verify_evidences(
         analysis(issue(evidences=[ev("転記に時間がかかり")])), business_info(), hearing_state()
     )
-    assert downgraded == []
-    assert result.issues[0].evidence_type == "事実"
+    assert downgraded == {}
+    assert result.issues[0].evidence_type == "本人の申告"
 
 
-def test_回答に実在する引用なら事実のまま():
+def test_回答に実在する引用なら本人の申告のまま():
     result, downgraded = verify_evidences(
         analysis(issue(evidences=[ev("2人で半日ほど", source="回答", turn_no=1)])),
         business_info(),
         hearing_state(),
     )
-    assert downgraded == []
+    assert downgraded == {}
 
 
 def test_利用者が言っていない引用は要確認に格下げ():
@@ -256,13 +261,13 @@ def test_利用者が言っていない引用は要確認に格下げ():
     result, downgraded = verify_evidences(
         analysis(issue(evidences=[ev("転記ミスが多い")])), business_info(), hearing_state()
     )
-    assert downgraded == ["I1"]
+    assert list(downgraded) == ["I1"]
     assert result.issues[0].evidence_type == "要確認"
 
 
-def test_根拠がない事実も要確認に格下げ():
+def test_根拠がない本人の申告も要確認に格下げ():
     _, downgraded = verify_evidences(analysis(issue(evidences=[])), business_info(), hearing_state())
-    assert downgraded == ["I1"]
+    assert list(downgraded) == ["I1"]
 
 
 def test_全角半角と空白の違いは吸収する():
@@ -270,14 +275,14 @@ def test_全角半角と空白の違いは吸収する():
     _, downgraded = verify_evidences(
         analysis(issue(evidences=[ev("Excelを 1つにまとめ")])), business_info(), hearing_state()
     )
-    assert downgraded == []
+    assert downgraded == {}
 
 
 def test_かぎかっこで囲んだ引用も照合できる():
     _, downgraded = verify_evidences(
         analysis(issue(evidences=[ev("「数字が合わない」")])), business_info(), hearing_state()
     )
-    assert downgraded == []
+    assert downgraded == {}
 
 
 def test_言い換えは吸収しない():
@@ -285,14 +290,14 @@ def test_言い換えは吸収しない():
     _, downgraded = verify_evidences(
         analysis(issue(evidences=[ev("転記に時間がかかる")])), business_info(), hearing_state()
     )
-    assert downgraded == ["I1"]
+    assert list(downgraded) == ["I1"]
 
 
 def test_短すぎる引用は根拠と認めない():
     _, downgraded = verify_evidences(
         analysis(issue(evidences=[ev("転記")])), business_info(), hearing_state()
     )
-    assert downgraded == ["I1"]
+    assert list(downgraded) == ["I1"]
 
 
 def test_回答の引用は指定された回の回答とだけ照合する():
@@ -302,7 +307,7 @@ def test_回答の引用は指定された回の回答とだけ照合する():
         business_info(),
         hearing_state(),
     )
-    assert downgraded == ["I1"]
+    assert list(downgraded) == ["I1"]
 
 
 def test_存在しない回の回答を指定したら格下げ():
@@ -311,16 +316,16 @@ def test_存在しない回の回答を指定したら格下げ():
         business_info(),
         hearing_state(),
     )
-    assert downgraded == ["I1"]
+    assert list(downgraded) == ["I1"]
 
 
-def test_複数の引用のうち1つでも確認できれば事実のまま():
+def test_複数の引用のうち1つでも確認できれば本人の申告のまま():
     _, downgraded = verify_evidences(
         analysis(issue(evidences=[ev("言っていない内容です"), ev("数字が合わない")])),
         business_info(),
         hearing_state(),
     )
-    assert downgraded == []
+    assert downgraded == {}
 
 
 def test_分かりませんだけの引用は_どの区分でも根拠から外す():
@@ -335,14 +340,14 @@ def test_分かりませんだけの引用は_どの区分でも根拠から外�
     assert result.issues[0].evidences == []
 
 
-def test_分かりませんの引用しかない事実の課題は格下げ():
+def test_分かりませんの引用しかない本人の申告の課題は格下げ():
     state = HearingState(
         turns=[HearingTurn(turn_no=1, item_id="H2", question="手順は？", answer="分かりません")]
     )
     _, downgraded = verify_evidences(
         analysis(issue(evidences=[ev("分かりません", source="回答", turn_no=1)])), business_info(), state
     )
-    assert downgraded == ["I1"]
+    assert list(downgraded) == ["I1"]
 
 
 def test_推測や要確認の課題は照合しない():
@@ -351,14 +356,83 @@ def test_推測や要確認の課題は照合しない():
         business_info(),
         hearing_state(),
     )
-    assert downgraded == []
+    assert downgraded == {}
     assert [i.evidence_type for i in result.issues] == ["推測", "要確認"]
 
 
 def test_元の分析結果は変更しない():
     original = analysis(issue(evidences=[ev("転記ミスが多い")]))
     verify_evidences(original, business_info(), hearing_state())
-    assert original.issues[0].evidence_type == "事実"
+    assert original.issues[0].evidence_type == "本人の申告"
+
+
+# --- B04：否定の切り取りと、計算結果の計算式 ---
+def factory_info(pain_points="転記ミスがあることはない。") -> BusinessInfo:
+    return BusinessInfo(
+        company_name=None,
+        department="製造管理部",
+        task_name="日次生産実績の集計",
+        overview="集計に1日90分かかる。月20日稼働。時給は2,500円。",
+        pain_points=pain_points,
+    )
+
+
+def test_否定を切り取った引用は_要確認に格下げし理由を残す():
+    # 入力は「転記ミスがあることはない」。「転記ミスがある」だけを引用すると意味が逆になる
+    result, downgraded = verify_evidences(
+        analysis(issue(evidences=[ev("転記ミスがある")])), factory_info(), hearing_state()
+    )
+    assert result.issues[0].evidence_type == "要確認"
+    assert downgraded["I1"] == downgrade_message("本人の申告", REASON_NEGATED)
+
+
+def test_同じ言葉が否定なしでも書かれていれば_本人の申告のまま():
+    info = factory_info("転記ミスがあることはないと思っていたが、先月は転記ミスがあった。")
+    _, downgraded = verify_evidences(analysis(issue(evidences=[ev("転記ミスがあ")])), info, hearing_state())
+    assert downgraded == {}
+
+
+def test_否定の言葉まで含めた引用は_本人の申告のまま():
+    # 「購入できません」のように、否定そのものが問題の内容である引用は正しい
+    _, downgraded = verify_evidences(
+        analysis(issue(evidences=[ev("新しいソフトは購入できません", source="回答", turn_no=2)])),
+        business_info(),
+        hearing_state(),
+    )
+    assert downgraded == {}
+
+
+def test_計算式の数値が入力にあれば_計算結果のまま():
+    calc = issue(evidence_type="計算結果", evidences=[ev("集計に1日90分かかる")], calculation="90分×20日÷60＝30時間")
+    result, downgraded = verify_evidences(analysis(calc), factory_info(), hearing_state())
+    assert downgraded == {}
+    assert result.issues[0].evidence_type == "計算結果"
+
+
+def test_桁区切りの数値も入力の数値として照合する():
+    calc = issue(evidence_type="計算結果", evidences=[ev("集計に1日90分かかる")], calculation="30時間×2500円＝75,000円")
+    # 30 は入力にない（計算の途中の値）ため格下げ。2500 は入力の「2,500」と同じ数値として扱う
+    _, downgraded = verify_evidences(analysis(calc), factory_info(), hearing_state())
+    assert "（30）" in downgraded["I1"]
+
+
+def test_入力にない数値を使った計算式は_要確認に格下げし理由を残す():
+    calc = issue(evidence_type="計算結果", evidences=[ev("集計に1日90分かかる")], calculation="90分×22日÷60＝33時間")
+    result, downgraded = verify_evidences(analysis(calc), factory_info(), hearing_state())
+    assert result.issues[0].evidence_type == "要確認"
+    assert downgraded["I1"] == downgrade_message("計算結果", "計算式の数値（22）を入力内容の中に確認できなかった")
+
+
+def test_計算式がない計算結果は_要確認に格下げ():
+    calc = issue(evidence_type="計算結果", evidences=[ev("集計に1日90分かかる")], calculation=None)
+    _, downgraded = verify_evidences(analysis(calc), factory_info(), hearing_state())
+    assert downgraded["I1"] == downgrade_message("計算結果", REASON_NO_CALCULATION)
+
+
+def test_計算結果でも_引用が確認できなければ格下げ():
+    calc = issue(evidence_type="計算結果", evidences=[ev("集計に1日120分かかる")], calculation="90分×20日÷60＝30時間")
+    _, downgraded = verify_evidences(analysis(calc), factory_info(), hearing_state())
+    assert downgraded["I1"] == downgrade_message("計算結果", REASON_NOT_FOUND)
 
 
 # ---------------------------------------------------------------

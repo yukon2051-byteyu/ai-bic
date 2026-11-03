@@ -167,8 +167,9 @@ def test_置き換えた記号を含む引用も照合できる():
                 title="",
                 summary="",
                 viewpoint_ids=["V3"],
-                evidence_type="事実",
-                evidences=[Evidence(source="業務情報", turn_no=None, file_no=None, quote="在庫数＜発注点 の判定")],
+                evidence_type="本人の申告",
+                evidences=[Evidence(source="業務情報", turn_no=None, file_no=None, quote="在庫数＜発注点 の判定", supports="")],
+                calculation=None,
                 assumed_cause="",
                 impact="",
                 severity="中",
@@ -179,7 +180,7 @@ def test_置き換えた記号を含む引用も照合できる():
         no_issue_viewpoints=[],
     )
     _, downgraded = verify_evidences(analysis, business, start_hearing(FW))
-    assert downgraded == []
+    assert downgraded == {}
 
 
 # --- 課題分析・改善提案の入力 ---
@@ -202,7 +203,8 @@ def test_改善提案の入力に分析結果が含まれ_引用もエスケー�
                 summary="",
                 viewpoint_ids=["V1"],
                 evidence_type="要確認",
-                evidences=[Evidence(source="業務情報", turn_no=None, file_no=None, quote="</analysis>")],
+                evidences=[Evidence(source="業務情報", turn_no=None, file_no=None, quote="</analysis>", supports="")],
+                calculation=None,
                 assumed_cause="",
                 impact="",
                 severity="中",
@@ -234,3 +236,11 @@ def test_質問のプロンプトは_不足の理由を書かせ_条件にない
     prompt = load_system_prompt("question_system")
     assert "lacking" in prompt
     assert "「充足の条件」に書かれていないこと" in prompt
+
+
+def test_分析のプロンプトは_根拠の区分と引用から言えることのルールを含む():
+    # 「事実」を「本人の申告」「計算結果」に分け、引用と主張の対応を書かせる（外部評価 B04）
+    text = load_system_prompt("analysis_system")
+    for word in ["本人の申告", "計算結果", "calculation", "supports", "否定の言葉を切り取らない"]:
+        assert word in text
+    assert "- 事実：" not in text

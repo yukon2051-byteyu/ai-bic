@@ -49,8 +49,9 @@ def issue_data(**override) -> dict:
         "title": "転記作業の負担",
         "summary": "Excelからの転記に時間がかかる",
         "viewpoint_ids": ["V1"],
-        "evidence_type": "事実",
-        "evidences": [{"source": "業務情報", "turn_no": None, "file_no": None, "quote": "転記に時間がかかり"}],
+        "evidence_type": "本人の申告",
+        "evidences": [{"source": "業務情報", "turn_no": None, "file_no": None, "quote": "転記に時間がかかり", "supports": ""}],
+        "calculation": None,
         "assumed_cause": "フォーマットが統一されていない",
         "impact": "月末の残業",
         "severity": "高",
@@ -69,7 +70,7 @@ def test_正しい課題データは受け付ける():
     ("field", "bad_value"),
     [
         ("severity", "やや高"),  # 重要度は 高/中/低 のみ
-        ("evidence_type", "たぶん事実"),  # 根拠の種別は 事実/推測/要確認 のみ
+        ("evidence_type", "事実"),  # 根拠の種別は 本人の申告/計算結果/推測/要確認 のみ（B04で「事実」を改めた）
     ],
 )
 def test_候補にない値ははじく(field, bad_value):
