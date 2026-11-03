@@ -10,10 +10,11 @@ AIの呼び出しは advance()（質問）と diagnose()（分析・提案）の
 """
 
 import uuid
+from datetime import datetime
 
 import streamlit as st
 
-from ai_bic import config, guard, ui
+from ai_bic import config, guard, report, ui
 from ai_bic.ai_client import ClaudeClient
 from ai_bic.attachments import load_attachments
 from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
@@ -30,6 +31,7 @@ from ai_bic.validation import validate_answer, validate_business_info
 st.set_page_config(page_title="AI-BIC 業務改善診断", page_icon="📋", layout="centered")
 
 FRAMEWORK = config.load_framework("general")
+ITEMS = {item.id: item for item in FRAMEWORK.hearing_items}
 VIEWPOINT_NAMES = {v.id: v.name for v in FRAMEWORK.viewpoints}
 
 NOTICE = "個人情報や社外秘の情報は入力しないでください。企業名は空欄または架空の名前をおすすめします。"
@@ -162,7 +164,7 @@ def render_top() -> None:
     html(
         ui.note(
             f"ご利用上の注意　{NOTICE}　入力内容はAI（Anthropic社のClaude）に送信されます。"
-            "診断結果は保存されないため、必要な場合は画面を印刷するなどして控えてください。"
+            "診断結果は保存されないため、必要な場合は結果画面からExcelのレポートをダウンロードして控えてください。"
         )
     )
 
@@ -362,28 +364,15 @@ def render_attach() -> None:
 # ---------------------------------------------------------------
 # 画面04：診断結果（F03・F04）
 # ---------------------------------------------------------------
-def evidence_source(ev, attachment_names: list[str]) -> str:
-    """根拠の出どころの表示（例：「2問目の回答」「添付ファイル『記録.csv』」）。"""
-    if ev.source == "回答":
-        return f"{ev.turn_no}問目の回答"
-    if ev.source == "添付ファイル":
-        valid = ev.file_no is not None and 1 <= ev.file_no <= len(attachment_names)
-        return f"添付ファイル『{attachment_names[ev.file_no - 1]}』" if valid else "添付ファイル"
-    return "業務情報"
-
-
-def missing_item_text(item_id: str, status) -> str:
-    """不足している診断項目と、その理由の表示（B01。例：「業務の目的（不十分）　足りないこと：…」）。
-
-    AIが理由を書かなかったときは、その項目で確認したいこと（description）を代わりに出す。
-    """
-    item = next(i for i in FRAMEWORK.hearing_items if i.id == item_id)
-    label = status.status if status else "未確認"
-    lacking = (status.lacking if status else "") or item.description
-    text = f"{item.name}（{label}）　足りないこと：{lacking}"
-    if status and status.known_facts:
-        text += f"　／　分かっていること：{status.known_facts}"
-    return text
+def render_report_download(data: bytes, name: str, key: str) -> None:
+    """診断レポート（Excel）のダウンロードボタン（B05）。結果の冒頭と末尾の2か所に置く。"""
+    st.download_button(
+        "診断レポートをダウンロード（Excel）",
+        data=data,
+        file_name=name,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key=key,
+    )
 
 
 def render_result() -> None:
@@ -392,6 +381,13 @@ def render_result() -> None:
     analysis = result.analysis
     info = s.business_info
     issues_by_id = {i.issue_id: i for i in analysis.issues}
+
+    # 診断レポート（B05）。その場で作って渡すだけで、サーバーには保存しない
+    created_at = datetime.now(config.JST)
+    report_data = report.build_report(
+        info, s.hearing_state, result, FRAMEWORK, created_at, demo=s.mode == "demo"
+    )
+    report_name = report.file_name(created_at)
 
     # --- 診断サマリー（最初の数秒で価値が伝わるように） ---
     html(ui.label("Summary", "診断サマリー"))
@@ -404,6 +400,7 @@ def render_result() -> None:
         )
     else:
         html(ui.note("お聞きした範囲では、明確な課題は確認できませんでした。"))
+    render_report_download(report_data, report_name, key="download_report_top")
 
     # --- 業務の概要 ---
     html(ui.label("Overview", "業務の概要"))
@@ -416,13 +413,13 @@ def render_result() -> None:
     if result.missing_item_ids:
         html(ui.note("次の項目は情報が不足しています。結果は参考としてご覧ください。"))
         for item_id in result.missing_item_ids:
-            html(ui.footnote(missing_item_text(item_id, s.hearing_state.item_status.get(item_id))))
+            html(ui.footnote(ui.missing_item_text(ITEMS[item_id], s.hearing_state.item_status.get(item_id))))
 
     # --- 課題（F03） ---
     html(ui.label("Issues", f"抽出された課題（{len(analysis.issues)}件）"))
     for no, issue in enumerate(analysis.issues, start=1):
         viewpoints = "観点：" + "・".join(VIEWPOINT_NAMES.get(v, v) for v in issue.viewpoint_ids)
-        sources = [evidence_source(ev, result.attachment_names) for ev in issue.evidences]
+        sources = [ui.evidence_source(ev, result.attachment_names) for ev in issue.evidences]
         downgraded = issue.issue_id in result.downgraded_issue_ids
         html(ui.issue_card(no, issue, viewpoints, sources, downgraded))
     if analysis.no_issue_viewpoints:
@@ -437,7 +434,8 @@ def render_result() -> None:
         for no, p in enumerate(result.proposals.proposals, start=1):
             html(ui.proposal_card(no, p))
 
-    html(ui.footnote("診断結果はAIによる参考情報です。効果は想定であり、実施前に関係者と事実を確認してください。"))
+    html(ui.footnote(ui.DISCLAIMER))
+    render_report_download(report_data, report_name, key="download_report_bottom")
     if st.button("新しい診断を始める", type="primary", key="new"):
         reset()
         st.rerun()

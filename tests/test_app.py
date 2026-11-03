@@ -135,6 +135,26 @@ def test_修理受付のデモは不足項目を表示する(secrets):
     assert "改善に向けた制約条件（不十分）　足りないこと：予算の目安や、使ってよいツール・社内ルールの有無" in text
 
 
+def test_結果画面の冒頭と末尾に_診断レポートのダウンロードボタンがある(secrets):
+    at = new_app(secrets)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    while at.session_state.stage == "hearing":
+        at.button(key="submit_answer").click().run()
+    at.button(key="diagnose").click().run()
+
+    assert not at.exception
+    keys = [b.proto.id for b in at.get("download_button")]
+    assert len(keys) == 2  # 長い結果を読み終えた後でも、すぐ保存できるように末尾にも置く
+    assert all("download_report" in k for k in keys)
+    assert "結果画面からExcelのレポートをダウンロード" not in all_text(at)  # 案内はトップ画面だけ
+
+
+def test_トップ画面で_レポートで結果を控えるよう案内する(secrets):
+    at = new_app(secrets)
+    assert "結果画面からExcelのレポートをダウンロードして控えてください" in all_text(at)
+
+
 def test_ヒアリングの途中で_ここまでの情報で診断できる(secrets):
     at = new_app(secrets)
     at.button(key="start_demo").click().run()

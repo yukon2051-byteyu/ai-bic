@@ -12,7 +12,7 @@ AIの回答や利用者の入力をHTMLに埋め込むため、すべて esc() �
 
 import html
 
-from ai_bic.models import DiagnosisSummary, HearingTurn, Issue, Proposal
+from ai_bic.models import DiagnosisSummary, Evidence, HearingItem, HearingTurn, Issue, ItemStatus, Proposal
 
 ACCENT = "#1B2B4B"  # 深い紺（差し色）
 
@@ -228,6 +228,7 @@ header[data-testid="stHeader"] {{ display: none; }}
 SEVERITY_CLASS = {"高": "fill", "中": "", "低": "gray"}  # 重要度のバッジ
 SEVERITY_CARD = {"高": "sev-high", "中": "sev-mid", "低": "sev-low"}  # カードの左端の線の色
 EVIDENCE_TEXT = {"事実": "事実：発言で確認済み", "推測": "推測：発言からの推測", "要確認": "要確認：判断材料が不足"}
+DISCLAIMER = "診断結果はAIによる参考情報です。効果は想定であり、実施前に関係者と事実を確認してください。"
 
 
 def esc(text) -> str:
@@ -399,3 +400,29 @@ def proposal_card(no: int, p: Proposal) -> str:
 
 def footnote(text: str) -> str:
     return f'<div class="bic-footnote">{esc(text)}</div>'
+
+
+# ---------------------------------------------------------------
+# 画面とレポート（report.py）で共通の文言
+# ---------------------------------------------------------------
+def evidence_source(ev: Evidence, attachment_names: list[str]) -> str:
+    """根拠の出どころの表示（例：「2問目の回答」「添付ファイル『記録.csv』」）。"""
+    if ev.source == "回答":
+        return f"{ev.turn_no}問目の回答"
+    if ev.source == "添付ファイル":
+        valid = ev.file_no is not None and 1 <= ev.file_no <= len(attachment_names)
+        return f"添付ファイル『{attachment_names[ev.file_no - 1]}』" if valid else "添付ファイル"
+    return "業務情報"
+
+
+def missing_item_text(item: HearingItem, status: ItemStatus | None) -> str:
+    """不足している診断項目と、その理由の表示（B01。例：「業務の目的（不十分）　足りないこと：…」）。
+
+    AIが理由を書かなかったときは、その項目で確認したいこと（description）を代わりに出す。
+    """
+    label = status.status if status else "未確認"
+    lacking = (status.lacking if status else "") or item.description
+    text = f"{item.name}（{label}）　足りないこと：{lacking}"
+    if status and status.known_facts:
+        text += f"　／　分かっていること：{status.known_facts}"
+    return text
