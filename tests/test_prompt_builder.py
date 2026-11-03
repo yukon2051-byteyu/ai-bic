@@ -244,3 +244,12 @@ def test_分析のプロンプトは_根拠の区分と引用から言えるこ�
     for word in ["本人の申告", "計算結果", "calculation", "supports", "否定の言葉を切り取らない"]:
         assert word in text
     assert "- 事実：" not in text
+
+
+def test_提案のプロンプトは_使っているツールの名前と機能の確認と_クラウド不可のルールを含む():
+    # 「Microsoft 365」と入力しても「クラウド型オフィスツール」と書き換えていた（外部評価 B03）
+    text = load_system_prompt("proposal_system")
+    assert "利用者が「使っている」と述べたもの" in text
+    assert "その機能が使えるか" in text
+    assert "クラウドは使えない" in text
+    assert "特定の製品名・サービス名は使わず" not in text
