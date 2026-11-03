@@ -23,6 +23,9 @@ from ai_bic.ui import DISCLAIMER, EVIDENCE_TEXT, evidence_source, missing_item_t
 TITLE = "AI-BIC 業務改善診断レポート"
 HEADER_FILL = PatternFill("solid", fgColor="E8ECEF")
 WRAP = Alignment(wrap_text=True, vertical="top")
+FONT_NAME = "メイリオ"  # 日本語が読みやすいWindows標準のフォント。ない環境では、Excelが別のフォントで表示する
+NORMAL = Font(name=FONT_NAME)
+BOLD = Font(name=FONT_NAME, bold=True)
 
 
 def file_name(created_at: datetime) -> str:
@@ -89,9 +92,9 @@ def _summary_sheet(ws, info, state, result, framework, created_at, demo) -> None
         rows.append(("情報が不足している項目", "結果は参考としてご覧ください。\n" + _bullets(lines)))
     rows.append(("ご注意", DISCLAIMER))
 
-    _put(ws, 1, 1, TITLE).font = Font(bold=True, size=14)
+    _put(ws, 1, 1, TITLE).font = Font(name=FONT_NAME, bold=True, size=14)
     for r, (label, value) in enumerate(rows, start=3):
-        _put(ws, r, 1, label).font = Font(bold=True)
+        _put(ws, r, 1, label).font = BOLD
         _put(ws, r, 2, value)
     _format(ws, [22, 90])
 
@@ -175,13 +178,14 @@ def _put(ws: Worksheet, row: int, col: int, value):
     if isinstance(value, str) and value.startswith("="):
         cell.data_type = "s"
     cell.alignment = WRAP
+    cell.font = NORMAL
     return cell
 
 
 def _table(ws: Worksheet, headers: list[str], rows: list[list], widths: list[int]) -> None:
     for c, header in enumerate(headers, start=1):
         cell = _put(ws, 1, c, header)
-        cell.font = Font(bold=True)
+        cell.font = BOLD
         cell.fill = HEADER_FILL
     for r, values in enumerate(rows, start=2):
         for c, value in enumerate(values, start=1):

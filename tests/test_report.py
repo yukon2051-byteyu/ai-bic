@@ -123,3 +123,9 @@ def test_デモの結果はデモと分かる():
 
 def test_ファイル名は作成日時から作る():
     assert file_name(CREATED_AT) == "AI-BIC_診断レポート_20261103_0905.xlsx"
+
+
+def test_すべてのセルをメイリオで表示する():
+    wb = open_report(*run_demo("sales_report"))
+    fonts = {c.font.name for ws in wb for row in ws.iter_rows() for c in row if c.value is not None}
+    assert fonts == {"メイリオ"}
