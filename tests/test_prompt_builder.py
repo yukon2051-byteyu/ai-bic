@@ -69,6 +69,18 @@ def test_分析と提案のプロンプトは_述べていない役職を使わ�
     assert "担当者" in text and "上長" in text
 
 
+@pytest.mark.parametrize("name", ["analysis_system", "proposal_system"])
+def test_分析と提案のプロンプトは_数値を述べられた範囲のまま使うルールを含む(name):
+    # 本物のAIが「集計に1日90分」を「転記に90分」と書き換えた（外部評価 B02）
+    text = load_system_prompt(name)
+    assert "利用者が述べた作業・担当者・頻度の範囲のまま" in text
+    assert "うち転記にかかる時間は未確認" in text
+
+
+def test_提案のプロンプトは_分析で確認が必要とされた点を断定しないルールを含む():
+    assert "どの項目でも断定しないでください" in load_system_prompt("proposal_system")
+
+
 def test_質問のプロンプトは_業務情報で充足していれば質問しないルールを含む():
     # 本物のAIが、業務概要に書かれた内容を質問した（改善の余地b）
     assert "その項目は質問しないでください" in load_system_prompt("question_system")
