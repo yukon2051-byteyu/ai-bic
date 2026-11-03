@@ -3,13 +3,14 @@
 本物の secrets.toml の内容に左右されないよう、get_secret を偽物に差し替える。
 """
 
+import threading
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from ai_bic import guard
 from ai_bic.config import DAILY_DIAGNOSIS_LIMIT, JST
-from ai_bic.usage_log import init_db, record_call
+from ai_bic.usage_log import count_slots_on, init_db
 
 
 @pytest.fixture
@@ -79,32 +80,60 @@ def db(tmp_path):
 NOW = datetime(2026, 11, 1, 15, 0, tzinfo=JST)
 
 
-def fill_sessions(db, count, day=NOW):
+def fill_slots(db, count, day=NOW):
     for n in range(count):
-        record_call(db, f"s{n}", "question", "m", 0, 0, "success", None, day)
+        assert guard.reserve_diagnosis(db, f"s{n}", day) is True
 
 
 def test_記録がなければ診断を始められる(db):
-    assert guard.can_start_diagnosis(db, NOW) is True
+    assert guard.reserve_diagnosis(db, "new", NOW) is True
+    assert count_slots_on(db, NOW.date()) == 1  # 始めた時点で枠を確保する
 
 
 def test_上限の1つ手前までは始められる(db):
-    fill_sessions(db, DAILY_DIAGNOSIS_LIMIT - 1)
-    assert guard.can_start_diagnosis(db, NOW) is True
+    fill_slots(db, DAILY_DIAGNOSIS_LIMIT - 1)
+    assert guard.reserve_diagnosis(db, "new", NOW) is True
 
 
-def test_上限に達したら始められない(db):
-    fill_sessions(db, DAILY_DIAGNOSIS_LIMIT)
-    assert guard.can_start_diagnosis(db, NOW) is False
+def test_上限に達したら始められず_枠も増えない(db):
+    fill_slots(db, DAILY_DIAGNOSIS_LIMIT)
+    assert guard.reserve_diagnosis(db, "new", NOW) is False
+    assert count_slots_on(db, NOW.date()) == DAILY_DIAGNOSIS_LIMIT
 
 
 def test_日付が変われば_また始められる(db):
-    fill_sessions(db, DAILY_DIAGNOSIS_LIMIT)
-    assert guard.can_start_diagnosis(db, NOW + timedelta(days=1)) is True
+    fill_slots(db, DAILY_DIAGNOSIS_LIMIT)
+    assert guard.reserve_diagnosis(db, "new", NOW + timedelta(days=1)) is True
 
 
 def test_UTCの日時を渡しても日本時間の日付で判定する(db):
-    fill_sessions(db, DAILY_DIAGNOSIS_LIMIT)  # 日本時間 11/1 に上限まで使用
+    fill_slots(db, DAILY_DIAGNOSIS_LIMIT)  # 日本時間 11/1 に上限まで使用
     # UTC 10/31 20:00 は 日本時間 11/1 5:00 → 同じ日なので始められない
     utc_now = datetime(2026, 10, 31, 20, 0, tzinfo=timezone.utc)
-    assert guard.can_start_diagnosis(db, utc_now) is False
+    assert guard.reserve_diagnosis(db, "new", utc_now) is False
+
+
+def test_AIを呼ぶ前の診断も_1回として数える(db):
+    # 以前は「AIを呼んだ診断」だけを数えたため、AIを呼ぶ前に複数始めると上限をすり抜けられた（X01）
+    for n in range(DAILY_DIAGNOSIS_LIMIT):
+        guard.reserve_diagnosis(db, f"tab{n}", NOW)  # タブを開いて始めただけ（AIはまだ呼んでいない）
+    assert guard.reserve_diagnosis(db, "one_more", NOW) is False
+
+
+def test_同時に始めても_上限を超えて確保しない(db):
+    # 30人が同時に「診断を始める」を押した場面を、スレッドで再現する（X01）
+    barrier = threading.Barrier(30)
+    results = []
+
+    def press(n):
+        barrier.wait()  # 30個のスレッドがそろってから、一斉に確保する
+        results.append(guard.reserve_diagnosis(db, f"user{n}", NOW))
+
+    threads = [threading.Thread(target=press, args=(n,)) for n in range(30)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert results.count(True) == DAILY_DIAGNOSIS_LIMIT
+    assert count_slots_on(db, NOW.date()) == DAILY_DIAGNOSIS_LIMIT

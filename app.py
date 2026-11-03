@@ -64,6 +64,7 @@ def init_state() -> None:
         "attachments": [],  # 読み込んだ添付ファイル（保存はしない）
         "attach_errors": [],
         "diagnosis": None,
+        "analysis_cache": {},  # 成功した課題分析（再試行で同じ分析をやり直さないため。X01）
         "error_kind": None,  # 直前のAIエラーの種類
         "answer_error": None,
     }
@@ -78,12 +79,13 @@ def reset() -> None:
     init_state()
 
 
-def start(mode: str, scenario: dict | None = None) -> None:
+def start(mode: str, scenario: dict | None = None, session_id: str | None = None) -> None:
+    """診断を始める。AI診断は、枠を確保したときの session_id をそのまま使う。"""
     reset()
     s = st.session_state
     s.mode = mode
     s.scenario = scenario
-    s.session_id = uuid.uuid4().hex
+    s.session_id = session_id or uuid.uuid4().hex
     s.raw_input = dict(scenario["business_info"]) if scenario else {}
     s.stage = "input"
 
@@ -123,7 +125,8 @@ def diagnose() -> None:
     try:
         with st.spinner("AIが課題を分析し、改善案を考えています…（1分ほどかかることがあります）"):
             s.diagnosis = run_diagnosis(
-                get_client(), s.business_info, s.hearing_state, FRAMEWORK, s.attachments
+                get_client(), s.business_info, s.hearing_state, FRAMEWORK, s.attachments,
+                cache=s.analysis_cache,
             )
     except AIError as e:
         s.error_kind = e.kind
@@ -177,10 +180,10 @@ def render_top() -> None:
             if st.button("診断を始める", type="primary", key="start_ai"):
                 if not guard.check_password(password):
                     st.error("パスワードが正しくありません。")
-                elif not guard.can_start_diagnosis(config.DB_PATH):
+                elif not guard.reserve_diagnosis(config.DB_PATH, session_id := uuid.uuid4().hex):
                     st.error("本日の診断回数の上限に達しました。デモモードをお試しください。")
                 else:
-                    start("ai")
+                    start("ai", session_id=session_id)
                     st.rerun()
         else:
             html(ui.note("AI診断は現在利用できません。デモモードをお試しください。"))

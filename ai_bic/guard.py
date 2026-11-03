@@ -3,6 +3,9 @@
 公開環境で第三者に大量に使われ、料金が発生するのを抑える。
 ただし、これはアプリの中の対策にすぎない。確実な上限は
 Anthropic Console の利用上限（Spend limit）で設定する（K06）。
+
+1日の回数は、パスワードを知っている人全員の合計で数える（人ごとではない）。
+記録は SQLite のファイルにあるため、公開環境の再起動で消えると、その日の回数も0に戻る（X01）。
 """
 
 import hmac
@@ -10,12 +13,11 @@ from datetime import datetime
 
 from ai_bic.config import (
     DAILY_DIAGNOSIS_LIMIT,
-    JST,
     SECRET_API_KEY,
     SECRET_APP_PASSWORD,
     get_secret,
 )
-from ai_bic.usage_log import count_sessions_on, init_db
+from ai_bic.usage_log import init_db, reserve_slot
 
 
 def ai_available() -> bool:
@@ -37,8 +39,11 @@ def check_password(entered: str | None) -> bool:
     return hmac.compare_digest(entered.encode("utf-8"), expected.encode("utf-8"))
 
 
-def can_start_diagnosis(db_path: str, now: datetime | None = None) -> bool:
-    """今日（日本時間）の診断回数が上限未満かを返す。now はテストで日時を指定するときに使う。"""
+def reserve_diagnosis(db_path: str, session_id: str, now: datetime | None = None) -> bool:
+    """今日（日本時間）の診断の枠を1つ確保できたかを返す（上限に達していれば False）。
+
+    確認と確保を同時に行うため、同時に「診断を始める」が押されても上限を超えない（X01）。
+    now はテストで日時を指定するときに使う。
+    """
     init_db(db_path)
-    today = (now or datetime.now(JST)).astimezone(JST).date()
-    return count_sessions_on(db_path, today) < DAILY_DIAGNOSIS_LIMIT
+    return reserve_slot(db_path, session_id, DAILY_DIAGNOSIS_LIMIT, now)

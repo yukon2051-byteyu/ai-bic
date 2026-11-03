@@ -405,3 +405,42 @@ def test_最後の回答の判定でエラーが起きたら_診断のAIは呼�
     with pytest.raises(AIError):
         run_diagnosis(client, INFO, state, FW)
     assert client.calls["analysis"] == 0
+
+
+# ---------------------------------------------------------------
+# 再試行で課題分析をやり直さない（X01：費用の重複を防ぐ）
+# ---------------------------------------------------------------
+def test_提案で失敗して再試行しても_成功した課題分析はやり直さない():
+    analysis = AnalysisResult(business_summary="", issues=[make_issue("I1", "数字が合わない")], no_issue_viewpoints=[])
+    client = FakeClient(analysis=analysis, proposals=AIError("timeout"))
+    state, cache = finished_state(), {}
+
+    with pytest.raises(AIError):
+        run_diagnosis(client, INFO, state, FW, cache=cache)
+    client.proposals = make_proposals()  # 再試行では提案が成功する
+    result = run_diagnosis(client, INFO, state, FW, cache=cache)
+
+    assert client.calls == {"question": 0, "analysis": 1, "proposal": 2}
+    assert result.proposals is not None
+
+
+def test_添付ファイルを変えて診断し直したら_課題分析もやり直す():
+    analysis = AnalysisResult(business_summary="", issues=[make_issue("I1", "数字が合わない")], no_issue_viewpoints=[])
+    client = FakeClient(analysis=analysis, proposals=AIError("timeout"))
+    state, cache = finished_state(), {}
+
+    with pytest.raises(AIError):
+        run_diagnosis(client, INFO, state, FW, cache=cache)
+    client.proposals = make_proposals()
+    run_diagnosis(client, INFO, state, FW, [Attachment(name="記録.csv", text="月,件数")], cache=cache)
+
+    assert client.calls["analysis"] == 2
+
+
+def test_置き場所を渡さなければ_毎回課題分析を行う():
+    analysis = AnalysisResult(business_summary="", issues=[make_issue("I1", "数字が合わない")], no_issue_viewpoints=[])
+    client = FakeClient(analysis=analysis, proposals=make_proposals())
+    state = finished_state()
+    run_diagnosis(client, INFO, state, FW)
+    run_diagnosis(client, INFO, state, FW)
+    assert client.calls["analysis"] == 2

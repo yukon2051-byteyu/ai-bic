@@ -178,11 +178,15 @@ def run_diagnosis(
     state: HearingState,
     framework: Framework,
     attachments: list[Attachment] | None = None,
+    cache: dict | None = None,
 ) -> DiagnosisResult:
     """充足状況の最終判定 → 課題分析 → 根拠の照合 → 改善提案 を順に行い、結果をまとめて返す（F03・F04）。
 
     添付ファイル（F09）は課題分析にだけ渡し、引用の照合にも使う。
     課題分析と結果画面の不足項目は、どちらも最終判定のあとの充足状況を使う。
+
+    cache（画面が診断ごとに持つ空の dict）を渡すと、成功した課題分析の結果をそこに残す。
+    改善提案で失敗して再試行したときは、同じ添付ファイルなら課題分析をやり直さない（X01：費用の重複を防ぐ）。
     """
     if not state.finished_reason:
         raise ValueError("ヒアリングが終了していません")
@@ -190,8 +194,13 @@ def run_diagnosis(
 
     judge_last_answers(client, info, state, framework)
 
-    analysis = client.analyze(info, state, framework, attachments)
-    checked, downgraded = verify_evidences(analysis, info, state, attachments)
+    if cache and cache.get("attachments") == attachments:
+        checked, downgraded = cache["analysis"]
+    else:
+        analysis = client.analyze(info, state, framework, attachments)
+        checked, downgraded = verify_evidences(analysis, info, state, attachments)
+        if cache is not None:
+            cache.update(attachments=attachments, analysis=(checked, downgraded))
 
     # 課題が0件なら改善提案のAIを呼ばない（費用削減・課題の捏造防止）
     proposals = client.propose(info, state, checked) if checked.issues else None

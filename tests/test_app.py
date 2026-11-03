@@ -11,7 +11,7 @@ from streamlit.testing.v1 import AppTest
 
 from ai_bic import config, guard
 from ai_bic.config import DAILY_DIAGNOSIS_LIMIT, JST
-from ai_bic.usage_log import init_db, record_call
+from ai_bic.usage_log import count_slots_on, init_db, reserve_slot
 
 
 @pytest.fixture
@@ -249,6 +249,8 @@ def test_正しいパスワードならAI診断の入力画面に進む(secrets,
     assert at.session_state.stage == "input"
     assert at.session_state.mode == "ai"
     assert at.text_input(key="f_department").value == ""  # AI診断では入力欄は空
+    # 「診断を始める」の時点で、その診断の枠を1つ確保している（X01）
+    assert count_slots_on(db, datetime.now(JST).date()) == 1
 
 
 def test_1日の上限に達していればAI診断を始められない(secrets, db):
@@ -256,7 +258,7 @@ def test_1日の上限に達していればAI診断を始められない(secrets
     init_db(db)
     now = datetime.now(JST)
     for n in range(DAILY_DIAGNOSIS_LIMIT):
-        record_call(db, f"s{n}", "question", "m", 0, 0, "success", None, now)
+        reserve_slot(db, f"s{n}", DAILY_DIAGNOSIS_LIMIT, now)
 
     at = new_app(secrets)
     at.text_input(key="password").set_value("correct")
