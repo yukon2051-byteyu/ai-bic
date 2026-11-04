@@ -1,3 +1,14 @@
+---
+title: AI-BIC
+emoji: 📋
+colorFrom: blue
+colorTo: gray
+sdk: docker
+app_port: 8501
+pinned: false
+short_description: AIが業務をヒアリングし、課題と改善案を根拠つきで整理する
+---
+
 # AI-BIC（AI Business Improvement Consultant）
 
 **業務担当者にAIがヒアリングし、業務の課題と改善案を「根拠つき」で整理するWebアプリ**です。
