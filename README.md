@@ -15,7 +15,8 @@ short_description: AIが業務をヒアリングし、課題と改善案を根�
 
 AIの回答をそのまま信じず、「AIが本人の発言だと言った根拠が、利用者の入力に本当にあるか」をプログラムで照合する仕組みを持っています。
 
-> **公開URL：** https://ai-bic.streamlit.app/ （Streamlit Community Cloud。デモモードはどなたでもお試しいただけます）
+> **公開URL：** https://huggingface.co/spaces/yukon2051/ai-bic （Hugging Face Spaces。デモモードはどなたでもお試しいただけます。しばらく利用がないと休止し、開いたときに自動で起動するため、表示まで少しお待ちいただくことがあります）
+> 予備の公開先：https://ai-bic.streamlit.app/ （Streamlit Community Cloud。2026-11-04 に Hugging Face Spaces へ移行。理由は[テスト結果の「4. 公開環境での確認」](docs/06_テスト結果.md#4-公開環境での確認11で追加)）
 > **開発の状況：** MVPの機能を実装し、本物のAI（Claude API）による3つの業務シナリオでの品質評価を完了しました（2026-11-01）。その後、外部評価の指摘に対応しています（2026-11-03）。
 > **最新の検証結果**（実施日・コミット・環境・テスト件数）は、[テスト結果の「0. 最新の検証結果」](docs/06_テスト結果.md#0-最新の検証結果) の1か所にまとめています。
 
@@ -86,7 +87,8 @@ AIへの指示（プロンプト）だけでは、ルールは必ずしも守ら
 
 | 役割 | 技術 | 選んだ理由 |
 |---|---|---|
-| 言語 | Python 3.15（開発・テスト）／3.14（公開環境） | 業務の自動化やAIの活用で広く使われている。公開先の Streamlit Community Cloud で選べる版が 3.14 のため、公開環境だけ版が異なる |
+| 言語 | Python 3.15（開発・テスト・公開環境） | 業務の自動化やAIの活用で広く使われている。公開先の Hugging Face Spaces は Dockerfile で版を指定できるため、開発と同じ 3.15 に揃えた（予備の Streamlit Community Cloud は 3.14） |
+| 公開環境 | Hugging Face Spaces（Docker） | 無料で公開でき、休止しても開くだけで自動で起動する。Streamlit Community Cloud は休止までが短く、起こすボタンを押す必要があったため移行した |
 | 画面 | Streamlit 1.66 | Pythonだけで画面を作れ、短期間で動くものを作れる |
 | AI | Claude API（anthropic SDK 2.3） | 決まった形（JSON）で回答させる「構造化出力」に対応し、出力をプログラムで検証しやすい |
 | データの形の定義 | Pydantic | AIの回答の項目・型・値の候補を定義し、想定外の値をはじける |
