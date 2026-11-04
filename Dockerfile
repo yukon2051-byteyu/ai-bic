@@ -19,4 +19,6 @@ COPY --chown=user . .
 
 # HF の Streamlit テンプレートが使う番号（README 先頭の app_port と合わせる）
 EXPOSE 8501
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# HF はアプリを別ページの中に埋め込んで表示するため、XSRF保護が有効だと
+# ファイル添付（Excel）が拒否される。HF上でだけ無効にする（手元の実行は有効のまま）
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.enableXsrfProtection=false"]
