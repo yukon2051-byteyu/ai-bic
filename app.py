@@ -35,7 +35,7 @@ from ai_bic.hearing import (
 )
 from ai_bic.validation import validate_answer, validate_business_info
 
-st.set_page_config(page_title="AI-BIC 業務改善診断", page_icon="📋", layout="wide")  # 幅は ui.CSS で抑え、結果画面だけ広げる
+st.set_page_config(page_title=config.APP_PAGE_TITLE, page_icon=str(config.APP_FAVICON), layout="wide")  # 幅は ui.CSS で抑え、結果画面だけ広げる
 
 FRAMEWORK = config.load_framework("general")
 ITEMS = {item.id: item for item in FRAMEWORK.hearing_items}
@@ -198,8 +198,9 @@ def render_top() -> None:
     html(ui.hero())
     html(ui.features())
     html(
-        ui.note(
-            "ご利用上の注意　個人情報や社外秘の情報は入力しないでください（企業名は空欄か架空の名前を推奨）。"
+        ui.notice(
+            "ご利用上の注意",
+            "個人情報や社外秘の情報は入力しないでください（企業名は空欄か架空の名前を推奨）。"
             "入力内容はAI（Anthropic社のClaude）に送信され、診断結果は保存されません。"
             "必要な場合は結果画面からExcelのレポートをダウンロードして控えてください。"
         )

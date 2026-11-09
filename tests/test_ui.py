@@ -168,3 +168,30 @@ def test_どの画面でもブランド名はTOPへのリンク():
         bar = ui.topbar([("hearing", "02 ヒアリング"), ("result", "04 診断結果")], current)
         assert '<a class="bic-brand" href="./" target="_self"' in bar
         assert "入力中の内容は消えます" in bar  # 押す前に分かるように
+
+
+def test_ご利用上の注意はラベルだけ太字で_配色はこのバナーだけに限る():
+    html = ui.notice("ご利用上の注意", ATTACK)
+    assert '<span class="bic-notice-label">ご利用上の注意</span>' in html
+    assert "<script>" not in html  # 本文も HTML として解釈させない
+    assert "--notice-bg: #E7EDF5" in ui.CSS and "--notice-line: #647C9B" in ui.CSS
+    assert ".bic-note.bic-notice {" in ui.CSS  # 普通の注記（.bic-note）の配色は変えない
+    assert "bic-notice" not in ui.note("x")
+
+
+def test_タブ名とアイコンは共通の設定にまとめ_アイコンはSVGの原本を使う():
+    import xml.etree.ElementTree as ET
+
+    from ai_bic import config
+
+    assert config.APP_PAGE_TITLE == "AI-BIC｜業務改善診断"
+    svg = ET.parse(config.APP_FAVICON).getroot()
+    ns = "{http://www.w3.org/2000/svg}"
+    rect, line = svg.find(ns + "rect"), svg.find(ns + "polyline")
+    assert rect.get("fill") == ui.ACCENT  # 既存のブランドの濃紺
+    assert line.get("stroke") == "#C9B37E"
+    assert line.get("stroke-linecap") == "round" and line.get("stroke-linejoin") == "round"
+    ys = [float(p.split(",")[1]) for p in line.get("points").split()]
+    downs = sum(1 for a, b in zip(ys, ys[1:]) if b > a)  # 画面の y は下向きが大きい
+    assert ys[-1] < ys[0] and downs == 1  # 右上がりで、途中で一度だけ下がる
+    assert svg.find(ns + "text") is None  # 文字は入れない

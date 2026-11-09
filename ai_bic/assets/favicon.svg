@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- AI-BIC のアイコン（原本）：ブランドの濃紺の角丸正方形に、金色の右上がりの折れ線（途中で一度だけ軽く下がる＝業務の改善） -->
+  <rect width="64" height="64" rx="14" fill="#1B2B4B"/>
+  <polyline points="13,47 27,31 36,38 51,17" fill="none" stroke="#C9B37E" stroke-width="7.5"
+            stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

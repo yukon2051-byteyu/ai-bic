@@ -37,6 +37,8 @@ CSS = f"""
   --card: #FFFFFF;  /* 入力・結果の作業面 */
   --line-blue: #C8D2E0;  /* 青灰色の枠 */
   --on-navy-sub: #D9E2F0;  /* 濃紺の面の上の補足の文字 */
+  --notice-bg: #E7EDF5;  /* ご利用上の注意の面（淡いブルーグレー）。デモの淡い金色と区別する */
+  --notice-line: #647C9B;  /* ご利用上の注意の左端の線（落ち着いた青） */
 }}
 /* 色の役割（開発者の指示）：
    濃紺＝ページの見出し・現在のステップ・主操作のボタン。濃紺の広い面は、画面の起点（TOPのAI診断・診断サマリー）だけ
@@ -182,6 +184,9 @@ header[data-testid="stHeader"] {{ display: none; }}
 /* 注記 */
 .bic-note {{ font-size: .8rem; color: var(--accent); line-height: 1.75; background: var(--gold-soft);
   border-left: 2px solid var(--gold); padding: .5rem .9rem; margin: .55rem 0; border-radius: 0 4px 4px 0; }}
+/* TOPの「ご利用上の注意」だけ：淡いブルーグレーの面と青い線（デモの淡い金色と見分けるため）。ラベルだけ太字 */
+.bic-note.bic-notice {{ background: var(--notice-bg); border-left-color: var(--notice-line); color: var(--accent); }}
+.bic-notice-label {{ font-weight: 700; }}
 .bic-tag {{ display: inline-block; font-size: .72rem; letter-spacing: .08em; padding: .2rem .65rem;
   border: 1px solid var(--line-blue); border-radius: 2px; color: var(--sub); background: var(--card); margin: 0 .4rem .3rem 0; }}
 
@@ -354,6 +359,11 @@ def features() -> str:
 
 def note(text: str) -> str:
     return f'<div class="bic-note">{esc(text)}</div>'
+
+
+def notice(label: str, text: str) -> str:
+    """TOPの「ご利用上の注意」（ラベルだけ太字）。配色は .bic-notice に限る（ほかの注記は変えない）。"""
+    return f'<div class="bic-note bic-notice"><span class="bic-notice-label">{esc(label)}</span>　{esc(text)}</div>'
 
 
 def topbar(steps: list[tuple[str, str]], current: str | None) -> str:

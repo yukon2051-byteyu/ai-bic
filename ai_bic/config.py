@@ -14,6 +14,10 @@ from ai_bic.models import Framework
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 
+# ブラウザのタブに出す名前とアイコン（SVG が原本。Streamlit が画像に変換してページに埋め込む）
+APP_PAGE_TITLE = "AI-BIC｜業務改善診断"
+APP_FAVICON = BASE_DIR / "ai_bic" / "assets" / "favicon.svg"
+
 # --- AIモデル（決定事項Q2。2026-11-01 に分析・提案を Sonnet 5.5 から Opus 5.5 に変更） ---
 MODEL_QUESTION = "claude-haiku-5-5"  # 1問ごとに利用者を待たせるため、速いモデル
 MODEL_ANALYSIS = "claude-opus-5-5"  # 成果物の価値を決める部分のため、最も高性能なモデル
