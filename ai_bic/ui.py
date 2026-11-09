@@ -12,6 +12,7 @@ AIの回答や利用者の入力をHTMLに埋め込むため、すべて esc() �
 
 import html
 
+from ai_bic.effect import EffectEstimate, format_number
 from ai_bic.models import DiagnosisSummary, Evidence, HearingItem, HearingTurn, Issue, ItemStatus, Proposal
 
 ACCENT = "#1B2B4B"  # 深い紺（差し色）
@@ -403,6 +404,39 @@ def proposal_card(no: int, p: Proposal) -> str:
         f'<div class="k">最初の一歩（今週から始められること）</div><ul class="bic-steps-list">{items(p.first_steps)}</ul>'
         f'<div class="bic-reason"><b>推奨理由</b>{esc(p.reason)}</div>'
         f'<dl class="bic-dl">{details}</dl></div></div></div>'
+    )
+
+
+def effect_card(est: EffectEstimate) -> str:
+    """効果の試算の結果（B06）。計算できなかった値は、理由が分かるように「未入力」と表示する。"""
+
+    def value(number: float | None, unit_before: str, unit_after: str) -> str:
+        if number is None:
+            return "（仮定が未入力のため計算していません）"
+        return esc(f"{unit_before}{format_number(number)}{unit_after}")
+
+    payback = value(est.payback_months, "約", "か月")
+    if est.payback_months is None and est.notes:
+        payback = esc(est.notes[0])
+    rows = [
+        ("削減できる時間（想定）", value(est.saved_hours, "月", "時間")),
+        ("削減できる人件費（想定）", value(est.saved_yen, "月", "円")),
+        ("導入にかかる費用（想定）", value(est.setup_yen, "", "円")),
+        ("運用費を引いた効果（想定）", value(est.net_yen, "月", "円")),
+        ("元が取れるまで（想定）", payback),
+    ]
+    details = "".join(f"<dt>{name}</dt><dd>{v}</dd>" for name, v in rows)
+    missing = (
+        f'<div class="bic-warn">未入力の仮定：{esc("、".join(est.missing))}</div>' if est.missing else ""
+    )
+    formulas = (
+        '<div class="k">計算式（入力した仮定から、プログラムで計算）</div>'
+        f'<ul class="bic-steps-list">{"".join(f"<li>{esc(f)}</li>" for f in est.formulas)}</ul>'
+        if est.formulas else ""
+    )
+    return (
+        f'<div class="bic-card"><div class="head"><div style="flex:1">{missing}'
+        f'<dl class="bic-dl">{details}</dl>{formulas}</div></div></div>'
     )
 
 

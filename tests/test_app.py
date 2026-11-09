@@ -266,3 +266,53 @@ def test_1日の上限に達していればAI診断を始められない(secrets
 
     assert at.session_state.stage == "top"
     assert any("上限" in e.value for e in at.error)
+
+
+# ---------------------------------------------------------------
+# 効果の試算（B06）
+# ---------------------------------------------------------------
+def result_screen(secrets, at: AppTest | None = None) -> AppTest:
+    """デモで結果画面まで進める。at を渡すと、その画面（トップ）から続けて進める。"""
+    at = at or new_app(secrets)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    while at.session_state.stage == "hearing":
+        at.button(key="submit_answer").click().run()
+    at.button(key="diagnose").click().run()
+    assert not at.exception
+    return at
+
+
+def test_効果の試算は_仮定を入れるまで削減効果を出さない(secrets):
+    at = result_screen(secrets)
+    text = all_text(at)
+    assert "効果の試算" in text
+    # デモの課題には「計算結果」がないため、現状の時間も空欄で、入力を案内する
+    assert at.number_input(key="effect_current").value is None
+    assert "現状の作業時間も入力してください" in text
+    assert "（仮定が未入力のため計算していません）" in text
+
+
+def test_効果の試算は_仮定を変えるとすぐに更新される(secrets):
+    """完了の確認（B06）：仮定を変更すると試算が更新される。"""
+    at = result_screen(secrets)
+    for key, value in [("effect_current", 12.0), ("effect_rate", 50.0), ("effect_hourly", 3000.0),
+                       ("effect_setup", 6.0), ("effect_running", 0.0)]:
+        at.number_input(key=key).set_value(value).run()
+    text = all_text(at)
+    assert "12時間 × 50% ＝ 月6時間" in text
+    assert "約1か月" in text  # 18,000円 ÷ 18,000円
+
+    at.number_input(key="effect_rate").set_value(25.0).run()
+    text = all_text(at)
+    assert "12時間 × 25% ＝ 月3時間" in text
+    assert "約2か月" in text  # 18,000円 ÷ 9,000円
+
+
+def test_新しい診断を始めると_前の試算の仮定は残らない(secrets):
+    at = result_screen(secrets)
+    at.number_input(key="effect_rate").set_value(50.0).run()
+    at.button(key="new").click().run()
+    assert at.session_state.stage == "top"
+    at = result_screen(secrets, at)
+    assert at.number_input(key="effect_rate").value is None

@@ -148,3 +148,27 @@ def test_進み具合は今の段階を強調する():
     assert '<span class="now">02 ヒアリング</span>' in bar
     assert '<span class="done">01 業務情報</span>' in bar
     assert "bic-steps" not in ui.topbar(steps, "top")  # トップでは進み具合を出さない
+
+
+# --- 効果の試算（B06） ---
+def test_効果の試算は_未入力の仮定と計算していない理由を示す():
+    from ai_bic.effect import EffectAssumptions, estimate
+
+    card = ui.effect_card(estimate(EffectAssumptions(current_hours=30)))
+    assert "未入力の仮定：削減できる割合（%）、人件費の単価（円/時間）" in card
+    assert "（仮定が未入力のため計算していません）" in card
+    assert "月30時間" not in card  # 現状の時間を、削減できる時間として出さない
+    assert "計算式" not in card  # 計算していなければ式も出さない
+
+
+def test_効果の試算は_結果と計算式を出し_元が取れない場合はその旨を出す():
+    from ai_bic.effect import EffectAssumptions, estimate
+
+    full = dict(current_hours=30, reduction_rate=40, hourly_cost=3000, setup_hours=20)
+    card = ui.effect_card(estimate(EffectAssumptions(**full, running_cost=6000)))
+    assert "月12時間" in card and "月30,000円" in card and "約2か月" in card
+    assert "30時間 × 40% ＝ 月12時間" in card
+    assert "未入力の仮定" not in card
+
+    card = ui.effect_card(estimate(EffectAssumptions(**full, running_cost=50000)))
+    assert "この仮定では元が取れません" in card
