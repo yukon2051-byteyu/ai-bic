@@ -134,6 +134,8 @@ def _render_start(project: Project, get_client) -> None:
             if st.button("サンプルの業務フローを表示する", type="primary", key="flow_generate"):
                 _generate(project, get_client)
             st.caption("デモ：事前に作った架空のサンプルです（AIは使いません）。")
+        elif st.session_state.get("loaded"):
+            html(ui.note("読み込んだ案件では、AIで業務フローを作れません（費用の管理のため）。右の「自分で作る」を使ってください。"))
         elif flow_ai.flow_calls_left(project) > 0:
             label = "業務フローを作成する（AI）" if not st.session_state.get("flow_error") else "もう一度作成する（AI）"
             if not st.session_state.get("flow_error") or is_retryable(st.session_state["flow_error"]):

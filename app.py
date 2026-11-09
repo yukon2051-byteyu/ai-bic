@@ -16,7 +16,8 @@ import streamlit as st
 
 from ai_bic import config, guard, readiness, report, ui
 from ai_bic.ai_client import ClaudeClient
-from ai_bic.project import new_project
+from ai_bic.project import ProjectFileError, load_project, new_project, to_json_bytes
+from ai_bic.project import file_name as project_file_name
 from ai_bic.views import flows, review, simulator
 from ai_bic.views import progress as progress_view
 from ai_bic.attachments import load_attachments
@@ -102,6 +103,10 @@ def get_client():
     s = st.session_state
     if s.mode == "demo":
         return DemoClient(s.scenario)
+    if s.get("loaded"):
+        # 読み込んだAI診断の案件では、AIを使わない（保存ファイルの回数の記録は書き換えられるため、
+        # 費用の上限を守れない）。画面のボタンも出さないが、ここでも止める
+        raise AIError("limit", "loaded project")
     return ClaudeClient(
         api_key=config.get_secret(config.SECRET_API_KEY),
         session_id=s.session_id,
@@ -225,6 +230,36 @@ def render_top() -> None:
         if st.button("デモを始める", key="start_demo"):
             start("demo", scenarios[titles.index(chosen)])
             st.rerun()
+
+    with st.expander("保存した案件を読み込んで再開する"):
+        st.caption("結果画面の「案件を保存（JSON）」で保存したファイルを読み込みます。"
+                   "AI診断の案件は、費用を管理するため、読み込んだあとはAIを使う操作（業務フローの作成・レビュー・作り直し）"
+                   "ができません。表の編集・試算・指摘の採否・確定はできます。")
+        uploaded = st.file_uploader("案件ファイル（.json）", type=["json"], key="project_file")
+        if st.button("読み込んで再開する", key="load_project", disabled=uploaded is None):
+            resume(uploaded.getvalue())
+        if error := st.session_state.get("load_error"):
+            st.error(error)
+
+
+def resume(data: bytes) -> None:
+    """保存した案件を読み込み、結果画面から再開する。読めなければ理由を表示する（中身は表示しない）。"""
+    try:
+        project = load_project(data)
+        scenario = None
+        if project.mode == "demo":
+            scenario = next((sc for sc in load_scenarios() if sc["id"] == project.demo_scenario_id), None)
+            if scenario is None:
+                raise ProjectFileError("このデモのシナリオは、今のアプリにはありません")
+    except ProjectFileError as e:
+        st.session_state["load_error"] = str(e)
+        st.rerun()
+    reset()  # 前の診断の内容と入力欄の状態を消す
+    s = st.session_state
+    s.mode, s.scenario, s.session_id = project.mode, scenario, uuid.uuid4().hex
+    s.business_info, s.hearing_state, s.diagnosis = project.business_info, project.hearing, project.diagnosis
+    s.project, s.loaded, s.stage = project, project.mode == "ai", "result"
+    st.rerun()
 
 
 # ---------------------------------------------------------------
@@ -486,6 +521,14 @@ def render_result() -> None:
     else:
         html(ui.note("お聞きした範囲では、明確な課題は確認できませんでした。"))
     render_report_download(report_data, report_name, key="download_report_top")
+    # 案件の保存（AI-BIC 2.0 9.1）。サーバーには保存しないため、利用者がファイルで持ち帰って再開する
+    st.download_button(
+        "案件を保存（JSON）", data=to_json_bytes(s.project), file_name=project_file_name(s.project),
+        mime="application/json", key="download_project",
+        help="TOP画面の「保存した案件を読み込んで再開する」で、続きから作業できます。入力した内容が含まれるため、取り扱いに注意してください。",
+    )
+    if s.get("loaded"):
+        html(ui.note("読み込んだAI診断の案件です。費用を管理するため、AIを使う操作はできません。"))
 
     # --- 業務の概要 ---
     html(ui.label("Overview", "業務の概要"))

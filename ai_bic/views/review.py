@@ -67,6 +67,9 @@ def _review_button(project: Project, pid: str, get_client, label: str) -> None:
             _run(lambda: rv.generate_review(get_client(), project, pid))
         st.caption("デモ：事前に作った架空のレビューです（AIは使いません）。プログラムの検証と判定の上書きは本物と同じく行います。")
         return
+    if st.session_state.get("loaded"):
+        html(ui.note("読み込んだ案件では、AIでレビューできません（費用の管理のため）。"))
+        return
     left = rv.calls_left(project, "review")
     error = st.session_state.get("review_error")
     if left > 0 and (not error or is_retryable(error)):
@@ -157,7 +160,7 @@ def _render_revision(project: Project, pid: str, get_client) -> None:
         return
     st.caption(f"採用した指摘：{len(adopted)}件（" + "、".join(f.title for f in adopted) + "）")
     if project.mode == "ai":
-        left = rv.calls_left(project, "revise")
+        left = 0 if st.session_state.get("loaded") else rv.calls_left(project, "revise")
         if left <= 0:
             html(ui.note("この案件では、改善案を作り直せる回数の上限に達しました。"))
             return
