@@ -18,7 +18,7 @@ from ai_bic.models import DiagnosisSummary, Evidence, HearingItem, HearingTurn, 
 ACCENT = "#1B2B4B"  # 深い紺（差し色）
 
 CSS = f"""
-<style>
+<style class="bic-css">
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
 
 :root {{
@@ -46,6 +46,12 @@ html, body, .stApp, .stMarkdown, label, input, textarea, button {{
 /* 背景：真っ白にせず、上部にごく薄い青みを入れて奥行きを出す */
 .stApp {{ background: linear-gradient(180deg, #EEF1F6 0px, #F7F8FA 360px, #FFFFFF 720px); color: var(--ink); }}
 .block-container {{ max-width: 880px; padding-top: .75rem; padding-bottom: 4rem; }}
+/* 最上部の余白を詰める（開発者の指摘：今の3分の1でよい）。
+   Streamlit の版によって中身の入れ物の名前が違うため、両方に指定し、既定の大きな余白を上書きする */
+[data-testid="stMainBlockContainer"], .block-container {{ padding-top: .4rem !important; }}
+/* この見た目の設定（style）だけを入れた部品は画面に何も出さないが、後ろに要素間のすき間ができるため隠す
+   （隠しても、中の style は効く） */
+[data-testid="stElementContainer"]:has(style.bic-css) {{ display: none; }}
 /* 上部に固定された Streamlit のバー（メニューは非表示にしている）。上の余白を詰めると
    内容に重なるため、バーごと表示しない */
 header[data-testid="stHeader"] {{ display: none; }}
@@ -120,7 +126,8 @@ header[data-testid="stHeader"] {{ display: none; }}
 
 /* 上部のブランドと進み具合 */
 .bic-bar {{ display: flex; justify-content: space-between; align-items: baseline;
-  border-bottom: 1px solid var(--line); padding-bottom: .45rem; margin-bottom: .75rem; }}
+  border-bottom: 1px solid var(--line); padding: .35rem 0 .3rem; margin-bottom: -.45rem; }}
+/* 下の余白：Streamlit が部品の間に入れるすき間（1rem）を、負の余白で一部打ち消して3分の1ほどにする */
 .bic-brand {{ font-family: "Inter", sans-serif; font-weight: 600; letter-spacing: .22em; font-size: .95rem; }}
 .bic-brand span {{ font-weight: 400; color: var(--mute); letter-spacing: .12em; font-size: .72rem; margin-left: .8rem; }}
 .bic-steps {{ display: flex; gap: 1.2rem; font-size: .78rem; letter-spacing: .06em; color: var(--mute); }}
