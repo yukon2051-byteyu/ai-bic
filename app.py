@@ -185,6 +185,10 @@ def render_error(retry) -> None:
 # 画面01：トップ
 # ---------------------------------------------------------------
 def render_top() -> None:
+    # トップだけ横幅を広げる。説明文・カード・注意事項の折り返しが減り、文字を小さくせずに
+    # 「デモを始める」までを1画面に収められる（開発者の指摘）
+    html("<style>.block-container, [data-testid='stMainBlockContainer'] { max-width: 1100px; }"
+         " .bic-label.tight { margin-top: .35rem; } .bic-h2.tight { margin-bottom: .25rem; }</style>")
     html(ui.hero())
     html(ui.features())
     html(
