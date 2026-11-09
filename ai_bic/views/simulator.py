@@ -1,9 +1,10 @@
 """改善効果シミュレーターの画面（AI-BIC 2.0 機能A）。
 
-画面の並び（指示書 7.1 の3階層）：
-1. 結論：年間削減時間・年間削減効果額・投資回収期間を大きく表示
-2. 要点：現状と改善後の作業時間のグラフ、3シナリオの比較、改善案どうしの比較
-3. 根拠：計算式と入力値の出どころ（開いたときだけ表示）
+画面の並び（指示書 7.1 の3階層）。PC（1920×1280）で、どの案がどれだけ減り何か月で回収できるかを
+スクロールせずに見られるよう、縦の長さを抑える（開発者の指摘で見直した）：
+1. 結論：全改善案の比較表（最上部）と、案ごとの年間削減時間・年間削減効果額・投資回収期間
+2. 要点：入力欄（1行4つ）、現状と改善後のグラフと3シナリオの比較（左右に並べる）
+3. 根拠：業務名・計算式・入力値の出どころ、悲観と楽観の値の編集（開いたときだけ表示）
 
 計算は simulation.py が行い、この画面は入力の受け取りと表示だけを行う。
 入力を変えるたびに案件の版を更新し、あとのレビューが「再レビューが必要」と分かるようにする。
@@ -128,19 +129,13 @@ def render(project: Project) -> None:
     pids = pj.proposal_ids(project)
 
     html(ui.label("Estimate", "改善効果の試算"))
-    st.markdown(
-        "改善案ごとに、作業時間と費用の前提を入れると、削減効果と投資回収期間を**プログラムで計算**します"
-        "（AIは計算していません）。入力を変えると、結果はすぐに更新されます。"
-    )
-    labels = [f"案{no}" for no in range(1, len(pids) + 1)]
-    tabs = st.tabs(labels + (["改善案の比較"] if len(pids) > 1 else []))
-    for tab, pid, proposal, short in zip(tabs, pids, proposals, labels):
+    st.caption("計算はプログラムが行います（AIは計算していません）。入力を変えると、すぐに計算し直します。")
+    _render_overview(project, pids, proposals)
+
+    tabs = st.tabs([f"案{no}：{_short(p.title)}" for no, p in enumerate(proposals, start=1)])
+    for tab, pid in zip(tabs, pids):
         with tab:
-            html(f'<div class="bic-footnote">{ui.esc(short)}：{ui.esc(proposal.title)}</div>')
             _render_one(project, pid)
-    if len(pids) > 1:
-        with tabs[-1]:
-            _render_comparison(project, pids, proposals)
 
     created_at = datetime.now(config.JST)
     st.download_button(
@@ -153,70 +148,117 @@ def render(project: Project) -> None:
     html(ui.footnote("試算は入力した値による想定です。実測の結果ではありません。" + sim.NOTE_TIME_VALUE))
 
 
+def _short(title: str, limit: int = 14) -> str:
+    return title if len(title) <= limit else title[:limit] + "…"
+
+
+def _render_overview(project: Project, pids: list[str], proposals) -> None:
+    """全改善案の比較（指示書 3.5）。最上部に置き、どの案がどれだけ減り何か月で回収できるかを一目で見せる。"""
+    items = [(f"案{no}", project.simulations[pid]) for no, pid in enumerate(pids, start=1)]
+    comparison = sim.compare(items)
+    rows = []
+    for (title, result), proposal in zip(comparison.rows, proposals):
+        rows.append({
+            "改善案": f"{title}：{proposal.title}",
+            "年間削減時間": _value(result.annual_saved_hours, "時間"),
+            "年間削減効果額": _value(result.annual_saved_yen, "円"),
+            "年間純効果額": _value(result.annual_net_yen, "円"),
+            "投資回収期間": _payback(result),
+            "初年度純効果額": _value(result.first_year_net_yen, "円"),
+        })
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    if comparison.differences:
+        st.warning("前提条件が改善案によって異なるため、そのままでは比べられません。\n\n" + "\n\n".join(comparison.differences))
+    sources = _source_summary([project.simulations[pid] for pid in pids])
+    html(ui.footnote(f"標準シナリオの値です。入力値の出どころ：{sources}"))
+
+
+def _source_summary(inputs: list[sim.SimulationInputs]) -> str:
+    """入力値の出どころを1行にまとめる（欄ごとに表示すると縦に長くなるため。開発者の指摘）。"""
+    groups: dict[str, list[str]] = {}
+    for values in inputs:
+        for name in sim.NUMBER_FIELDS:
+            mark = SOURCE_MARK.get(values.source_of(name), "未入力")
+            short = sim.NUMBER_FIELDS[name][0]
+            if short not in groups.setdefault(mark, []):
+                groups[mark].append(short)
+    if len(groups) == 1:
+        return f"{next(iter(groups))}（すべての項目）"
+    return "／".join(f"{mark}：{'・'.join(names)}" for mark, names in groups.items())
+
+
 def _render_one(project: Project, pid: str) -> None:
     base = project.simulations[pid]
-    for note in input_notes(project):
-        html(ui.footnote(note))
-    _render_inputs(project, pid, base)
-    if error := st.session_state.get(f"sim_error_{pid}"):
-        st.error(error)
-    base = project.simulations[pid]  # 入力で変わった値を使う
+    # 1. 結論。入力欄の変更はコールバックで案件に反映済みなので、入力欄より先に計算・表示してよい
     result = sim.simulate(base)
-
-    # 1. 結論
     c1, c2, c3 = st.columns(3)
     c1.metric("年間削減時間", _value(result.annual_saved_hours, "時間"))
     c2.metric("年間削減効果額", _value(result.annual_saved_yen, "円"))
-    c3.metric("投資回収期間", sim.payback_text(result) if result.payback_status != "未入力" else "—")
-    if result.missing:
-        html(ui.note("未入力の項目：" + "、".join(result.missing) + "。入力すると計算します。"))
+    c3.metric("投資回収期間", _payback(result))
     for note in result.notes:
         st.warning(note)
 
-    # 2. 要点
+    # 2. 要点：入力欄（1行4つ）と、グラフ・3シナリオの比較（左右に並べる）
+    _render_inputs(project, pid, base)
+    if error := st.session_state.get(f"sim_error_{pid}"):
+        st.error(error)
+    if result.missing:
+        html(ui.note("未入力の項目：" + "、".join(result.missing) + "。入力すると計算します。"))
     scenarios = project.scenarios.get(pid) or sim.blank_scenarios()
     by_scenario = {sc.name: sim.simulate(sim.scenario_inputs(base, sc)) for sc in scenarios}
-    _render_chart(result, by_scenario)
-    _render_scenarios(project, pid, base, scenarios, by_scenario)
+    left, right = st.columns([2, 3])  # スマートフォンでは自動で縦に並ぶ
+    with left:
+        _render_chart(result, by_scenario)
+    with right:
+        _render_scenario_table(base, scenarios, by_scenario)
 
-    # 3. 根拠
-    with st.expander("計算式と前提条件（入力値の出どころ）"):
+    # 3. 根拠（開いたときだけ）
+    with st.expander("悲観・楽観の値を変える"):
+        _render_scenario_editor(project, pid, scenarios)
+    with st.expander("業務名・計算式・入力値の出どころ"):
+        task_key = _key(pid, "task_name")
+        st.session_state.setdefault(task_key, base.task_name)
+        st.text_input("業務名", key=task_key, max_chars=config.FIELD_LIMITS["task_name"],
+                      on_change=_on_input, args=(project, pid, "task_name", task_key))
+        for note in input_notes(project):
+            html(ui.footnote(note))
         if result.formulas:
             st.markdown("\n".join(f"- {ui.esc(f)}" for f in result.formulas))
         rows = [
-            {"項目": sim.label(name), "値": _value(getattr(base, name), ""), "出どころ": SOURCE_MARK.get(base.source_of(name), "未入力")}
+            {"項目": sim.label(name), "値": _value(getattr(base, name), ""),
+             "出どころ": SOURCE_MARK.get(base.source_of(name), "未入力")}
             for name in sim.NUMBER_FIELDS
         ]
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
-        st.caption("出どころ：◎ ヒアリング＝お聞きした内容の数値／✎ ユーザー入力／◇ AI推定＝AIの推定（参考値）／□ デモ値＝架空のサンプル")
+        st.caption("◎ ヒアリング＝お聞きした内容の数値／✎ ユーザー入力／◇ AI推定＝AIの推定（参考値）／□ デモ値＝架空のサンプル")
+
+
+# 入力欄の並び（1行4つ × 2行。8つ目は削減率のスライダー）
+INPUT_ROWS = [
+    ["minutes_per_case", "cases_per_month", "hourly_cost", "reduction_rate"],
+    ["initial_cost", "monthly_running_cost", "other_initial_cost", "rate_slider"],
+]
 
 
 def _render_inputs(project: Project, pid: str, base: sim.SimulationInputs) -> None:
     s = st.session_state
-    task_key = _key(pid, "task_name")
-    s.setdefault(task_key, base.task_name)
-    st.text_input("業務名", key=task_key, max_chars=config.FIELD_LIMITS["task_name"],
-                  on_change=_on_input, args=(project, pid, "task_name", task_key))
-    names = list(sim.NUMBER_FIELDS)
-    for row_start in range(0, len(names), 3):  # 1行に3つまで（狭い画面で入力欄の名前が切れないように）
-        columns = st.columns(3)
-        for column, name in zip(columns, names[row_start:row_start + 3]):
-            widget_key = _key(pid, name)
-            s.setdefault(widget_key, getattr(base, name))
-            _, _, max_value = sim.NUMBER_FIELDS[name]
+    for names in INPUT_ROWS:
+        for column, name in zip(st.columns(4), names):
             with column:
+                if name == "rate_slider":
+                    slider_key = _key(pid, "rate_slider")
+                    s.setdefault(slider_key, float(base.reduction_rate or 0.0))
+                    st.slider("想定削減率（%）のスライダー", 0.0, 100.0, step=1.0, key=slider_key,
+                              on_change=_on_input, args=(project, pid, "reduction_rate", slider_key))
+                    continue
+                widget_key = _key(pid, name)
+                s.setdefault(widget_key, getattr(base, name))
                 st.number_input(
-                    sim.label(name), min_value=0.0, max_value=max_value, step=STEP[name],
+                    sim.label(name), min_value=0.0, max_value=sim.NUMBER_FIELDS[name][2], step=STEP[name],
                     format="%.0f" if STEP[name] >= 1 and name != "minutes_per_case" else "%.1f",
                     key=widget_key, placeholder="未入力",
                     on_change=_on_input, args=(project, pid, name, widget_key),
                 )
-                source = base.source_of(name)
-                st.caption(SOURCE_MARK[source] if source else "未入力")
-    slider_key = _key(pid, "rate_slider")
-    s.setdefault(slider_key, float(base.reduction_rate or 0.0))
-    st.slider("想定削減率（%）をスライダーで変える", 0.0, 100.0, step=1.0, key=slider_key,
-              on_change=_on_input, args=(project, pid, "reduction_rate", slider_key))
 
 
 def _render_chart(result: sim.SimulationResult, by_scenario: dict[str, sim.SimulationResult]) -> None:
@@ -237,13 +279,28 @@ def _render_chart(result: sim.SimulationResult, by_scenario: dict[str, sim.Simul
         x=alt.X("月間作業時間:Q", title="月間作業時間（時間）", axis=alt.Axis(grid=True, gridOpacity=0.4)),
         tooltip=[alt.Tooltip("区分:N"), alt.Tooltip("表示:N", title="月間作業時間")],
     )
-    bars = base.mark_bar(cornerRadiusEnd=4, height=18).encode(color=alt.Color("色:N", scale=None, legend=None))
+    bars = base.mark_bar(cornerRadiusEnd=4, height=16).encode(color=alt.Color("色:N", scale=None, legend=None))
     labels = base.mark_text(align="left", dx=6, color="#5F6368").encode(text="表示:N")
-    st.altair_chart((bars + labels).properties(height=40 * len(rows) + 30), width="stretch")
+    st.altair_chart((bars + labels).properties(height=34 * len(rows) + 30), width="stretch")
 
 
-def _render_scenarios(project, pid, base, scenarios, by_scenario) -> None:
-    st.markdown("**悲観・標準・楽観の比較**")
+def _render_scenario_table(base, scenarios, by_scenario) -> None:
+    rows = []
+    for metric, getter in [
+        ("想定削減率", lambda r, v: _value(v.reduction_rate, "%")),
+        ("年間削減時間", lambda r, v: _value(r.annual_saved_hours, "時間")),
+        ("年間純効果額", lambda r, v: _value(r.annual_net_yen, "円")),
+        ("投資回収期間", lambda r, v: _payback(r)),
+        ("初年度純効果額", lambda r, v: _value(r.first_year_net_yen, "円")),
+    ]:
+        row = {"悲観・標準・楽観": metric}
+        for sc in scenarios:
+            row[sc.name] = getter(by_scenario[sc.name], sim.scenario_inputs(base, sc))
+        rows.append(row)
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+
+
+def _render_scenario_editor(project, pid, scenarios) -> None:
     factors = "、".join(
         f"{n}：削減率×{config.SCENARIO_FACTORS[n][0]:g}・費用×{config.SCENARIO_FACTORS[n][1]:g}" for n in ("悲観", "楽観")
     )
@@ -267,42 +324,9 @@ def _render_scenarios(project, pid, base, scenarios, by_scenario) -> None:
         on_change=_on_scenarios, args=(project, pid),
     )
 
-    rows = []
-    for metric, getter in [
-        ("想定削減率", lambda r, v: _value(v.reduction_rate, "%")),
-        ("年間削減時間", lambda r, v: _value(r.annual_saved_hours, "時間")),
-        ("年間純効果額", lambda r, v: _value(r.annual_net_yen, "円")),
-        ("初期投資額", lambda r, v: _value(r.initial_investment, "円")),
-        ("投資回収期間", lambda r, v: sim.payback_text(r) if r.payback_status != "未入力" else "—"),
-        ("初年度純効果額", lambda r, v: _value(r.first_year_net_yen, "円")),
-    ]:
-        row = {"": metric}
-        for sc in scenarios:
-            row[sc.name] = getter(by_scenario[sc.name], sim.scenario_inputs(base, sc))
-        rows.append(row)
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
-
-def _render_comparison(project: Project, pids: list[str], proposals) -> None:
-    """改善案どうしの比較（指示書 3.5）。前提条件が違う場合は、表の前に知らせる。"""
-    items = [(f"案{no}", project.simulations[pid]) for no, pid in enumerate(pids, start=1)]
-    comparison = sim.compare(items)
-    if comparison.differences:
-        st.warning("前提条件が改善案によって異なるため、そのままでは比べられません。\n\n" + "\n\n".join(comparison.differences))
-    else:
-        html(ui.footnote("どの改善案も、現状の業務（業務名・作業時間・件数・人件費）は同じ前提で試算しています。"))
-    rows = []
-    for (title, result), proposal in zip(comparison.rows, proposals):
-        rows.append({
-            "改善案": f"{title}：{proposal.title}",
-            "年間削減時間": _value(result.annual_saved_hours, "時間"),
-            "年間純効果額": _value(result.annual_net_yen, "円"),
-            "初期投資額": _value(result.initial_investment, "円"),
-            "投資回収期間": sim.payback_text(result) if result.payback_status != "未入力" else "—",
-            "初年度純効果額": _value(result.first_year_net_yen, "円"),
-        })
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
-    st.caption("標準シナリオの値で比べています。")
+def _payback(result: sim.SimulationResult) -> str:
+    return sim.payback_text(result) if result.payback_status != "未入力" else "—"
 
 
 def _value(value: float | None, unit: str) -> str:

@@ -376,3 +376,19 @@ def test_新しい診断を始めると_前の試算は残らない(secrets):
     assert at.session_state.stage == "top"
     at = result_screen(secrets, at)
     assert at.number_input(key="sim_P1_hourly_cost").value == 3000  # 変えた値ではなく、デモ値に戻る
+
+
+def test_試算の最上部に全改善案の削減時間と回収期間を並べる(secrets):
+    """PCで、どの案がどれだけ減り何か月で回収できるかを一目で見られる（開発者の指摘）。"""
+    at = result_screen(secrets)
+    overview = next(df.value for df in at.dataframe if "改善案" in df.value.columns)
+    assert list(overview["改善案"].str[:2]) == ["案1", "案2", "案3"]
+    assert list(overview.columns[:5]) == ["改善案", "年間削減時間", "年間削減効果額", "年間純効果額", "投資回収期間"]
+    assert overview.loc[1, "年間削減時間"] == "57.6時間" and overview.loc[1, "投資回収期間"] == "6.3か月"
+
+
+def test_入力値の出どころは1行にまとめ_欄ごとに出さない(secrets):
+    at = result_screen(secrets)
+    texts = [m.value for m in at.markdown] + [c.value for c in at.caption]
+    assert any("□ デモ値（すべての項目）" in t for t in texts)
+    assert not any(c.value == "□ デモ値" for c in at.caption)  # 入力欄の下ごとの表示はしない
