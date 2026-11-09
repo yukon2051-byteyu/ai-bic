@@ -93,11 +93,15 @@ def print_flows(project) -> None:
             print(f"    {s.id} {flags}{s.name}／{s.actor or '担当不明'}／{minutes}・{s.occurrence_rate:g}%{change}")
         print("    接続：" + "、".join(f"{e.source}→{e.target}" + (f"({e.label})" if e.label else "") for e in flow.edges))
 
+    cases = f"月{project.cases_per_month:g}件（{project.cases_source}）" if project.cases_per_month is not None else "月の件数は不明"
+    print(f"\n  1件＝{project.case_unit}／{cases}")
     show("現状", project.as_is)
     for pid, flow in project.to_be.items():
         show(f"改善後 {pid}", flow)
         for kept in project.kept_controls.get(pid, []):
             print(f"    残した統制：{kept}")
+        for task in project.setup_tasks.get(pid, []):
+            print(f"    初回の準備作業：{task}")
     print("\n  確認したいこと：" + " ／ ".join(project.flow_questions))
     for note in project.flow_notes:
         print(f"  照合：{note}")
@@ -215,7 +219,8 @@ def main() -> int:
                 "hearing": state.model_dump(),
                 "diagnosis": result.model_dump() if result else None,
                 "flows": project.model_dump(
-                    mode="json", include={"as_is", "to_be", "kept_controls", "flow_questions", "flow_notes"}
+                    mode="json", include={"as_is", "to_be", "kept_controls", "setup_tasks", "case_unit",
+                                          "cases_per_month", "cases_source", "flow_questions", "flow_notes"}
                 ) if project and project.as_is else None,
                 "usage": usage,
                 "total_dollars": round(total, 5),
