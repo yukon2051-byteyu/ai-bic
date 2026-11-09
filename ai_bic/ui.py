@@ -129,6 +129,9 @@ header[data-testid="stHeader"] {{ display: none; }}
   border-bottom: 1px solid var(--line); padding: .35rem 0 .3rem; margin-bottom: -.45rem; }}
 /* 下の余白：Streamlit が部品の間に入れるすき間（1rem）を、負の余白で一部打ち消して3分の1ほどにする */
 .bic-brand {{ font-family: "Inter", sans-serif; font-weight: 600; letter-spacing: .22em; font-size: .95rem; }}
+/* ブランド名はTOPへのリンク。見た目は変えず、マウスを乗せたときだけ薄くして押せることを示す */
+a.bic-brand, a.bic-brand:visited {{ color: var(--ink) !important; text-decoration: none !important; }}
+a.bic-brand:hover {{ opacity: .7; }}
 .bic-brand span {{ font-weight: 400; color: var(--mute); letter-spacing: .12em; font-size: .72rem; margin-left: .8rem; }}
 .bic-steps {{ display: flex; gap: 1.2rem; font-size: .78rem; letter-spacing: .06em; color: var(--mute); }}
 .bic-steps .done {{ color: var(--sub); }}
@@ -301,7 +304,11 @@ def topbar(steps: list[tuple[str, str]], current: str | None) -> str:
         for i, (_, name) in enumerate(steps)
     )
     steps_html = f'<div class="bic-steps">{items}</div>' if now >= 0 else ""
-    return f'<div class="bic-bar"><div class="bic-brand">AI-BIC<span>業務改善診断</span></div>{steps_html}</div>'
+    # どの画面でも、ブランド名を押すとTOPの最上部に戻る（開発者の要望）。ページを読み込み直すため、
+    # 入力中の内容は消える（「トップに戻る」と同じ扱い）。そのことをマウスを乗せたときに示す
+    brand = ('<a class="bic-brand" href="./" target="_self" title="TOPに戻ります（入力中の内容は消えます）">'
+             "AI-BIC<span>業務改善診断</span></a>")
+    return f'<div class="bic-bar">{brand}{steps_html}</div>'
 
 
 def demo_banner() -> str:

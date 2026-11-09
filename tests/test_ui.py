@@ -160,3 +160,11 @@ def test_特徴カードの質問数は実装の設定と一致する():
     assert f"必要なことだけ、最大{total}問" in cards
     assert f"基本{config.MAX_HEARING_TURNS}問。情報が不足する場合のみ、最大{config.MAX_EXTRA_QUESTIONS}問を追加できます。" in cards
     assert cards.count('class="no"') == 3  # 3カラムのカードは3枚のまま
+
+
+
+def test_どの画面でもブランド名はTOPへのリンク():
+    for current in (None, "hearing", "result"):
+        bar = ui.topbar([("hearing", "02 ヒアリング"), ("result", "04 診断結果")], current)
+        assert '<a class="bic-brand" href="./" target="_self"' in bar
+        assert "入力中の内容は消えます" in bar  # 押す前に分かるように
