@@ -1,0 +1,976 @@
+{
+  "scenario_id": "sales_report",
+  "attachments": [
+    "集計差異の記録.csv"
+  ],
+  "models": {
+    "question": "claude-haiku-5-5",
+    "analysis": "claude-opus-5-5",
+    "proposal": "claude-opus-5-5"
+  },
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H3",
+        "question": "月次売上集計には、毎月どれくらいの時間がかかっていますか。また、担当は何人ですか。",
+        "answer_example": "例：毎月3営業日目に、2人で半日ほど",
+        "answer": "毎月第1営業日から2日間、私1人で作業しています。合計で12時間くらいです。"
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H3",
+        "question": "合計12時間ほどかかっているそうですが、その中で最も時間がかかっている作業はどれで、何時間くらいですか。",
+        "answer_example": "例：営業所ごとのExcelを転記する作業で、約6時間",
+        "answer": "すみません、その点は分かりません。"
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H1",
+        "question": "月次売上報告書は、どなたに渡し、どのように使われていますか。",
+        "answer_example": "例：部長会議で配布し、今後の営業方針の検討に使われている",
+        "answer": "すみません、その点は分かりません。"
+      },
+      {
+        "turn_no": 4,
+        "item_id": "H4",
+        "question": "この業務では、どのような道具（ソフトや システムなど）を使っていますか。",
+        "answer_example": "例：Excelと社内の会計システム、メールで資料を受け取っている",
+        "answer": "すみません、その点は分かりません。"
+      },
+      {
+        "turn_no": 5,
+        "item_id": "H6",
+        "question": "この業務を改善するにあたり、使える予算や、使ってよいツール、社内のルールなどに制約はありますか。",
+        "answer_example": "例：予算は特に決まっていないが、新しい有料ソフトは部長の承認が必要",
+        "answer": "新しいソフトを買う予算はありません。Excelは全員が使えます。集計方法を知っているのは私だけです。"
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "未確認",
+        "known_facts": "",
+        "lacking": "成果物（月次売上報告書）を誰に渡すか、何に使われるか"
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "5つの営業所から届く売上Excelを1つにまとめ、部長会議用の月次売上報告書を作成している",
+        "lacking": ""
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "不十分",
+        "known_facts": "毎月第1営業日から2日間、1人で作業している。合計で12時間くらい",
+        "lacking": "最も手間のかかる作業と、その作業にかかる時間"
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "未確認",
+        "known_facts": "営業所ごとにExcelの形式が違う",
+        "lacking": "使っているツールの名前"
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "営業所ごとにExcelの形式が違うため手作業で転記している。転記に時間がかかり、毎月どこかで数字が合わない",
+        "lacking": ""
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "充足",
+        "known_facts": "新しいソフトを買う予算はない。Excelは全員が使える。集計方法を知っているのは本人だけ",
+        "lacking": ""
+      }
+    },
+    "finished_reason": "質問回数の上限に達したため終了しました",
+    "judged_answers": 5
+  },
+  "diagnosis": {
+    "attachment_names": [
+      "集計差異の記録.csv"
+    ],
+    "analysis": {
+      "business_summary": "営業管理部で、毎月5つの営業所から届く売上Excelを1つのファイルにまとめ、部長会議用の月次売上報告書を作成している業務です。営業所ごとにExcelの形式が違うため手作業で転記しており、毎月第1営業日から2日間、担当者1人で合計12時間くらいかけています。転記に時間がかかるうえ、毎月どこかで数字が合わず、差異の確認に時間を取られています。",
+      "issues": [
+        {
+          "issue_id": "I1",
+          "title": "集計方法を担当者1人しか知らず、不在時に業務が止まるおそれがある",
+          "summary": "月次売上集計は担当者1人で作業しており、集計方法を知っているのも本人だけと述べています。手順書や引き継ぎの有無は確認できていません。",
+          "viewpoint_ids": [
+            "V6"
+          ],
+          "evidence_type": "本人の申告",
+          "evidences": [
+            {
+              "source": "回答",
+              "turn_no": 5,
+              "file_no": null,
+              "quote": "集計方法を知っているのは私だけです。",
+              "supports": "集計方法を知っているのは担当者本人だけである"
+            },
+            {
+              "source": "回答",
+              "turn_no": 1,
+              "file_no": null,
+              "quote": "毎月第1営業日から2日間、私1人で作業しています。",
+              "supports": "集計作業は担当者1人で行っている"
+            }
+          ],
+          "calculation": null,
+          "assumed_cause": "営業所ごとに形式が違うファイルの扱い方が担当者の経験に頼っており、手順が文書になっていない可能性があります（推測）。",
+          "impact": "担当者が休んだり異動したりすると、部長会議用の月次売上報告書が期限までに作れなくなるおそれがあります。",
+          "severity": "高",
+          "severity_reason": "「特定の1人しかできず、不在時に業務が止まる」に当てはまるため。",
+          "followup_questions": [
+            "集計の手順を書いた資料（手順書など）はありますか。",
+            "担当者が不在のとき、過去に代わりに作業した人はいますか。"
+          ]
+        },
+        {
+          "issue_id": "I2",
+          "title": "転記で毎月数字が合わず、会議直前に確認作業が発生している",
+          "summary": "毎月どこかで数字が合わないと述べており、差異の記録では7月〜9月に貼り付け位置のずれや返品分の計上漏れが起き、発見が会議前日や会議当日になっています。確認には各月2〜4時間かかったと記録されています。",
+          "viewpoint_ids": [
+            "V5"
+          ],
+          "evidence_type": "本人の申告",
+          "evidences": [
+            {
+              "source": "業務情報",
+              "turn_no": null,
+              "file_no": null,
+              "quote": "転記に時間がかかり、毎月どこかで数字が合わない。",
+              "supports": "毎月、集計結果に不一致が起きている"
+            },
+            {
+              "source": "添付ファイル",
+              "turn_no": null,
+              "file_no": 1,
+              "quote": "商品コードの貼り付け位置ずれ",
+              "supports": "商品コードの貼り付け位置がずれる差異が記録されている"
+            },
+            {
+              "source": "添付ファイル",
+              "turn_no": null,
+              "file_no": 1,
+              "quote": "返品分の計上漏れ",
+              "supports": "返品分が計上されていない差異が記録されている"
+            },
+            {
+              "source": "添付ファイル",
+              "turn_no": null,
+              "file_no": 1,
+              "quote": "会議当日",
+              "supports": "差異を会議当日に発見した月がある"
+            }
+          ],
+          "calculation": null,
+          "assumed_cause": "形式の違うファイルから手作業でコピー・貼り付けしているため、位置ずれや項目の漏れが起きやすく、照合の仕組みもない可能性があります（推測）。",
+          "impact": "会議直前に確認作業が発生し、間に合わなければ誤った数字のまま部長会議に報告されるおそれがあります。",
+          "severity": "中",
+          "severity_reason": "「社内の手戻りや確認作業が頻繁に発生する」に当てはまるため。報告先は社内の部長会議であり、顧客・取引先・法令への影響は発言からは確認できません。",
+          "followup_questions": [
+            "差異の記録は7月〜9月の3件ですが、それ以前の月や記録していない差異もありますか。",
+            "誤った数字のまま会議に報告されたことはありますか。",
+            "数字の照合（合計の突き合わせなど）はどのように行っていますか。"
+          ]
+        },
+        {
+          "issue_id": "I3",
+          "title": "営業所ごとにExcelの形式が統一されていない",
+          "summary": "5つの営業所から届く売上Excelの形式が営業所ごとに違うため、そのまま1つにまとめられず手作業の転記が必要になっています。",
+          "viewpoint_ids": [
+            "V2",
+            "V4"
+          ],
+          "evidence_type": "本人の申告",
+          "evidences": [
+            {
+              "source": "業務情報",
+              "turn_no": null,
+              "file_no": null,
+              "quote": "営業所ごとにExcelの形式が違うため、手作業で転記している。",
+              "supports": "営業所ごとにExcelの形式が違い、手作業で転記している"
+            }
+          ],
+          "calculation": null,
+          "assumed_cause": "全社で共通の入力様式（ひな形）が決められていない、または各営業所が独自に作った様式を使い続けている可能性があります（推測）。",
+          "impact": "転記の手間と、貼り付け位置のずれなどのミスの原因になっていると考えられます。",
+          "severity": "中",
+          "severity_reason": "「社内の手戻りや確認作業が頻繁に発生する」に関係するため。形式統一の難しさ（営業所側の協力が得られるか）は発言からは判断できません。",
+          "followup_questions": [
+            "営業所に共通の様式で提出してもらうよう依頼することは可能ですか。",
+            "各営業所のファイルで、項目の並びや名前はどの程度違いますか。"
+          ]
+        },
+        {
+          "issue_id": "I4",
+          "title": "手作業の転記を含め月12時間くらいかかっている（転記の時間は未確認）",
+          "summary": "集計作業全体で毎月合計12時間くらいかかっており、転記に時間がかかると述べています。ただし、そのうち転記にかかる時間は分かっていません。Excelは全員が使え、新しいソフトの予算はないため、Excelの範囲での効率化が対象になります。",
+          "viewpoint_ids": [
+            "V1",
+            "V3"
+          ],
+          "evidence_type": "本人の申告",
+          "evidences": [
+            {
+              "source": "回答",
+              "turn_no": 1,
+              "file_no": null,
+              "quote": "合計で12時間くらいです。",
+              "supports": "集計作業全体で合計12時間くらいかかっている"
+            },
+            {
+              "source": "業務情報",
+              "turn_no": null,
+              "file_no": null,
+              "quote": "転記に時間がかかり、毎月どこかで数字が合わない。",
+              "supports": "転記に時間がかかっている"
+            },
+            {
+              "source": "回答",
+              "turn_no": 5,
+              "file_no": null,
+              "quote": "新しいソフトを買う予算はありません。Excelは全員が使えます。",
+              "supports": "新しいソフトの予算はなく、Excelは全員が使える"
+            }
+          ],
+          "calculation": null,
+          "assumed_cause": "形式の違うファイルを1件ずつ手で転記しており、Excelの機能による取り込みや集計の仕組みが作られていない可能性があります（推測）。",
+          "impact": "毎月の作業時間が担当者1人に集中し、会議前の時間の余裕が少なくなります。",
+          "severity": "中",
+          "severity_reason": "「担当者の負担が大きい」に当てはまるため。月の作業時間は集計全体で12時間くらいで目安の20時間未満であり、転記にかかる時間の内訳は発言にありません。",
+          "followup_questions": [
+            "12時間のうち、転記・照合・報告書作成のそれぞれにどれくらいかかっていますか。",
+            "Excelの関数やマクロ（作業を自動で行う機能）を社内で使ってもよいルールになっていますか。"
+          ]
+        }
+      ],
+      "no_issue_viewpoints": [
+        "V7"
+      ]
+    },
+    "proposals": {
+      "summary": {
+        "headline": "最大の課題は集計方法を担当者1人しか知らないことで、まず手順とチェック項目を書き出して見える化し、あわせて5営業所の様式をそろえることが最も効果的です。",
+        "top_issue_id": "I1",
+        "first_action": "担当者が、5営業所のファイルを受け取ってから月次売上報告書を作るまでの手順を、営業所ごとの違いも含めて箇条書きで書き出す。"
+      },
+      "proposals": [
+        {
+          "title": "集計手順書と照合チェックリストを作り、担当者以外でも作業できるようにする",
+          "category": "業務標準化",
+          "description": "担当者1人しか知らない月次売上集計の手順を、5営業所それぞれのファイルのどの列をどこへ転記するか、返品分をどう扱うかまで含めて手順書にまとめる。あわせて、営業所ごとの売上合計と集計ファイル側の合計を突き合わせる、返品分が計上されているか確認する、商品コードの貼り付け位置を確認する、といった照合チェックリストを作り、転記のたびに使う。手順書をもとに、部署内の誰か1人に一度、作業を一緒に見てもらう。",
+          "target_issue_ids": [
+            "I1",
+            "I2"
+          ],
+          "expected_effect": "担当者が不在でも、手順書を見れば他の人が集計を進められる状態に近づく想定です。また、7月〜9月に記録された貼り付け位置のずれや返品分の計上漏れのような差異を、会議前日や当日ではなく転記直後に見つけやすくなり、各月2〜4時間かかった確認作業が減る可能性があります（どこまで減るかは未確認）。",
+          "difficulty": "低",
+          "risks": [
+            "手順書の作成に担当者の時間が必要で、集計作業のある月初は避ける必要がある",
+            "営業所の様式が変わると手順書が古くなるため、更新する人とタイミングを決めておく必要がある"
+          ],
+          "prerequisites": [
+            "過去に手順書などの資料があるか、担当者不在時に代わりに作業した人がいるかの確認",
+            "手順書を見て一緒に作業してもらう人（部署内の関係者）を上長と相談して決める"
+          ],
+          "reason": "重要度「高」の属人化（I1）に直接効き、費用も承認もほぼ不要で、担当者自身がすぐ始められるため最優先としました。照合チェックリストは、毎月起きている数字の不一致（I2）にも効きます。",
+          "why_not_simpler": null,
+          "before": "毎月第1営業日から2日間、担当者1人が5営業所の形式の違うExcelを手作業で転記しており、集計方法を知っているのは担当者だけで、数字の不一致が会議前日や会議当日に見つかることがある。",
+          "after": "手順書と照合チェックリストにより、担当者以外も手順を追って作業でき、転記直後に営業所ごとの合計を突き合わせて差異を早めに見つけられる想定。",
+          "first_steps": [
+            "担当者が、5営業所のファイルを受け取ってから月次売上報告書を作るまでの手順を、営業所ごとの違いも含めて箇条書きで書き出す",
+            "差異の記録（7月〜9月の貼り付け位置ずれ・返品分の計上漏れ）をもとに、転記後に確認する項目を5〜10個のチェックリストにまとめる",
+            "上長に相談し、手順書を見ながら次回の集計を一緒に見てもらう人を1人決める"
+          ]
+        },
+        {
+          "title": "5営業所共通の売上報告ひな形を作り、同じ形式で提出してもらう",
+          "category": "業務標準化",
+          "description": "今の5営業所のExcelを並べて、項目名・並び順・返品分の書き方の違いを一覧表にする。そのうえで、部長会議用の月次売上報告書に必要な項目（商品コード、売上、返品など）を同じ列の並びで入力する共通ひな形を1つ作り、各営業所に配布して翌月分からその形式で提出してもらう。返品分は専用の欄を設け、空欄でも「0」と入力するルールにする。",
+          "target_issue_ids": [
+            "I3",
+            "I2",
+            "I4"
+          ],
+          "expected_effect": "形式がそろえば、営業所ごとに列の位置を探して転記する手間が減り、商品コードの貼り付け位置のずれや返品分の計上漏れが起きにくくなる想定です。集計作業全体で月12時間くらい（うち転記にかかる時間は未確認）の一部が減る可能性がありますが、どの程度かは転記時間の内訳が分かってから見積もる必要があります。",
+          "difficulty": "中",
+          "risks": [
+            "営業所側に入力方法の変更をお願いするため、協力が得られないと定着しない",
+            "切り替え直後は、旧形式と新形式が混在して確認の手間が一時的に増える",
+            "営業所が独自に列を追加・変更すると効果が薄れる"
+          ],
+          "prerequisites": [
+            "営業所に共通の様式で提出してもらうよう依頼できるか、上長や関係者に確認",
+            "部長会議用の月次売上報告書に必要な項目（何がどう使われているか）の確認"
+          ],
+          "reason": "形式の違い（I3）が転記の手間とミス（I2・I4）の根本の原因と考えられ、新しいソフトの予算がなくても全員が使えるExcelで実施できるためです。営業所の協力が必要なため難易度は「中」としました。",
+          "why_not_simpler": null,
+          "before": "5営業所からそれぞれ形式の違う売上Excelが届き、担当者が1つずつ見比べながら手作業で転記している。",
+          "after": "5営業所が同じ列の並びの共通ひな形で提出し、担当者は同じ位置からそのまま転記・集計できるようになる見込み。",
+          "first_steps": [
+            "担当者が、直近月の5営業所のExcelを並べ、項目名・列の並び・返品分の書き方の違いを一覧表にする",
+            "一覧表をもとに共通ひな形の案を作り、上長に営業所への依頼方法を相談する"
+          ]
+        },
+        {
+          "title": "共通ひな形を前提に、Excelの関数で営業所別合計と全社合計を自動で出す集計ファイルを作る",
+          "category": "既存ツールの活用",
+          "description": "共通ひな形で届いた5営業所のデータを、集計ファイルの営業所ごとのシートにそのまま貼り付けるだけで、SUMIFS関数（条件に合う数値を合計する関数）などにより商品別・営業所別の合計と全社合計が自動で計算されるようにする。各営業所ファイルの合計と、集計ファイル側の合計が一致しているかを示す確認欄（一致しなければ色が変わる）も設け、不一致をその場で気づけるようにする。",
+          "target_issue_ids": [
+            "I4",
+            "I2"
+          ],
+          "expected_effect": "転記と合計の計算・検算を関数に任せることで、集計作業全体で月12時間くらいのうち転記や計算にかかる部分（時間は未確認）が減る想定です。不一致は貼り付けた時点で確認欄に表れるため、会議前日や当日に見つかる事態を減らせる可能性があります。",
+          "difficulty": "中",
+          "risks": [
+            "集計ファイルを作れる人が担当者だけだと、新たな属人化になるため、作り方を手順書に残す必要がある",
+            "ひな形の列が変わると関数が正しく動かなくなる",
+            "移行期間は従来の手作業と並行して結果を照らし合わせる二重作業が発生する"
+          ],
+          "prerequisites": [
+            "利用中のExcelの版や社内の設定で、使いたい関数や機能が使えるか（情報システム担当などに確認）",
+            "Excelの関数やマクロ（作業を自動で行う機能）を業務で使ってよい社内ルールになっているかの確認",
+            "提案2の共通ひな形が営業所に定着していること"
+          ],
+          "reason": "新しいソフトの予算はないが、Excelは全員が使えるという制約の中で、手作業の転記と計算（I4）とミス（I2）を減らせるためです。ひな形がそろうことが前提のため、提案2の後に取り組む順番としました。",
+          "why_not_simpler": null,
+          "before": "担当者が5営業所のファイルから数字を手で転記し、合計を出して確認しており、どこかで数字が合わないことが毎月起きている。",
+          "after": "共通ひな形のデータを営業所ごとのシートに貼り付けるだけで合計が自動計算され、営業所の合計と一致しない場合はその場で分かるようになる想定。",
+          "first_steps": [
+            "担当者が、情報システム担当などに、業務でのExcel関数・マクロ利用のルールと使えるExcelの版を確認する",
+            "共通ひな形の案を使い、1営業所分だけで営業所合計と集計側の合計を突き合わせる確認欄を試作する"
+          ]
+        }
+      ]
+    },
+    "downgraded": {},
+    "missing_item_ids": [
+      "H1",
+      "H3",
+      "H4"
+    ]
+  },
+  "flows": {
+    "as_is": {
+      "steps": [
+        {
+          "id": "S1",
+          "name": "営業所から売上Excelを受け取る",
+          "kind": "作業",
+          "actor": "営業所／営業管理部 担当者",
+          "description": "5つの営業所からそれぞれの形式の売上Excelを受け取る。受け取り方法（メール・共有フォルダなど）は未確認。時間はAIの目安",
+          "system": "Excel",
+          "manual": true,
+          "minutes_per_case": 5.0,
+          "minutes_source": "AI推定",
+          "occurrence_rate": 100.0,
+          "wait_or_rework": "",
+          "problem": "営業所ごとにExcelの形式が統一されていない（I3）",
+          "change": "変更なし",
+          "change_note": "",
+          "needs_confirmation": false
+        },
+        {
+          "id": "S2",
+          "name": "集計ファイルへ手作業で転記する",
+          "kind": "作業",
+          "actor": "営業管理部 担当者（1人）",
+          "description": "形式の違う営業所のExcelを見比べながら、集計ファイルへ手作業で転記する。業務全体は毎月合計12時間くらいだが、転記の時間の内訳は不明のためAIの目安",
+          "system": "Excel",
+          "manual": true,
+          "minutes_per_case": 70.0,
+          "minutes_source": "AI推定",
+          "occurrence_rate": 100.0,
+          "wait_or_rework": "",
+          "problem": "形式が違うため転記に時間がかかり、貼り付け位置のずれなどのミスが起きやすい。集計方法を知っているのは担当者だけ（I1・I3・I4）",
+          "change": "変更なし",
+          "change_note": "",
+          "needs_confirmation": false
+        },
+        {
+          "id": "S3",
+          "name": "数字を照合する",
+          "kind": "判断",
+          "actor": "営業管理部 担当者（1人）",
+          "description": "転記した数字が営業所のExcelと合っているかを確認する。照合の方法は未確認。時間はAIの目安",
+          "system": "Excel",
+          "manual": true,
+          "minutes_per_case": 15.0,
+          "minutes_source": "AI推定",
+          "occurrence_rate": 100.0,
+          "wait_or_rework": "",
+          "problem": "照合の仕組みがなく、不一致の発見が遅れることがある（I2）",
+          "change": "変更なし",
+          "change_note": "",
+          "needs_confirmation": true
+        },
+        {
+          "id": "S4",
+          "name": "差異の原因を調べて修正する",
+          "kind": "作業",
+          "actor": "営業管理部 担当者（1人）",
+          "description": "数字が合わない場合に、原因を探して集計ファイルを修正する。割合は目安（毎月どこかで発生するため、5件中1件程度と置いた）。時間はAIの目安",
+          "system": "Excel",
+          "manual": true,
+          "minutes_per_case": 150.0,
+          "minutes_source": "AI推定",
+          "occurrence_rate": 20.0,
+          "wait_or_rework": "数字が合わない場合の手戻り。修正後に再度照合する",
+          "problem": "会議直前に確認作業が発生するおそれがある（I2）",
+          "change": "変更なし",
+          "change_note": "",
+          "needs_confirmation": false
+        },
+        {
+          "id": "S5",
+          "name": "月次売上報告書を作成する",
+          "kind": "作業",
+          "actor": "営業管理部 担当者（1人）",
+          "description": "集計結果から部長会議用の月次売上報告書を作成する。月1回の作業を1件あたりに割った目安（月120分程度と置いた）",
+          "system": "Excel",
+          "manual": true,
+          "minutes_per_case": 24.0,
+          "minutes_source": "AI推定",
+          "occurrence_rate": 100.0,
+          "wait_or_rework": "",
+          "problem": "作成方法を知っているのは担当者だけ（I1）",
+          "change": "変更なし",
+          "change_note": "",
+          "needs_confirmation": false
+        },
+        {
+          "id": "S6",
+          "name": "報告書を提出する",
+          "kind": "作業",
+          "actor": "営業管理部 担当者（1人）",
+          "description": "作成した報告書を部長会議用に提出する。提出先・方法は未確認",
+          "system": "",
+          "manual": null,
+          "minutes_per_case": null,
+          "minutes_source": null,
+          "occurrence_rate": 100.0,
+          "wait_or_rework": "",
+          "problem": "",
+          "change": "変更なし",
+          "change_note": "",
+          "needs_confirmation": true
+        }
+      ],
+      "edges": [
+        {
+          "source": "S1",
+          "target": "S2",
+          "label": ""
+        },
+        {
+          "source": "S2",
+          "target": "S3",
+          "label": ""
+        },
+        {
+          "source": "S3",
+          "target": "S4",
+          "label": "差異あり"
+        },
+        {
+          "source": "S3",
+          "target": "S5",
+          "label": "差異なし"
+        },
+        {
+          "source": "S4",
+          "target": "S3",
+          "label": "修正後に再照合"
+        },
+        {
+          "source": "S5",
+          "target": "S6",
+          "label": ""
+        }
+      ],
+      "next_no": 7
+    },
+    "to_be": {
+      "P1": {
+        "steps": [
+          {
+            "id": "S1",
+            "name": "営業所から売上Excelを受け取る",
+            "kind": "作業",
+            "actor": "営業所／営業管理部 担当者",
+            "description": "5つの営業所からそれぞれの形式の売上Excelを受け取る。時間はAIの目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 5.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更なし",
+            "change_note": "",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S2",
+            "name": "手順書に沿って集計ファイルへ転記する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（または副担当者）",
+            "description": "営業所ごとにどの列をどこへ転記するか、返品分の扱いを定めた手順書に沿って転記する。時間はAIの目安",
+            "system": "Excel・手順書",
+            "manual": true,
+            "minutes_per_case": 70.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "形式の違いは残るため転記時間は大きく変わらない",
+            "change": "変更",
+            "change_note": "手順書に沿って作業し、担当者以外も作業できるようにする",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S3",
+            "name": "照合チェックリストで確認する",
+            "kind": "判断",
+            "actor": "営業管理部 担当者（または副担当者）",
+            "description": "転記直後に、営業所ごとの売上合計と集計ファイル側の合計の突き合わせ、返品分の計上、商品コードの貼り付け位置をチェックリストで確認する。時間はAIの目安",
+            "system": "Excel・チェックリスト",
+            "manual": true,
+            "minutes_per_case": 20.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更",
+            "change_note": "決まった項目をチェックリストで転記直後に確認する",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S4",
+            "name": "差異の原因を調べて修正する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（または副担当者）",
+            "description": "転記直後に差異が分かるため、原因の特定が早くなる想定。割合は目安。時間はAIの目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 90.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 20.0,
+            "wait_or_rework": "差異がある場合の手戻り。修正後に再照合する",
+            "problem": "",
+            "change": "短縮",
+            "change_note": "チェック項目で原因箇所が絞れるため、調査時間が短くなる想定",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S5",
+            "name": "月次売上報告書を作成する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（または副担当者）",
+            "description": "月1回の作業を1件あたりに割った目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 24.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更なし",
+            "change_note": "",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S6",
+            "name": "報告書を提出する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "提出先・方法は未確認",
+            "system": "",
+            "manual": null,
+            "minutes_per_case": null,
+            "minutes_source": null,
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更なし",
+            "change_note": "",
+            "needs_confirmation": true
+          }
+        ],
+        "edges": [
+          {
+            "source": "S1",
+            "target": "S2",
+            "label": ""
+          },
+          {
+            "source": "S2",
+            "target": "S3",
+            "label": ""
+          },
+          {
+            "source": "S3",
+            "target": "S4",
+            "label": "差異あり"
+          },
+          {
+            "source": "S3",
+            "target": "S5",
+            "label": "差異なし"
+          },
+          {
+            "source": "S4",
+            "target": "S3",
+            "label": "修正後に再照合"
+          },
+          {
+            "source": "S5",
+            "target": "S6",
+            "label": ""
+          }
+        ],
+        "next_no": 7
+      },
+      "P2": {
+        "steps": [
+          {
+            "id": "S1",
+            "name": "営業所から共通ひな形の売上Excelを受け取る",
+            "kind": "作業",
+            "actor": "営業所／営業管理部 担当者",
+            "description": "5つの営業所から、同じ列の並びの共通ひな形で売上Excelを受け取る。時間はAIの目安",
+            "system": "Excel（共通ひな形）",
+            "manual": true,
+            "minutes_per_case": 5.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更",
+            "change_note": "各営業所が共通ひな形で提出する",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S7",
+            "name": "ひな形どおりかを確認する",
+            "kind": "判断",
+            "actor": "営業管理部 担当者",
+            "description": "列の並びが変わっていないか、返品欄が空欄でなく「0」などで入力されているかを確認する。形式が違えば営業所に差し戻す。差し戻しの割合は目安。時間はAIの目安",
+            "system": "Excel（共通ひな形）",
+            "manual": true,
+            "minutes_per_case": 5.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "形式が違う場合は営業所へ差し戻し、再提出を待つ",
+            "problem": "",
+            "change": "追加",
+            "change_note": "共通ひな形のルールが守られているかを受け取り時に確認する",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S2",
+            "name": "集計ファイルへ転記する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "全営業所が同じ列の並びのため、同じ位置からそのまま転記する。時間はAIの目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 30.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "短縮",
+            "change_note": "見比べる必要がなくなり、転記時間が短くなる見込み",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S3",
+            "name": "数字を照合する",
+            "kind": "判断",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "転記した数字が営業所のExcelと合っているかを確認する。時間はAIの目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 15.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更なし",
+            "change_note": "",
+            "needs_confirmation": true
+          },
+          {
+            "id": "S4",
+            "name": "差異の原因を調べて修正する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "位置ずれや返品漏れが起きにくくなり、差異の発生が減る想定。割合は目安。時間はAIの目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 120.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 10.0,
+            "wait_or_rework": "差異がある場合の手戻り。修正後に再照合する",
+            "problem": "",
+            "change": "短縮",
+            "change_note": "形式が揃うことで差異の発生頻度と調査時間が減る見込み",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S5",
+            "name": "月次売上報告書を作成する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "月1回の作業を1件あたりに割った目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 24.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更なし",
+            "change_note": "",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S6",
+            "name": "報告書を提出する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "提出先・方法は未確認",
+            "system": "",
+            "manual": null,
+            "minutes_per_case": null,
+            "minutes_source": null,
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更なし",
+            "change_note": "",
+            "needs_confirmation": true
+          }
+        ],
+        "edges": [
+          {
+            "source": "S1",
+            "target": "S7",
+            "label": ""
+          },
+          {
+            "source": "S7",
+            "target": "S1",
+            "label": "形式違い：差し戻し"
+          },
+          {
+            "source": "S7",
+            "target": "S2",
+            "label": "形式どおり"
+          },
+          {
+            "source": "S2",
+            "target": "S3",
+            "label": ""
+          },
+          {
+            "source": "S3",
+            "target": "S4",
+            "label": "差異あり"
+          },
+          {
+            "source": "S3",
+            "target": "S5",
+            "label": "差異なし"
+          },
+          {
+            "source": "S4",
+            "target": "S3",
+            "label": "修正後に再照合"
+          },
+          {
+            "source": "S5",
+            "target": "S6",
+            "label": ""
+          }
+        ],
+        "next_no": 8
+      },
+      "P3": {
+        "steps": [
+          {
+            "id": "S1",
+            "name": "営業所から共通ひな形の売上Excelを受け取る",
+            "kind": "作業",
+            "actor": "営業所／営業管理部 担当者",
+            "description": "共通ひな形（改善案2）で提出された売上Excelを受け取る。時間はAIの目安",
+            "system": "Excel（共通ひな形）",
+            "manual": true,
+            "minutes_per_case": 5.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更",
+            "change_note": "改善案2の共通ひな形での提出が前提",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S2",
+            "name": "集計ファイルの営業所シートに貼り付ける",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "共通ひな形のデータを営業所ごとのシートにそのまま貼り付けるだけで、SUMIFS関数などにより商品別・営業所別・全社合計が自動計算される。時間はAIの目安",
+            "system": "Excel（集計ファイル）",
+            "manual": true,
+            "minutes_per_case": 10.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "自動化",
+            "change_note": "手転記と合計計算を、貼り付けと関数による自動計算に置き換える",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S3",
+            "name": "確認欄で合計の一致を確認する",
+            "kind": "判断",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "各営業所ファイルの合計と集計ファイル側の合計の一致を示す確認欄（不一致なら色が変わる）を担当者が見て判断する。時間はAIの目安",
+            "system": "Excel（集計ファイル）",
+            "manual": false,
+            "minutes_per_case": 2.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "自動化",
+            "change_note": "一致・不一致の判定を関数で自動表示し、担当者は結果を確認する",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S4",
+            "name": "差異の原因を調べて修正する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "不一致がその場で営業所単位で分かるため、原因の特定が早くなる想定。割合は目安。時間はAIの目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 60.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 10.0,
+            "wait_or_rework": "差異がある場合の手戻り。修正後に再確認する",
+            "problem": "",
+            "change": "短縮",
+            "change_note": "不一致の営業所がすぐ分かり、調査時間と発生頻度が減る想定",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S5",
+            "name": "月次売上報告書を作成する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "月1回の作業を1件あたりに割った目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 24.0,
+            "minutes_source": "AI推定",
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更なし",
+            "change_note": "",
+            "needs_confirmation": false
+          },
+          {
+            "id": "S6",
+            "name": "報告書を提出する",
+            "kind": "作業",
+            "actor": "営業管理部 担当者（1人）",
+            "description": "提出先・方法は未確認",
+            "system": "",
+            "manual": null,
+            "minutes_per_case": null,
+            "minutes_source": null,
+            "occurrence_rate": 100.0,
+            "wait_or_rework": "",
+            "problem": "",
+            "change": "変更なし",
+            "change_note": "",
+            "needs_confirmation": true
+          }
+        ],
+        "edges": [
+          {
+            "source": "S1",
+            "target": "S2",
+            "label": ""
+          },
+          {
+            "source": "S2",
+            "target": "S3",
+            "label": ""
+          },
+          {
+            "source": "S3",
+            "target": "S4",
+            "label": "不一致（色が変わる）"
+          },
+          {
+            "source": "S3",
+            "target": "S5",
+            "label": "一致"
+          },
+          {
+            "source": "S4",
+            "target": "S3",
+            "label": "修正後に再確認"
+          },
+          {
+            "source": "S5",
+            "target": "S6",
+            "label": ""
+          }
+        ],
+        "next_no": 7
+      }
+    },
+    "kept_controls": {
+      "P1": [
+        "S3 照合：誤った数字のまま部長会議に報告されることを防ぐため、チェックリスト化して強化したうえで残す"
+      ],
+      "P2": [
+        "S3 照合：形式が揃っても転記ミスは起こりうるため、誤った数字の報告を防ぐために残す",
+        "S7 ひな形確認（追加）：営業所側の入力ルール違反を受け取り時に見つけるため"
+      ],
+      "P3": [
+        "S3 照合：自動判定になっても、誤った数字の報告を防ぐため担当者が確認欄を見て判断する工程として残す"
+      ]
+    },
+    "flow_questions": [
+      "数字の照合は、どのような方法（営業所ごとの合計の突き合わせなど）で行っていますか？",
+      "差異が見つかった場合、営業所に問い合わせていますか、それともご自身で原因を調べて修正していますか？",
+      "月次売上報告書は、誰に、いつまでに、どのような方法で提出していますか？",
+      "営業所の売上Excelは、どのような方法（メール・共有フォルダなど）で届きますか？",
+      "合計12時間のうち、転記・照合・差異の確認・報告書作成には、それぞれどれくらいかかっていますか？"
+    ],
+    "flow_notes": []
+  },
+  "usage": [
+    {
+      "call_type": "flow",
+      "model": "claude-opus-5-5",
+      "input_tokens": 10485,
+      "output_tokens": 9412,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.23018
+    }
+  ],
+  "total_dollars": 0.23018
+}
