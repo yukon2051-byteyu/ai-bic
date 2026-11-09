@@ -469,3 +469,12 @@ def test_情報がそろっていれば追加確認を出さない(secrets):
     while at.session_state.stage == "hearing":
         at.button(key="submit_answer").click().run()
     assert at.session_state.stage == "attach"
+
+
+
+def test_トップの注意事項は_個人情報_AIへの送信_保存しないことを残す(secrets):
+    """TOP画面のコンパクト化で、重要な注意事項を削らない。"""
+    text = all_text(new_app(secrets))
+    assert "個人情報や社外秘の情報は入力しないでください" in text
+    assert "入力内容はAI（Anthropic社のClaude）に送信され" in text
+    assert "診断結果は保存されません" in text

@@ -148,3 +148,15 @@ def test_進み具合は今の段階を強調する():
     assert '<span class="now">02 ヒアリング</span>' in bar
     assert '<span class="done">01 業務情報</span>' in bar
     assert "bic-steps" not in ui.topbar(steps, "top")  # トップでは進み具合を出さない
+
+
+
+# --- TOP画面（コンパクト化） ---
+def test_特徴カードの質問数は実装の設定と一致する():
+    from ai_bic import config
+
+    cards = ui.features()
+    total = config.MAX_HEARING_TURNS + config.MAX_EXTRA_QUESTIONS
+    assert f"必要なことだけ、最大{total}問" in cards
+    assert f"基本{config.MAX_HEARING_TURNS}問。情報が不足する場合のみ、最大{config.MAX_EXTRA_QUESTIONS}問を追加できます。" in cards
+    assert cards.count('class="no"') == 3  # 3カラムのカードは3枚のまま

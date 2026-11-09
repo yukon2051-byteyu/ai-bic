@@ -12,6 +12,7 @@ AIの回答や利用者の入力をHTMLに埋め込むため、すべて esc() �
 
 import html
 
+from ai_bic import config
 from ai_bic.models import DiagnosisSummary, Evidence, HearingItem, HearingTurn, Issue, ItemStatus, Proposal
 
 ACCENT = "#1B2B4B"  # 深い紺（差し色）
@@ -44,7 +45,7 @@ html, body, .stApp, .stMarkdown, label, input, textarea, button {{
 }}
 /* 背景：真っ白にせず、上部にごく薄い青みを入れて奥行きを出す */
 .stApp {{ background: linear-gradient(180deg, #EEF1F6 0px, #F7F8FA 360px, #FFFFFF 720px); color: var(--ink); }}
-.block-container {{ max-width: 880px; padding-top: 1rem; padding-bottom: 4rem; }}
+.block-container {{ max-width: 880px; padding-top: .75rem; padding-bottom: 4rem; }}
 /* 上部に固定された Streamlit のバー（メニューは非表示にしている）。上の余白を詰めると
    内容に重なるため、バーごと表示しない */
 header[data-testid="stHeader"] {{ display: none; }}
@@ -66,12 +67,12 @@ header[data-testid="stHeader"] {{ display: none; }}
 .bic-label::before {{ content: ""; width: 18px; height: 2px; background: var(--gold-deep); }}
 .bic-h2 {{ font-size: 1.45rem; font-weight: 500; letter-spacing: .06em; margin: 0 0 1.25rem; }}
 /* トップページ用の詰めた見出し（1画面に収めるため） */
-.bic-label.tight {{ margin-top: .9rem; }}
+.bic-label.tight {{ margin-top: .7rem; }}
 .bic-h2.tight {{ font-size: 1.15rem; margin-bottom: .5rem; }}
 
 /* トップの見出し：紺からスレートへのグラデーションの面に、白い文字 */
 .bic-hero {{
-  position: relative; overflow: hidden; border-radius: 6px; padding: 1.8rem 2.4rem 1.7rem; margin-bottom: .75rem;
+  position: relative; overflow: hidden; border-radius: 6px; padding: 1.3rem 2.4rem 1.2rem; margin-bottom: .6rem;
   color: #fff; background: linear-gradient(120deg, #14213D 0%, #1B2B4B 45%, #3A5778 100%);
 }}
 /* 右上に、ぼかした光を重ねて奥行きを出す（装飾） */
@@ -84,37 +85,42 @@ header[data-testid="stHeader"] {{ display: none; }}
 }}
 .bic-hero h1 {{
   position: relative; font-size: 2.2rem; font-weight: 300; letter-spacing: .08em; line-height: 1.35;
-  margin: .5rem 0 .6rem; color: #fff; white-space: nowrap;
+  margin: .3rem 0 .35rem; color: #fff; white-space: nowrap;
 }}
-.bic-hero p {{ position: relative; color: rgba(255,255,255,.8); line-height: 1.8; letter-spacing: .04em; margin: 0; font-size: .92rem; }}
+.bic-hero p {{ position: relative; color: rgba(255,255,255,.8); line-height: 1.65; letter-spacing: .04em; margin: 0; font-size: .92rem; }}
 @media (max-width: 720px) {{
-  .bic-hero {{ padding: 1.5rem 1.3rem; }}
+  .bic-hero {{ padding: 1.1rem 1.2rem; }}
   .bic-hero h1 {{ font-size: 1.6rem; white-space: normal; }}
 }}
 
 /* 3つの特長：紺の濃淡で少しずつ色を変えたカード。番号を大きく見せる */
-.bic-features {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 .5rem; }}
-.bic-features > div {{ border-radius: 6px; padding: 1.1rem 1.3rem 1.2rem; color: #fff; }}
+.bic-features {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 .4rem; }}
+.bic-features > div {{ border-radius: 6px; padding: .8rem 1.15rem .85rem; color: #fff; }}
 .bic-features > div:nth-child(1) {{ background: linear-gradient(160deg, #1B2B4B 0%, #2D4369 100%); }}
 .bic-features > div:nth-child(2) {{ background: linear-gradient(160deg, #22385A 0%, #3B5A7E 100%); }}
 .bic-features > div:nth-child(3) {{ background: linear-gradient(160deg, #2B4A63 0%, #4E7488 100%); }}
 .bic-features .no {{
-  font-family: "Inter", sans-serif; font-size: 2rem; font-weight: 300; line-height: 1;
+  font-family: "Inter", sans-serif; font-size: 1.6rem; font-weight: 300; line-height: 1;
   letter-spacing: .04em; color: var(--gold);
 }}
-.bic-features h3 {{ font-size: .98rem; font-weight: 500; letter-spacing: .05em; margin: .6rem 0 .35rem; color: #fff; }}
-.bic-features p {{ font-size: .82rem; color: rgba(255,255,255,.78); line-height: 1.7; margin: 0; }}
-@media (max-width: 720px) {{ .bic-features {{ grid-template-columns: 1fr; }} }}
+.bic-features h3 {{ font-size: .98rem; font-weight: 500; letter-spacing: .05em; margin: .4rem 0 .25rem; color: #fff; }}
+.bic-features p {{ font-size: .82rem; color: rgba(255,255,255,.78); line-height: 1.6; margin: 0; }}
+@media (max-width: 720px) {{
+  .bic-features {{ grid-template-columns: 1fr; gap: 8px; }}
+  .bic-features > div {{ display: grid; grid-template-columns: 2.4rem 1fr; column-gap: .6rem; padding: .7rem 1rem; }}
+  .bic-features .no {{ grid-row: span 2; font-size: 1.4rem; padding-top: .15rem; }}
+  .bic-features h3 {{ margin: 0 0 .2rem; }}
+}}
 
 /* 注記 */
 .bic-note {{ font-size: .8rem; color: var(--sub); line-height: 1.75; background: var(--surface);
-  border-left: 2px solid var(--accent); padding: .65rem 1rem; margin: .75rem 0; border-radius: 0 4px 4px 0; }}
+  border-left: 2px solid var(--accent); padding: .5rem .9rem; margin: .55rem 0; border-radius: 0 4px 4px 0; }}
 .bic-tag {{ display: inline-block; font-size: .72rem; letter-spacing: .08em; padding: .2rem .65rem;
   border: 1px solid var(--line); border-radius: 2px; color: var(--sub); margin: 0 .4rem .3rem 0; }}
 
 /* 上部のブランドと進み具合 */
 .bic-bar {{ display: flex; justify-content: space-between; align-items: baseline;
-  border-bottom: 1px solid var(--line); padding-bottom: .6rem; margin-bottom: 1rem; }}
+  border-bottom: 1px solid var(--line); padding-bottom: .45rem; margin-bottom: .75rem; }}
 .bic-brand {{ font-family: "Inter", sans-serif; font-weight: 600; letter-spacing: .22em; font-size: .95rem; }}
 .bic-brand span {{ font-weight: 400; color: var(--mute); letter-spacing: .12em; font-size: .72rem; margin-left: .8rem; }}
 .bic-steps {{ display: flex; gap: 1.2rem; font-size: .78rem; letter-spacing: .06em; color: var(--mute); }}
@@ -256,14 +262,16 @@ def hero() -> str:
     return (
         '<div class="bic-hero"><div class="en">AI BUSINESS IMPROVEMENT CONSULTANT</div>'
         "<h1>業務改善を、根拠から始める。</h1>"
-        "<p>AIが業務改善コンサルタントとして担当者にヒアリングし、"
-        "業務の課題と改善案を、ご本人の発言と資料にもとづいて整理します。</p></div>"
+        "<p>AIが担当者にヒアリングし、業務の課題と改善案を、ご本人の発言と資料にもとづいて整理します。</p></div>"
     )
 
 
 def features() -> str:
+    # 質問数は設定値から作る（設定を変えたときに、説明だけ古いまま残らないように）。
+    # 実装：基本の質問のあと、3機能に必要な情報が足りず、利用者が選んだ場合だけ追加確認をする（readiness.py）
+    base, extra = config.MAX_HEARING_TURNS, config.MAX_EXTRA_QUESTIONS
     items = [
-        ("01", "1問ずつのヒアリング", "診断項目に沿って最大5問。分かっていることは聞かず、あいまいな回答は確かめます。"),
+        ("01", f"必要なことだけ、最大{base + extra}問", f"基本{base}問。情報が不足する場合のみ、最大{extra}問を追加できます。"),
         ("02", "事実と推測を区別", "AIが挙げた根拠を、入力や添付資料と照合。確認できない内容は「要確認」にします。"),
         ("03", "費用のかからない順に提案", "ルールの見直しから検討し、新しいシステムの導入を安易に勧めません。"),
     ]
