@@ -12,7 +12,7 @@ AIClient の3つの関数だけを使う（基本設計の方針P4）。
 
 from typing import Protocol
 
-from ai_bic.config import MAX_HEARING_TURNS
+from ai_bic.config import MAX_EXTRA_QUESTIONS, MAX_HEARING_TURNS
 from ai_bic.item_rules import askable_item_ids
 from ai_bic.models import (
     AnalysisResult,
@@ -29,12 +29,18 @@ from ai_bic.models import (
     QuestionResult,
 )
 from ai_bic.output_check import verify_evidences
+from ai_bic.readiness import extra_count, extra_targets
 
 # 終了理由（結果画面と利用状況の確認に使う）
 FINISH_MAX_TURNS = "質問回数の上限に達したため終了しました"
 FINISH_SUFFICIENT = "必要な情報がそろったため終了しました"
 FINISH_BY_USER = "利用者の操作により、ここまでの情報で診断しました"
 FINISH_NO_ITEMS = "これ以上お聞きできる項目がないため終了しました"
+# 追加確認（AI-BIC 2.0）の終了理由
+EXTRA_SUFFICIENT = "追加確認で、分析に必要な情報がそろいました"
+EXTRA_MAX = "追加確認の上限に達しました"
+EXTRA_BY_USER = "利用者の操作により、追加確認を終えて分析に進みました"
+EXTRA_NO_ITEMS = "追加でお聞きできる項目がないため、追加確認を終えました"
 
 
 class AIClient(Protocol):
@@ -168,6 +174,53 @@ def finish_by_user(state: HearingState) -> None:
     """利用者が「ここまでの情報で診断する」を押したときの終了処理。"""
     if not state.finished_reason:
         state.finished_reason = FINISH_BY_USER
+    if state.extra_started and not state.extra_finished_reason:
+        state.extra_finished_reason = EXTRA_BY_USER
+
+
+# ---------------------------------------------------------------
+# 追加確認（AI-BIC 2.0）：基本の質問のあと、3機能に必要な情報が足りないときに、利用者が選んだ場合だけ行う
+# ---------------------------------------------------------------
+def start_extra(state: HearingState, framework: Framework) -> None:
+    """追加確認を始める。質問してよい項目を、機能に必要な情報が足りない項目に絞る。"""
+    if not state.finished_reason:
+        raise ValueError("基本のヒアリングが終わっていません")
+    state.extra_started = True
+    state.extra_targets = extra_targets(state, framework)
+
+
+def request_extra_question(
+    client: AIClient, info: BusinessInfo, state: HearingState, framework: Framework
+) -> HearingTurn | None:
+    """追加確認の次の質問を返す。終える場合は None を返し、理由を記録する。
+
+    回数（最大 MAX_EXTRA_QUESTIONS 問）と、聞く項目はプログラムが決める。質問の文はAIが作る。
+    答えるたびにAIが充足状況を判定し直し、必要な情報がそろえば、上限の前でも終える。
+    """
+    if not state.extra_started or state.extra_finished_reason:
+        return None
+    if state.turns and state.turns[-1].answer is None:
+        return state.turns[-1]
+    if extra_count(state) >= MAX_EXTRA_QUESTIONS:
+        state.extra_finished_reason = EXTRA_MAX
+        return None
+
+    result = client.ask_next_question(info, state, framework)
+    _record_statuses(state, result)
+    state.extra_targets = extra_targets(state, framework)  # 新しい判定で、まだ足りない項目に絞り直す
+    if not state.extra_targets or not (result.next_item_id in state.extra_targets and result.question):
+        state.extra_finished_reason = EXTRA_SUFFICIENT if not state.extra_targets else EXTRA_NO_ITEMS
+        return None
+
+    turn = HearingTurn(
+        turn_no=len(state.turns) + 1,
+        item_id=result.next_item_id,
+        question=result.question,
+        answer_example=result.answer_example,
+        extra=True,
+    )
+    state.turns.append(turn)
+    return turn
 
 
 def missing_items(state: HearingState, framework: Framework) -> list[HearingItem]:

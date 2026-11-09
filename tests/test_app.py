@@ -113,6 +113,8 @@ def test_プルダウンで別のシナリオを選んで最後まで診断で�
     for _ in range(answers):
         at.button(key="submit_answer").click().run()
         assert not at.exception
+    if at.session_state.stage == "readiness":  # 修理受付は制約条件が不十分で、追加確認を提案される
+        at.button(key="extra_skip").click().run()
     assert at.session_state.stage == "attach"
     at.button(key="diagnose").click().run()
 
@@ -128,11 +130,14 @@ def test_修理受付のデモは不足項目を表示する(secrets):
     at.button(key="submit_info").click().run()
     for _ in range(5):
         at.button(key="submit_answer").click().run()
+    at.button(key="extra_skip").click().run()  # 追加確認をせずに分析する
     at.button(key="diagnose").click().run()
     # 5問で終わり、5問目の回答（予算は相談次第）も判定したうえで、不足項目と理由を表示（B01）
     text = all_text(at)
     assert "情報が不足しています。結果は参考としてご覧ください。" in text
     assert "改善に向けた制約条件（不十分）　足りないこと：予算の目安や、使ってよいツール・社内ルールの有無" in text
+    # 情報が足りないまま分析したので、仮定条件も示す（AI-BIC 2.0 ヒアリングの改善 7）
+    assert "仮定条件：業務上の問題点または改善の制約条件が未確認のため" in text
 
 
 def test_結果画面の冒頭と末尾に_診断レポートのダウンロードボタンがある(secrets):
@@ -278,6 +283,8 @@ def result_screen(secrets, at: AppTest | None = None) -> AppTest:
     at.button(key="submit_info").click().run()
     while at.session_state.stage == "hearing":
         at.button(key="submit_answer").click().run()
+    if at.session_state.stage == "readiness":
+        at.button(key="extra_skip").click().run()
     at.button(key="diagnose").click().run()
     assert not at.exception
     return at
@@ -392,3 +399,73 @@ def test_入力値の出どころは1行にまとめ_欄ごとに出さない(se
     texts = [m.value for m in at.markdown] + [c.value for c in at.caption]
     assert any("□ デモ値（すべての項目）" in t for t in texts)
     assert not any(c.value == "□ デモ値" for c in at.caption)  # 入力欄の下ごとの表示はしない
+
+
+
+# ---------------------------------------------------------------
+# ヒアリングの改善（AI-BIC 2.0）：情報の充足度に応じた追加確認
+# ---------------------------------------------------------------
+def repair_until_readiness(secrets) -> AppTest:
+    at = new_app(secrets)
+    at.selectbox(key="demo_scenario").set_value("修理依頼の受付・手配（お客様相談室）").run()
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    for _ in range(5):
+        at.button(key="submit_answer").click().run()
+    assert not at.exception
+    return at
+
+
+def test_基本の質問は質問n_5で進み具合を表示する(secrets):
+    at = new_app(secrets)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    assert "質問 1 / 5" in [p.proto.text for p in at.get("progress")][0]
+
+
+def test_必要な情報が足りなければ_理由とともに追加確認を提案する(secrets):
+    at = repair_until_readiness(secrets)
+    assert at.session_state.stage == "readiness"
+    text = all_text(at)
+    assert "より正確な分析のための追加確認" in text
+    assert "改善案レビューに必要な「改善に向けた制約条件」が不十分です" in text
+    table = at.dataframe[0].value
+    assert dict(zip(table["機能"], table["判定"])) == {
+        "業務フロー": "✓ 十分", "改善効果の試算": "✓ 十分", "改善案レビュー": "✕ 不足"}
+    labels = [b.label for b in at.button]
+    assert "追加で確認する（最大3問）" in labels and "このまま分析する" in labels
+
+
+def test_追加確認を選ぶと_追加の質問に答えて分析に進める(secrets):
+    at = repair_until_readiness(secrets)
+    at.button(key="extra_start").click().run()
+    assert at.session_state.stage == "hearing"
+    assert "追加確認 1 / 最大 3" in [p.proto.text for p in at.get("progress")][0]
+    assert any("確認する理由" in c.value for c in at.caption)
+    at.button(key="submit_answer").click().run()  # デモの回答（制約条件）
+    # 必要な情報がそろったので、上限の3問を待たずに資料の添付へ進む
+    assert at.session_state.stage == "attach"
+    at.button(key="diagnose").click().run()
+    text = all_text(at)
+    assert "追加確認で、分析に必要な情報がそろいました" in text
+    assert "仮定条件" not in text
+
+
+def test_分からないボタンで答えると_その項目はもう聞かない(secrets):
+    at = repair_until_readiness(secrets)
+    at.button(key="extra_start").click().run()
+    at.button(key="submit_unknown").click().run()
+    state = at.session_state.hearing_state
+    assert state.turns[-1].answer == "分かりません。"
+    # 制約条件は「分からない」と答えたので、追加で聞ける項目がなくなり、資料の添付へ進む
+    assert at.session_state.stage == "attach"
+    assert state.extra_finished_reason is not None
+
+
+def test_情報がそろっていれば追加確認を出さない(secrets):
+    at = new_app(secrets)
+    at.button(key="start_demo").click().run()  # 月次売上集計：最後にすべて充足
+    at.button(key="submit_info").click().run()
+    while at.session_state.stage == "hearing":
+        at.button(key="submit_answer").click().run()
+    assert at.session_state.stage == "attach"

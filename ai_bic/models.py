@@ -106,6 +106,7 @@ class HearingTurn(BaseModel):
     question: str
     answer_example: str | None = None  # 画面で回答欄の近くに表示する
     answer: str | None = None  # 回答前は None
+    extra: bool = False  # 基本の質問のあとの「追加確認」の質問か（AI-BIC 2.0）
 
 
 class HearingState(BaseModel):
@@ -115,6 +116,10 @@ class HearingState(BaseModel):
     item_status: dict[str, ItemStatus] = Field(default_factory=dict)  # 項目ID → 最新の状況
     finished_reason: str | None = None  # 終了したときに理由を記録
     judged_answers: int = 0  # 充足状況の判定に反映済みの回答の数（最後の回答の判定漏れを防ぐ）
+    # 追加確認（AI-BIC 2.0）：基本の質問のあと、機能に必要な情報が足りないときに、利用者が選んだ場合だけ行う
+    extra_started: bool = False
+    extra_targets: list[str] = Field(default_factory=list)  # 追加確認で質問してよい項目（readiness.py が決める）
+    extra_finished_reason: str | None = None
 
 
 # ---------------------------------------------------------------

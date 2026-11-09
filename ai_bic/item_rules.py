@@ -66,4 +66,6 @@ def askable_item_ids(
         item.id
         for item in framework.hearing_items
         if statuses.get(item.id, "未確認") != "充足" and blocked_reason(state, item.id) is None
+        # 追加確認の間は、機能に必要な情報が足りない項目（readiness.extra_targets）だけを聞く
+        and (not state.extra_started or item.id in state.extra_targets)
     ]

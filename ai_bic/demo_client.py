@@ -40,6 +40,8 @@ class DemoClient:
     def ask_next_question(
         self, info: BusinessInfo, state: HearingState, framework: Framework, final: bool = False
     ) -> QuestionResult:
+        if state.extra_started:
+            return self._extra_question(state, framework, final)
         turns = self.scenario["turns"]
         n = len(state.turns)  # これまでの質問数で、次に返すデータを決める
 
@@ -81,6 +83,23 @@ class DemoClient:
             answer_example=None,
         )
 
+    def _extra_question(self, state: HearingState, framework: Framework, final: bool) -> QuestionResult:
+        """追加確認（AI-BIC 2.0）。シナリオの extra_turns を順に返し、終えたら最後の判定を返す。"""
+        extra = self.scenario.get("extra_turns", [])
+        done = sum(1 for turn in state.turns if turn.extra)
+        if not final and done < len(extra):
+            t = extra[done]
+            return QuestionResult(
+                item_status=_statuses(t["statuses"], framework, lacking=t.get("lacking", {})),
+                is_sufficient=False, next_item_id=t["next_item_id"], question_type=t["question_type"],
+                question=t["question"], answer_example=t["answer_example"],
+            )
+        after = extra[done - 1].get("statuses_after", {}) if done else self.scenario.get("final_statuses", {})
+        return QuestionResult(
+            item_status=_statuses(after, framework, default="充足"),
+            is_sufficient=True, next_item_id=None, question_type=None, question=None, answer_example=None,
+        )
+
     def analyze(
         self,
         info: BusinessInfo,
@@ -104,7 +123,7 @@ class DemoClient:
 
 def demo_answer(scenario: dict, turn_no: int) -> str:
     """回答欄にあらかじめ入れておく、シナリオの回答（決定事項E2）。"""
-    turns = scenario["turns"]
+    turns = scenario["turns"] + scenario.get("extra_turns", [])  # 追加確認の回答は、基本の質問の後に続く
     return turns[turn_no - 1]["demo_answer"] if 1 <= turn_no <= len(turns) else ""
 
 

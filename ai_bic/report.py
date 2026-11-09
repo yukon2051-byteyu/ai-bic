@@ -21,6 +21,7 @@ from ai_bic import simulation as sim
 from ai_bic.flow import Flow, compare_flows
 from ai_bic.models import BusinessInfo, DiagnosisResult, Framework, HearingState
 from ai_bic.project import Project, proposal_ids
+from ai_bic.readiness import assumptions
 from ai_bic.ui import DISCLAIMER, EVIDENCE_TEXT, evidence_source, missing_item_text
 
 TITLE = "AI-BIC 業務改善診断レポート"
@@ -93,6 +94,8 @@ def _summary_sheet(ws, info, state, result, framework, created_at, demo) -> None
     if result.missing_item_ids:
         lines = [missing_item_text(items[i], state.item_status.get(i)) for i in result.missing_item_ids]
         rows.append(("情報が不足している項目", "結果は参考としてご覧ください。\n" + _bullets(lines)))
+    if assumed := assumptions(state):  # 情報が足りないまま分析した機能の仮定条件（AI-BIC 2.0）
+        rows.append(("仮定条件", _bullets(assumed)))
     rows.append(("ご注意", DISCLAIMER))
 
     _put(ws, 1, 1, TITLE).font = Font(name=FONT_NAME, bold=True, size=14)

@@ -213,3 +213,13 @@ def test_業務フローのExcelは比較サマリーと工程一覧を残す():
     as_is = sheet_text(wb["現状フロー"])
     assert "商品ごとの売上を集計用ファイルに転記する" in as_is and "要確認" in as_is
     assert "S8（数字が合わない）" in as_is  # 次の工程と分岐の条件（S7 部長の確認 → S8 原因調査）
+
+
+
+def test_情報が足りないまま分析した場合は_仮定条件もレポートに残す():
+    """AI-BIC 2.0 ヒアリングの改善 7：未確認事項と仮定条件を明示する。"""
+    info, state, result = run_demo("repair_reception")  # 制約条件（H6）が不十分のまま分析
+    summary = sheet_text(open_report(info, state, result)["サマリー"])
+    assert "仮定条件" in summary and "改善の制約条件が未確認のため" in summary
+    info, state, result = run_demo("sales_report")  # すべて充足
+    assert "仮定条件" not in sheet_text(open_report(info, state, result)["サマリー"])

@@ -13,7 +13,7 @@ AIに指示を出す攻撃（プロンプトインジェクション）を防ぐ
 import json
 from pathlib import Path
 
-from ai_bic.config import MAX_HEARING_TURNS
+from ai_bic.config import MAX_EXTRA_QUESTIONS, MAX_HEARING_TURNS
 from ai_bic.item_rules import askable_item_ids, blocked_reason, question_count
 from ai_bic.models import AnalysisResult, Attachment, BusinessInfo, Framework, HearingState, ProposalResult
 
@@ -103,6 +103,14 @@ def build_question_input(
         request = [
             "ヒアリングは終了しました。最後の回答も含めて、各診断項目の充足状況を判定してください。"
             "質問は作らず、is_sufficient を true、next_item_id・question_type・question・answer_example を null にしてください。"
+        ]
+    elif state.extra_started:
+        # 追加確認（AI-BIC 2.0）：質問してよい項目は、分析に必要な情報が足りない項目だけに絞られている
+        remaining = MAX_EXTRA_QUESTIONS - sum(1 for turn in state.turns if turn.extra)
+        request = [
+            f"これは基本のヒアリングのあとの「追加確認」です（残り{remaining}回まで）。"
+            "業務フロー・改善効果の試算・改善案のレビューに必要な情報が足りない項目だけを、最小限の質問で確認します。",
+            "各診断項目の充足状況を判定し、「質問してよい項目」の中から、最も重要なものについて質問を1つ作ってください。",
         ]
     else:
         remaining = MAX_HEARING_TURNS - len(state.turns)

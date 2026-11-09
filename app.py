@@ -14,7 +14,7 @@ from datetime import datetime
 
 import streamlit as st
 
-from ai_bic import config, guard, report, ui
+from ai_bic import config, guard, readiness, report, ui
 from ai_bic.ai_client import ClaudeClient
 from ai_bic.project import new_project
 from ai_bic.views import flows, simulator
@@ -24,8 +24,11 @@ from ai_bic.errors import AIError, is_retryable, user_message
 from ai_bic.hearing import (
     add_answer,
     finish_by_user,
+    judge_last_answers,
+    request_extra_question,
     request_next_question,
     run_diagnosis,
+    start_extra,
     start_hearing,
 )
 from ai_bic.validation import validate_answer, validate_business_info
@@ -37,6 +40,7 @@ ITEMS = {item.id: item for item in FRAMEWORK.hearing_items}
 VIEWPOINT_NAMES = {v.id: v.name for v in FRAMEWORK.viewpoints}
 
 NOTICE = "個人情報や社外秘の情報は入力しないでください。企業名は空欄または架空の名前をおすすめします。"
+UNKNOWN_ANSWER = "分かりません。"  # 「分からない」ボタンの回答（item_rules.is_unknown_answer で、それ以上聞かない項目になる）
 STEPS = [
     ("input", "01 業務情報"),
     ("hearing", "02 ヒアリング"),
@@ -105,20 +109,31 @@ def get_client():
 
 
 def advance() -> None:
-    """ヒアリングを1歩進める（次の質問を作る）。終われば「資料の添付」に進む。
+    """ヒアリングを1歩進める（次の質問を作る）。
 
-    エラーが起きたら種類を記録し、再試行ボタンから再度呼ぶ。
+    基本の質問が終わったら、3機能に必要な情報がそろっているかを判定し（readiness.py）、
+    足りなければ「追加確認」の画面へ、そろっていれば「資料の添付」に進む。
+    追加確認の間は、追加の質問を作る。エラーが起きたら種類を記録し、再試行ボタンから再度呼ぶ。
     """
     s = st.session_state
     s.error_kind = None
+    state = s.hearing_state
     try:
         with st.spinner("AIが次の質問を考えています…"):
-            turn = request_next_question(get_client(), s.business_info, s.hearing_state, FRAMEWORK)
+            client = get_client()
+            if state.extra_started:
+                turn = request_extra_question(client, s.business_info, state, FRAMEWORK)
+            else:
+                turn = request_next_question(client, s.business_info, state, FRAMEWORK)
+                if turn is None:
+                    # 最後の回答も充足状況に反映してから、情報がそろっているかを判定する
+                    judge_last_answers(client, s.business_info, state, FRAMEWORK)
     except AIError as e:
         s.error_kind = e.kind
         return
     if turn is None:
-        s.stage = "attach"  # ヒアリング終了 → 資料の添付へ（ここではAIを呼ばない）
+        offer = not state.extra_started and readiness.should_offer_extra(state, FRAMEWORK)
+        s.stage = "readiness" if offer else "attach"
 
 
 def diagnose() -> None:
@@ -148,7 +163,7 @@ def diagnose() -> None:
 def render_header() -> None:
     s = st.session_state
     html(ui.CSS)
-    html(ui.topbar(STEPS, s.stage))
+    html(ui.topbar(STEPS, "hearing" if s.stage == "readiness" else s.stage))  # 追加確認はヒアリングの一部
     if s.mode == "demo":
         html(ui.demo_banner())
 
@@ -260,10 +275,17 @@ def render_input() -> None:
 def render_hearing() -> None:
     s = st.session_state
     state = s.hearing_state
-    asked = len(state.turns)
 
-    html(ui.label("Step 02", "ヒアリング"))
-    st.progress(asked / config.MAX_HEARING_TURNS, text=f"質問 {asked} / 最大 {config.MAX_HEARING_TURNS}")
+    if state.extra_started:
+        extra = readiness.extra_count(state)
+        html(ui.label("Step 02", "より正確な分析のための追加確認"))
+        st.progress(extra / config.MAX_EXTRA_QUESTIONS, text=f"追加確認 {extra} / 最大 {config.MAX_EXTRA_QUESTIONS}")
+        if state.turns and state.turns[-1].extra and state.turns[-1].answer is None:
+            st.caption(f"確認する理由：{readiness.reason_for(state, FRAMEWORK, state.turns[-1].item_id)}")
+    else:
+        asked = len(state.turns)
+        html(ui.label("Step 02", "ヒアリング"))
+        st.progress(asked / config.MAX_HEARING_TURNS, text=f"質問 {asked} / {config.MAX_HEARING_TURNS}")
 
     html("".join(ui.qa(turn) for turn in state.turns))
 
@@ -284,10 +306,19 @@ def render_hearing() -> None:
             )
             if current.answer_example:
                 st.caption(f"回答の例　{current.answer_example}")
-            submitted = st.form_submit_button("回答する", type="primary", key="submit_answer")
+            col_submit, col_unknown = st.columns([1, 1])
+            submitted = col_submit.form_submit_button("回答する", type="primary", key="submit_answer")
+            # 分からない項目は、それ以上質問しない（item_rules.is_unknown_answer で判定される回答を入れる）
+            unknown = col_unknown.form_submit_button("分からない", key="submit_unknown",
+                                                     help="この点は分からないと回答し、次に進みます")
         if s.answer_error:
             st.error(s.answer_error)
 
+        if unknown:
+            add_answer(state, UNKNOWN_ANSWER)
+            s.answer_error = None
+            advance()
+            st.rerun()
         if submitted:
             error = validate_answer(answer)
             s.answer_error = error
@@ -298,7 +329,8 @@ def render_hearing() -> None:
 
     col_finish, col_cancel = st.columns(2)
     with col_finish:
-        if st.button("ここまでの情報で診断する", key="finish", help="残りの質問をせずに、資料の添付に進みます"):
+        label = "追加確認を終えて分析に進む" if state.extra_started else "ここまでの情報で診断する"
+        if st.button(label, key="finish", help="残りの質問をせずに、資料の添付に進みます"):
             finish_by_user(state)
             s.stage = "attach"
             st.rerun()
@@ -306,6 +338,37 @@ def render_hearing() -> None:
         if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
             reset()
             st.rerun()
+
+
+# ---------------------------------------------------------------
+# 追加確認の提案（AI-BIC 2.0）：基本の質問のあと、3機能に必要な情報が足りないときだけ表示する
+# ---------------------------------------------------------------
+def render_readiness() -> None:
+    s = st.session_state
+    state = s.hearing_state
+    html(ui.label("Check", "より正確な分析のための追加確認"))
+    st.markdown("基本のヒアリングが終わりました。分析の3つの機能に必要な情報がそろっているかを、"
+                "回答の内容と決まった基準で確認しました（AIではなくプログラムで判定しています）。")
+    names = {item.id: item.name for item in FRAMEWORK.hearing_items}
+    rows = [
+        {"機能": f.name, "判定": readiness.LEVEL_MARK[f.level],
+         "足りない情報": "、".join(names[i] for i in f.missing_required + f.missing_helpful) or "—"}
+        for f in readiness.evaluate(state)
+    ]
+    st.dataframe(rows, hide_index=True, width="stretch")
+    st.markdown("**追加で確認したいこと**")
+    st.markdown("\n".join(f"- {ui.esc(r)}" for r in readiness.reasons(state, FRAMEWORK)))
+    st.caption(f"追加の質問は最大{config.MAX_EXTRA_QUESTIONS}問です。分からない点は「分からない」と答えられます。"
+               "このまま分析することもでき、その場合は結果に未確認事項と仮定条件を表示します。")
+    c1, c2 = st.columns(2)
+    if c1.button(f"追加で確認する（最大{config.MAX_EXTRA_QUESTIONS}問）", type="primary", key="extra_start"):
+        start_extra(state, FRAMEWORK)
+        s.stage = "hearing"
+        advance()
+        st.rerun()
+    if c2.button("このまま分析する", key="extra_skip"):
+        s.stage = "attach"
+        st.rerun()
 
 
 # ---------------------------------------------------------------
@@ -420,13 +483,18 @@ def render_result() -> None:
     html(f'<span class="bic-tag">{ui.esc(info.department)}</span><span class="bic-tag">{ui.esc(info.task_name)}</span>')
     st.write(analysis.business_summary)
     meta = [s.hearing_state.finished_reason]
+    if s.hearing_state.extra_finished_reason:
+        meta.append(s.hearing_state.extra_finished_reason)
     if result.attachment_names:
         meta.append("診断に使った資料：" + "、".join(result.attachment_names))
     html(ui.footnote("　／　".join(meta)))
     if result.missing_item_ids:
-        html(ui.note("次の項目は情報が不足しています。結果は参考としてご覧ください。"))
+        html(ui.note("未確認事項：次の項目は情報が不足しています。結果は参考としてご覧ください。"))
         for item_id in result.missing_item_ids:
             html(ui.footnote(ui.missing_item_text(ITEMS[item_id], s.hearing_state.item_status.get(item_id))))
+    # 情報が足りないまま分析した機能の仮定条件（AI-BIC 2.0：readiness.py の判定による）
+    for assumption in readiness.assumptions(s.hearing_state):
+        html(ui.footnote(f"仮定条件：{assumption}"))
 
     # --- 課題（F03） ---
     html(ui.label("Issues", f"抽出された課題（{len(analysis.issues)}件）"))
@@ -467,6 +535,7 @@ def main() -> None:
         "top": render_top,
         "input": render_input,
         "hearing": render_hearing,
+        "readiness": render_readiness,
         "attach": render_attach,
         "result": render_result,
     }[st.session_state.stage]()
