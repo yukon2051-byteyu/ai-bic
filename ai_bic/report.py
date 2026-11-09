@@ -17,7 +17,9 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from ai_bic import simulation as sim
 from ai_bic.models import BusinessInfo, DiagnosisResult, Framework, HearingState
+from ai_bic.project import Project, proposal_ids
 from ai_bic.ui import DISCLAIMER, EVIDENCE_TEXT, evidence_source, missing_item_text
 
 TITLE = "AI-BIC 業務改善診断レポート"
@@ -155,6 +157,70 @@ def _proposals_sheet(ws, result: DiagnosisResult) -> None:
     if not rows:
         rows.append(["", "課題が確認できなかったため、改善案は作成していません。"] + [""] * (len(headers) - 2))
     _table(ws, headers, rows, [5, 28, 14, 8, 10, 40, 40, 40, 40, 40, 35, 30, 30, 30])
+
+
+# ---------------------------------------------------------------
+# 改善効果の試算（AI-BIC 2.0 機能A）
+# ---------------------------------------------------------------
+def simulation_file_name(created_at: datetime) -> str:
+    return f"AI-BIC_効果試算_{created_at:%Y%m%d_%H%M}.xlsx"
+
+
+def build_simulation_report(project: Project, created_at: datetime) -> bytes:
+    """効果試算を Excel にする。3シート：試算結果・入力値（出どころつき）・計算式。"""
+    titles = {pid: f"案{no}：{p.title}" for no, (pid, p) in enumerate(_proposals(project), start=1)}
+    results, inputs, formulas = [], [], []
+    for pid, title in titles.items():
+        base = project.simulations.get(pid)
+        if base is None:
+            continue
+        for scenario in project.scenarios.get(pid) or sim.blank_scenarios():
+            values = sim.scenario_inputs(base, scenario)
+            r = sim.simulate(values)
+            results.append([
+                title, scenario.name, _num(r.annual_saved_hours), _num(r.annual_saved_yen), _num(r.annual_running_cost),
+                _num(r.annual_net_yen), _num(r.initial_investment), sim.payback_text(r), _num(r.first_year_net_yen),
+            ])
+            fields = sim.NUMBER_FIELDS if scenario.name == "標準" else sim.SCENARIO_FIELDS
+            for name in fields:
+                value = getattr(values, name)
+                source = values.source_of(name) or ""
+                if scenario.name != "標準" and getattr(scenario, name) is None and value is not None:
+                    source = f"自動（標準の値 × 倍率。{source}）"
+                inputs.append([title, scenario.name, sim.label(name), _num(value), source or "未入力"])
+            formulas += [[title, scenario.name, f] for f in r.formulas]
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "試算結果"
+    _table(ws, ["改善案", "シナリオ", "年間削減時間（時間）", "年間削減効果額（円）", "年間運用費（円）",
+                "年間純効果額（円）", "初期投資額（円）", "投資回収期間", "初年度純効果額（円）"],
+           results, [34, 10, 14, 16, 14, 16, 14, 22, 16])
+    notes = [
+        f"作成日時：{created_at:%Y-%m-%d %H:%M}",
+        "試算は入力した値による想定です。実測の結果ではありません。",
+        sim.NOTE_TIME_VALUE,
+        "悲観・楽観の「自動」の値は、標準の値に一定の倍率をかけた仮の幅です（根拠のある予測ではありません）。",
+    ]
+    if project.mode == "demo":
+        notes.insert(0, "デモ：架空のサンプルによる試算です（AIは使用していません）。")
+    for offset, text in enumerate(notes, start=len(results) + 3):
+        _put(ws, offset, 1, text)
+    _table(wb.create_sheet("入力値"), ["改善案", "シナリオ", "項目", "値", "出どころ"], inputs, [34, 10, 26, 14, 34])
+    _table(wb.create_sheet("計算式"), ["改善案", "シナリオ", "計算式"], formulas, [34, 10, 90])
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+def _proposals(project: Project):
+    proposals = project.diagnosis.proposals.proposals if project.diagnosis.proposals else []
+    return list(zip(proposal_ids(project), proposals))
+
+
+def _num(value: float | None):
+    """Excel に入れる数値（小数1桁に丸める）。未計算は空欄。"""
+    return None if value is None else round(value, 1)
 
 
 # ---------------------------------------------------------------

@@ -10,15 +10,20 @@ from ai_bic.simulation import (
     NOTE_TIME_VALUE,
     Scenario,
     SimulationInputs,
-    apply_scenario,
+    auto_value,
+    blank_scenarios,
     compare,
-    default_scenarios,
+    hours_from_calculation,
     label,
     make_inputs,
     parse_number,
     payback_text,
+    per_case_from_calculation,
+    prefill,
+    scenario_inputs,
     simulate,
 )
+from ai_bic.models import AnalysisResult, Issue
 
 # 30分 × 200件 ＝ 月100時間。削減率40% → 月40時間 → 年480時間 × 3,000円 ＝ 1,440,000円
 FULL = SimulationInputs(
@@ -151,29 +156,52 @@ def test_不明な出どころは受け付けない():
 
 
 # --- 3シナリオ ---
-def test_悲観と楽観は削減率と費用を仮の幅で動かす():
-    pessimistic, standard, optimistic = default_scenarios(FULL)
-    assert [pessimistic.name, standard.name, optimistic.name] == ["悲観", "標準", "楽観"]
-    assert pessimistic.reduction_rate == 20 and pessimistic.initial_cost == 750_000
-    assert optimistic.reduction_rate == 60 and optimistic.initial_cost == 500_000
-    assert standard.reduction_rate is None  # 標準は基本の入力値のまま
+def scenario(name, **values) -> Scenario:
+    return Scenario(name=name, **values)
+
+
+def test_空欄のシナリオは標準の値に倍率をかけた自動の値になる():
+    pessimistic = scenario_inputs(FULL, scenario("悲観"))
+    optimistic = scenario_inputs(FULL, scenario("楽観"))
+    assert pessimistic.reduction_rate == 20 and pessimistic.initial_cost == 750_000  # 削減率×0.5・費用×1.5
+    assert optimistic.reduction_rate == 60 and optimistic.initial_cost == 500_000  # 削減率×1.5・費用×1.0
+    assert [sc.name for sc in blank_scenarios()] == ["悲観", "標準", "楽観"]
+
+
+def test_標準シナリオは基本の入力値そのもの():
+    assert scenario_inputs(FULL, scenario("標準", reduction_rate=90)) == FULL
+
+
+def test_標準の値を変えると自動の値も追いかける():
+    """古い値が残らない：標準の削減率を変えたあとに、悲観が前の削減率のままにならない。"""
+    assert scenario_inputs(with_(reduction_rate=80), scenario("悲観")).reduction_rate == 40
 
 
 def test_楽観でも削減率は100パーセントを超えない():
-    assert default_scenarios(with_(reduction_rate=80))[2].reduction_rate == 100
+    assert auto_value(with_(reduction_rate=80), "楽観", "reduction_rate") == 100
 
 
-def test_シナリオの値を利用者が変えると試算が変わる():
-    pessimistic = Scenario(name="悲観", reduction_rate=10)
-    applied = apply_scenario(FULL, pessimistic)
+def test_標準が未入力なら自動の値も未入力():
+    assert scenario_inputs(with_(initial_cost=None), scenario("悲観")).initial_cost is None
+
+
+def test_シナリオの値を利用者が入れると試算が変わり_出どころはユーザー入力():
+    applied = scenario_inputs(FULL, scenario("悲観", reduction_rate=10))
     assert simulate(applied).monthly_saved_hours == 10
-    assert applied.initial_cost == FULL.initial_cost  # 変えなかった値は標準のまま
     assert applied.source_of("reduction_rate") == "ユーザー入力"
+    assert applied.initial_cost == 750_000  # 入れなかった欄は自動のまま
+
+
+def test_自動の値は標準の値の出どころを引き継ぐ():
+    base = with_(sources={"reduction_rate": "AI推定"})
+    assert scenario_inputs(base, scenario("楽観")).source_of("reduction_rate") == "AI推定"
 
 
 def test_シナリオにも不正な値は入らない():
     with pytest.raises(ValidationError):
         Scenario(name="楽観", reduction_rate=150)
+    with pytest.raises(ValidationError):
+        Scenario(name="悲観", initial_cost="abc")
 
 
 # --- 改善案どうしの比較 ---
@@ -187,3 +215,77 @@ def test_前提条件が違えば比較の前に知らせる():
     result = compare([("案1", FULL), ("案2", with_(cases_per_month=300))])
     assert len(result.differences) == 1
     assert "月間処理件数（件）が改善案によって異なります（案1：200、案2：300）" == result.differences[0]
+
+
+# --- 初期値（課題分析の計算式から。B06 から移した） ---
+def issue(issue_id="I1", evidence_type="計算結果", calculation="90分×20日÷60＝30時間") -> Issue:
+    return Issue(
+        issue_id=issue_id, title="", summary="", viewpoint_ids=["V1"], evidence_type=evidence_type,
+        evidences=[], calculation=calculation, assumed_cause="", impact="", severity="中",
+        severity_reason="", followup_questions=[],
+    )
+
+
+def analysis(*issues: Issue) -> AnalysisResult:
+    return AnalysisResult(business_summary="", issues=list(issues), no_issue_viewpoints=[])
+
+
+@pytest.mark.parametrize(
+    "calculation, hours",
+    [
+        ("90分×20日÷60＝30時間", 30),
+        ("90分×20日÷60=30時間", 30),
+        ("45分×20日＝900分", 15),
+        ("1日90分×20日＝1,800分＝30時間", 30),  # 「＝」が複数なら最後の答え
+        ("12時間×1回＝約12時間", 12),
+        ("９０分×２０日÷６０＝３０時間", 30),  # 全角の数字
+    ],
+)
+def test_計算式の答えを時間で読む(calculation, hours):
+    assert hours_from_calculation(calculation) == hours
+
+
+@pytest.mark.parametrize("calculation", [None, "", "90分×20日", "20件×3人＝60件"])
+def test_答えのない計算式は読まない(calculation):
+    assert hours_from_calculation(calculation) is None
+
+
+@pytest.mark.parametrize(
+    "calculation, pair",
+    [
+        ("90分×20日÷60＝30時間", (90, 20)),
+        ("15分×1,200件＝18,000分", (15, 1200)),
+        ("１０分×３回＝３０分", (10, 3)),
+        ("12時間×1回＝約12時間", None),  # 1件あたりの分が分からない
+        ("20件×3人＝60件", None),
+        (None, None),
+    ],
+)
+def test_計算式から1件あたりの分と件数を読む(calculation, pair):
+    assert per_case_from_calculation(calculation) == pair
+
+
+def test_初期値は計算結果の課題から入れ_出どころはヒアリング():
+    p = prefill("月次集計", analysis(issue("I1", "本人の申告", None), issue("I2")))
+    assert p.inputs.minutes_per_case == 90 and p.inputs.cases_per_month == 20
+    assert p.inputs.source_of("minutes_per_case") == "ヒアリング"
+    assert p.inputs.task_name == "月次集計"
+    assert "課題 I2 の計算式" in p.notes[0]
+
+
+def test_ヒアリングで得ていない値は初期値に入れない():
+    p = prefill("月次集計", analysis(issue()))
+    for name in ("hourly_cost", "reduction_rate", "initial_cost", "monthly_running_cost", "other_initial_cost"):
+        assert getattr(p.inputs, name) is None
+
+
+def test_格下げされた課題の計算式は使わない():
+    p = prefill("月次集計", analysis(issue("I1", "要確認")))
+    assert p.inputs.minutes_per_case is None
+    assert "読み取れなかった" in p.notes[0]
+
+
+def test_合計の時間しか分からなければ_分けて入力するよう案内する():
+    p = prefill("月次集計", analysis(issue(calculation="12時間×1回＝約12時間")))
+    assert p.inputs.minutes_per_case is None
+    assert "約12時間" in p.notes[0] and "分けて入力" in p.notes[0]

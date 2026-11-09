@@ -144,9 +144,9 @@ def test_結果画面の冒頭と末尾に_診断レポートのダウンロー�
     at.button(key="diagnose").click().run()
 
     assert not at.exception
-    keys = [b.proto.id for b in at.get("download_button")]
+    keys = [b.proto.id for b in at.get("download_button") if "download_report" in b.proto.id]
     assert len(keys) == 2  # 長い結果を読み終えた後でも、すぐ保存できるように末尾にも置く
-    assert all("download_report" in k for k in keys)
+    assert "download_report_top" in keys[0] and "download_report_bottom" in keys[-1]
     assert "結果画面からExcelのレポートをダウンロード" not in all_text(at)  # 案内はトップ画面だけ
 
 
@@ -269,7 +269,7 @@ def test_1日の上限に達していればAI診断を始められない(secrets
 
 
 # ---------------------------------------------------------------
-# 効果の試算（B06）
+# 改善効果の試算（AI-BIC 2.0 機能A。B06 を置き換え）
 # ---------------------------------------------------------------
 def result_screen(secrets, at: AppTest | None = None) -> AppTest:
     """デモで結果画面まで進める。at を渡すと、その画面（トップ）から続けて進める。"""
@@ -283,36 +283,80 @@ def result_screen(secrets, at: AppTest | None = None) -> AppTest:
     return at
 
 
-def test_効果の試算は_仮定を入れるまで削減効果を出さない(secrets):
+
+
+def set_inputs(at: AppTest, pid: str, **values) -> AppTest:
+    for name, value in values.items():
+        at.number_input(key=f"sim_{pid}_{name}").set_value(value).run()
+    return at
+
+
+FULL = dict(minutes_per_case=30.0, cases_per_month=200.0, hourly_cost=3000.0, reduction_rate=40.0,
+            initial_cost=500000.0, monthly_running_cost=20000.0, other_initial_cost=100000.0)
+
+
+def metrics(at: AppTest) -> list[str]:
+    return [m.value for m in at.metric][:3]
+
+
+def test_試算は_入力するまで削減効果を出さない(secrets):
     at = result_screen(secrets)
     text = all_text(at)
-    assert "効果の試算" in text
-    # デモの課題には「計算結果」がないため、現状の時間も空欄で、入力を案内する
-    assert at.number_input(key="effect_current").value is None
-    assert "現状の作業時間も入力してください" in text
-    assert "（仮定が未入力のため計算していません）" in text
+    assert "改善効果の試算" in text
+    # デモの課題には「計算結果」がないため、作業時間も空欄で、入力を案内する
+    assert at.number_input(key="sim_P1_minutes_per_case").value is None
+    assert "読み取れなかった" in text
+    assert "未入力の項目" in text
+    assert metrics(at) == ["—", "—", "—"]
 
 
-def test_効果の試算は_仮定を変えるとすぐに更新される(secrets):
-    """完了の確認（B06）：仮定を変更すると試算が更新される。"""
+def test_試算は_入力を変えるとすぐに更新され_出どころはユーザー入力になる(secrets):
+    at = set_inputs(result_screen(secrets), "P1", **FULL)
+    assert not at.exception
+    assert metrics(at) == ["480時間", "1,440,000円", "6か月"]
+    assert "30分 × 200件 ÷ 60 ＝ 100時間" in all_text(at)
+    assert at.session_state.project.simulations["P1"].source_of("hourly_cost") == "ユーザー入力"
+
+    at = set_inputs(at, "P1", reduction_rate=20.0)
+    assert metrics(at)[0] == "240時間"
+
+
+def test_削減率はスライダーでも変えられ_入力欄と連動する(secrets):
+    at = set_inputs(result_screen(secrets), "P1", **FULL)
+    at.slider(key="sim_P1_rate_slider").set_value(60.0).run()
+    assert at.number_input(key="sim_P1_reduction_rate").value == 60.0
+    assert at.session_state.project.simulations["P1"].reduction_rate == 60
+
+
+def test_純効果がマイナスなら回収見込みなしと表示する(secrets):
+    at = set_inputs(result_screen(secrets), "P1", **{**FULL, "monthly_running_cost": 200000.0})
+    assert metrics(at)[2] == "回収見込みなし"
+
+
+def test_試算を変えると案件の版が上がる(secrets):
+    """改善案のレビューが、古い試算のまま有効に見えないための記録（指示書 6章）。"""
     at = result_screen(secrets)
-    for key, value in [("effect_current", 12.0), ("effect_rate", 50.0), ("effect_hourly", 3000.0),
-                       ("effect_setup", 6.0), ("effect_running", 0.0)]:
-        at.number_input(key=key).set_value(value).run()
-    text = all_text(at)
-    assert "12時間 × 50% ＝ 月6時間" in text
-    assert "約1か月" in text  # 18,000円 ÷ 18,000円
-
-    at.number_input(key="effect_rate").set_value(25.0).run()
-    text = all_text(at)
-    assert "12時間 × 25% ＝ 月3時間" in text
-    assert "約2か月" in text  # 18,000円 ÷ 9,000円
+    before = at.session_state.project.stamps["simulation:P1"].version
+    at = set_inputs(at, "P1", hourly_cost=3000.0)
+    assert at.session_state.project.stamps["simulation:P1"].version == before + 1
 
 
-def test_新しい診断を始めると_前の試算の仮定は残らない(secrets):
+def test_改善案が複数あれば前提の違いを示す(secrets):
     at = result_screen(secrets)
-    at.number_input(key="effect_rate").set_value(50.0).run()
+    assert len(at.session_state.project.simulations) >= 2  # 月次売上集計のデモは改善案が複数
+    at = set_inputs(at, "P1", **FULL)
+    at = set_inputs(at, "P2", **{**FULL, "cases_per_month": 300.0})
+    assert "前提条件が改善案によって異なる" in "\n".join(w.value for w in at.warning)
+
+
+def test_試算結果をExcelでダウンロードできる(secrets):
+    at = result_screen(secrets)
+    assert "download_simulation" in [b.key for b in at.get("download_button")]
+
+
+def test_新しい診断を始めると_前の試算は残らない(secrets):
+    at = set_inputs(result_screen(secrets), "P1", hourly_cost=3000.0)
     at.button(key="new").click().run()
     assert at.session_state.stage == "top"
     at = result_screen(secrets, at)
-    assert at.number_input(key="effect_rate").value is None
+    assert at.number_input(key="sim_P1_hourly_cost").value is None

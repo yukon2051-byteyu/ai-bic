@@ -130,3 +130,59 @@ def test_すべてのセルをメイリオで表示する():
     wb = open_report(*run_demo("sales_report"))
     fonts = {c.font.name for ws in wb for row in ws.iter_rows() for c in row if c.value is not None}
     assert fonts == {"メイリオ"}
+
+
+# ---------------------------------------------------------------
+# 改善効果の試算（AI-BIC 2.0 機能A）
+# ---------------------------------------------------------------
+def simulation_book(mode="ai", title=None, **inputs):
+    from ai_bic.project import new_project
+    from ai_bic.report import build_simulation_report
+    from ai_bic.simulation import SimulationInputs, blank_scenarios
+
+    info, state, result = run_demo("sales_report")
+    project = new_project(mode, info, state, result, demo_scenario_id="sales_report" if mode == "demo" else None)
+    if title is not None:
+        project.diagnosis.proposals.proposals[0].title = title
+    project.simulations["P1"] = SimulationInputs(**inputs)
+    project.scenarios["P1"] = blank_scenarios()
+    return load_workbook(BytesIO(build_simulation_report(project, CREATED_AT)))
+
+
+FULL_SIM = dict(task_name="月次集計", minutes_per_case=30, cases_per_month=200, hourly_cost=3000, reduction_rate=40,
+                initial_cost=500_000, monthly_running_cost=20_000, other_initial_cost=100_000,
+                sources={"minutes_per_case": "ヒアリング"})
+
+
+def test_試算のExcelは3シナリオの結果と入力値の出どころと計算式を残す():
+    wb = simulation_book(**FULL_SIM)
+    assert wb.sheetnames == ["試算結果", "入力値", "計算式"]
+    rows = list(wb["試算結果"].iter_rows(min_row=2, max_row=4, values_only=True))
+    assert [r[1] for r in rows] == ["悲観", "標準", "楽観"]
+    standard = rows[1]
+    assert standard[2] == 480 and standard[3] == 1_440_000 and standard[7] == "6か月"
+    inputs = sheet_text(wb["入力値"])
+    assert "ヒアリング" in inputs and "自動（標準の値 × 倍率" in inputs
+    assert "30分 × 200件 ÷ 60 ＝ 100時間" in sheet_text(wb["計算式"])
+    assert "現金" in sheet_text(wb["試算結果"])  # 削減効果額は時間の金額換算であることを明記
+
+
+def test_未入力の試算は空欄と未入力で残す():
+    wb = simulation_book(task_name="月次集計")
+    standard = list(wb["試算結果"].iter_rows(min_row=3, max_row=3, values_only=True))[0]
+    assert standard[2] is None and standard[7] == "未入力の項目があるため計算できません"
+    assert "未入力" in sheet_text(wb["入力値"])
+
+
+def test_デモの試算はデモと分かる():
+    assert "架空のサンプル" in sheet_text(simulation_book("demo", **FULL_SIM)["試算結果"])
+
+
+def test_試算のExcelでもイコールで始まる改善案名は数式にしない():
+    wb = simulation_book(title="=HYPERLINK(1)", **FULL_SIM)
+    cell = wb["試算結果"]["A2"]
+    assert cell.value == "案1：=HYPERLINK(1)"  # 先頭は「案1：」だが、念のため全セルを確かめる
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for c in row:
+                assert c.data_type != "f"

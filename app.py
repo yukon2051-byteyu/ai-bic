@@ -14,8 +14,10 @@ from datetime import datetime
 
 import streamlit as st
 
-from ai_bic import config, effect, guard, report, ui
+from ai_bic import config, guard, report, ui
 from ai_bic.ai_client import ClaudeClient
+from ai_bic.project import new_project
+from ai_bic.views import simulator
 from ai_bic.attachments import load_attachments
 from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
 from ai_bic.errors import AIError, is_retryable, user_message
@@ -65,6 +67,7 @@ def init_state() -> None:
         "attach_errors": [],
         "diagnosis": None,
         "analysis_cache": {},  # 成功した課題分析（再試行で同じ分析をやり直さないため。X01）
+        "project": None,  # 診断後の案件データ（試算・業務フロー・レビュー。AI-BIC 2.0）
         "error_kind": None,  # 直前のAIエラーの種類
         "answer_error": None,
     }
@@ -131,6 +134,11 @@ def diagnose() -> None:
     except AIError as e:
         s.error_kind = e.kind
         return
+    # 結果画面以降（試算・業務フロー・レビュー）は、案件データにまとめて持つ（AI-BIC 2.0）
+    s.project = new_project(
+        s.mode, s.business_info, s.hearing_state, s.diagnosis,
+        demo_scenario_id=s.scenario["id"] if s.mode == "demo" else None,
+    )
     s.stage = "result"
 
 
@@ -378,60 +386,6 @@ def render_report_download(data: bytes, name: str, key: str) -> None:
     )
 
 
-# 効果の試算の入力欄（B06）：画面の状態の名前 → (入力欄の名前, 1回の増減, 最大値, 表示形式)
-EFFECT_INPUTS = {
-    "effect_current": (effect.LABEL_CURRENT, 1.0, None, "%.1f"),
-    "effect_rate": (effect.LABEL_RATE, 5.0, 100.0, "%.0f"),
-    "effect_hourly": (effect.LABEL_HOURLY, 100.0, None, "%.0f"),
-    "effect_setup": (effect.LABEL_SETUP, 1.0, None, "%.1f"),
-    "effect_running": (effect.LABEL_RUNNING, 1000.0, None, "%.0f"),
-}
-
-
-def effect_assumptions(analysis) -> effect.EffectAssumptions:
-    """画面の入力欄の値から、試算の仮定を作る。
-
-    初めて結果を表示したときだけ、現状の作業時間に、課題分析の計算結果を初期値として入れる。
-    ほかの仮定は空欄のまま（根拠のない数値を最初から入れない。開発者の判断）。
-    """
-    s = st.session_state
-    s.setdefault("effect_current", effect.default_current_hours(analysis)[0])
-    for key in EFFECT_INPUTS:
-        s.setdefault(key, None)
-    return effect.EffectAssumptions(
-        current_hours=s.effect_current, reduction_rate=s.effect_rate, hourly_cost=s.effect_hourly,
-        setup_hours=s.effect_setup, running_cost=s.effect_running,
-    )
-
-
-def render_effect(analysis) -> None:
-    """効果の試算（B06）。現状の作業時間をそのまま削減効果にせず、利用者が置いた仮定から計算する。"""
-    html(ui.label("Estimate", "効果の試算"))
-    st.markdown(
-        "現状の作業時間が、そのまま削減できるわけではありません。"
-        "削減できる割合などの仮定を入れると、効果を**プログラムで計算**します（AIは計算していません）。"
-        "仮定を変えると、試算はすぐに更新されます。"
-    )
-    assumptions = effect_assumptions(analysis)
-    _, source = effect.default_current_hours(analysis)
-    if source:
-        html(ui.footnote(f"現状の作業時間の初期値は、{source} から入れています。月あたりの時間か確かめてください。"))
-    else:
-        html(ui.footnote("診断結果から月の作業時間を計算できなかったため、現状の作業時間も入力してください。"))
-
-    items = list(EFFECT_INPUTS.items())
-    for no, (key, (name, step, max_value, fmt)) in enumerate(items):
-        if no % 3 == 0:  # 1行に3つまで（狭い画面で入力欄の名前が切れないように）
-            columns = st.columns(3)
-        with columns[no % 3]:
-            st.number_input(
-                name, min_value=0.0, max_value=max_value, step=step, format=fmt,
-                key=key, placeholder="未入力",
-            )
-    html(ui.effect_card(effect.estimate(assumptions)))
-    html(ui.footnote("試算は、入力した仮定による想定です。実測の結果ではありません。"))
-
-
 def render_result() -> None:
     s = st.session_state
     result = s.diagnosis
@@ -490,7 +444,7 @@ def render_result() -> None:
     else:
         for no, p in enumerate(result.proposals.proposals, start=1):
             html(ui.proposal_card(no, p))
-        render_effect(analysis)
+        simulator.render(s.project)
 
     html(ui.footnote(ui.DISCLAIMER))
     render_report_download(report_data, report_name, key="download_report_bottom")
