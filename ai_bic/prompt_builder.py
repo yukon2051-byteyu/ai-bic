@@ -15,7 +15,16 @@ from pathlib import Path
 
 from ai_bic.config import MAX_EXTRA_QUESTIONS, MAX_HEARING_TURNS
 from ai_bic.item_rules import askable_item_ids, blocked_reason, question_count
-from ai_bic.models import AnalysisResult, Attachment, BusinessInfo, Framework, HearingState, ProposalResult
+from ai_bic.models import (
+    AnalysisResult,
+    Attachment,
+    BusinessInfo,
+    Framework,
+    HearingState,
+    Proposal,
+    ProposalResult,
+    ReviewFinding,
+)
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
@@ -194,5 +203,41 @@ def build_flow_input(
             f"<analysis>\n{analysis_json}\n</analysis>",
             f"<proposals>\n{proposals_json}\n</proposals>",
             f"現状の業務フローと、改善案{len(numbered)}つそれぞれの改善後の業務フローを作ってください。",
+        ]
+    )
+
+
+def build_review_input(
+    info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposal_no: int, material: str
+) -> str:
+    """改善案チャレンジレビューのAIに渡す文章（AI-BIC 2.0 機能D）。
+
+    material は review.review_context が作る資料（改善案・試算・改善後フロー・充足度・プログラムの検証結果）。
+    改善案や試算には利用者の入力が含まれるため、エスケープしてから渡す。
+    """
+    return "\n\n".join(
+        [
+            _business_info_block(info),
+            _hearing_log_block(state),
+            f"<analysis>\n{_escape(analysis.model_dump_json(indent=2))}\n</analysis>",
+            f"<review_material>\n{_escape(material)}\n</review_material>",
+            f"改善案{proposal_no}を、6つの観点で批判的に評価してください。",
+        ]
+    )
+
+
+def build_revise_input(
+    info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposal: Proposal, adopted: list[ReviewFinding]
+) -> str:
+    """採用した指摘を反映して改善案を作り直すAIに渡す文章（AI-BIC 2.0 機能D）。"""
+    findings = [f.model_dump(include={"viewpoint", "severity", "title", "detail", "suggestion"}) for f in adopted]
+    return "\n\n".join(
+        [
+            _business_info_block(info),
+            _hearing_log_block(state),
+            f"<analysis>\n{_escape(analysis.model_dump_json(indent=2))}\n</analysis>",
+            f"<proposal>\n{_escape(proposal.model_dump_json(indent=2))}\n</proposal>",
+            f"<adopted_findings>\n{_escape(json.dumps(findings, ensure_ascii=False, indent=2))}\n</adopted_findings>",
+            f"採用された指摘{len(adopted)}件だけを反映して、改善案を作り直してください。",
         ]
     )

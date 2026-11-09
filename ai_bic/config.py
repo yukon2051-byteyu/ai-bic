@@ -70,6 +70,14 @@ MODEL_FLOW = "claude-opus-5-5"  # 課題分析・改善提案と同じモデル�
 EFFORT_FLOW = "medium"
 MAX_TOKENS_FLOW = 16_000
 MAX_FLOW_CALLS = 1  # 1案件で業務フローをAIで作れる回数（決定事項：費用を抑える。結果は画面で修正できる）
+
+# --- 改善案チャレンジレビュー（AI-BIC 2.0 機能D） ---
+# 改善案を作ったAIとは別の指示文で評価する。同じモデルでも、指示文と処理を分ける（指示書 5.3）
+MODEL_REVIEW = "claude-opus-5-5"
+EFFORT_REVIEW = "medium"
+MAX_TOKENS_REVIEW = 16_000
+MAX_REVIEW_CALLS = 3  # 1案件でレビューできる回数（決定事項。利用者のボタン操作だけで実行し、自動で繰り返さない）
+MAX_REVISE_CALLS = 2  # 1案件で改善案を作り直せる回数（決定事項）
 DOT_TIMEOUT_SECONDS = 20  # フロー図を画像にする Graphviz の待ち時間の上限
 MAX_STEP_TEXT = 60  # 工程名・担当者・システム名の文字数の上限
 MAX_STEP_NOTE = 200  # 作業内容・課題・改善内容などの文字数の上限

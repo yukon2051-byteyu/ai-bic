@@ -254,6 +254,46 @@ class FlowResult(BaseModel):
 
 
 # ---------------------------------------------------------------
+# AIの出力⑤：改善案チャレンジレビュー（AI-BIC 2.0 機能D）
+# 改善案を作るAIとは別の指示文で、改善案の弱点や不足情報を批判的に評価させる
+# ---------------------------------------------------------------
+ReviewViewpoint = Literal[
+    "課題との整合性", "技術的実現可能性", "費用対効果", "業務運用リスク", "セキュリティ・統制", "代替案の妥当性",
+]
+Verdict = Literal["推奨", "条件付き推奨", "再検討"]
+
+
+class ReviewFinding(BaseModel):
+    """レビューの指摘（懸念）。"""
+
+    viewpoint: ReviewViewpoint
+    severity: Level
+    title: str
+    detail: str
+    evidence: str | None  # 根拠となる利用者の発言などの引用（そのまま）。根拠がなければ null（画面では「未確認」）
+    suggestion: str  # 具体的な改善提案
+
+
+class ReviewResult(BaseModel):
+    """レビューのAIが返す内容。"""
+
+    verdict: Verdict
+    summary: str  # 評価の要約（2〜3文）
+    findings: list[ReviewFinding]  # 懸念事項（重要度つき）
+    strengths: list[str]  # 評価できる点
+    missing_info: list[str]  # 不足している情報
+    alternatives: list[str]  # 代替案（より低コスト・簡単な方法など）
+    next_checks: list[str]  # 次に確認すべき事項
+
+
+class RevisedProposal(BaseModel):
+    """採用した指摘を反映して作り直した改善案（AIの出力）。"""
+
+    proposal: Proposal
+    changes: list[str]  # 何をどう変えたか（採用した指摘ごと）
+
+
+# ---------------------------------------------------------------
 # 添付ファイル（F09。プログラムが読み込む。保存はしない）
 # ---------------------------------------------------------------
 class Attachment(BaseModel):

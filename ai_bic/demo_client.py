@@ -11,7 +11,7 @@ AIを呼ばず、config/demo_scenarios.json の固定データを返す。
 
 import json
 
-from ai_bic.config import CONFIG_DIR
+from ai_bic.config import CONFIG_DIR, MAX_FIRST_STEPS
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
@@ -20,8 +20,12 @@ from ai_bic.models import (
     Framework,
     HearingState,
     ItemStatus,
+    Proposal,
     ProposalResult,
     QuestionResult,
+    ReviewFinding,
+    ReviewResult,
+    RevisedProposal,
 )
 
 
@@ -113,6 +117,33 @@ class DemoClient:
         self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult
     ) -> ProposalResult:
         return ProposalResult.model_validate(self.scenario["proposals"])
+
+    def review(
+        self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposal_no: int, material: str
+    ) -> ReviewResult:
+        """事前に作ったレビュー（AI-BIC 2.0 機能D）。プログラムの検証・判定の上書き・根拠の照合は本物と同じく行う。"""
+        return ReviewResult.model_validate(self.scenario["reviews"][proposal_no - 1])
+
+    def revise(
+        self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposal_no: int,
+        proposal: Proposal, adopted: list[ReviewFinding],
+    ) -> RevisedProposal:
+        """デモの作り直し：AIを使わず、採用した指摘の改善提案を前提条件と最初の一歩に加えた例を作る。"""
+        steps = list(proposal.first_steps)
+        for f in adopted:
+            if len(steps) >= MAX_FIRST_STEPS:
+                break
+            steps.append(f.suggestion)
+        revised = proposal.model_copy(update={
+            "prerequisites": proposal.prerequisites + [f.suggestion for f in adopted],
+            "risks": proposal.risks + [f.title for f in adopted if f.viewpoint in ("業務運用リスク", "セキュリティ・統制")],
+            "first_steps": steps[:MAX_FIRST_STEPS],
+        })
+        return RevisedProposal(
+            proposal=revised,
+            changes=[f"「{f.title}」への対応として、前提条件に「{f.suggestion}」を加えました（デモ：AIを使わない機械的な例）"
+                     for f in adopted],
+        )
 
     def make_flows(
         self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposals: ProposalResult

@@ -17,7 +17,7 @@ import streamlit as st
 from ai_bic import config, guard, readiness, report, ui
 from ai_bic.ai_client import ClaudeClient
 from ai_bic.project import new_project
-from ai_bic.views import flows, simulator
+from ai_bic.views import flows, review, simulator
 from ai_bic.attachments import load_attachments
 from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
 from ai_bic.errors import AIError, is_retryable, user_message
@@ -522,6 +522,8 @@ def render_result() -> None:
         # STEP 2〜4：業務フロー（現状と改善後）→ 改善効果の試算（指示書 6章の順）
         flows.render(s.project, get_client)
         simulator.render(s.project)
+        # STEP 5〜6：改善案チャレンジレビュー → 改善案の確定（AI-BIC 2.0 機能D）
+        review.render(s.project, get_client)
 
     html(ui.footnote(ui.DISCLAIMER))
     render_report_download(report_data, report_name, key="download_report_bottom")

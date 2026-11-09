@@ -22,7 +22,16 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from ai_bic import config
 from ai_bic.flow import Flow
-from ai_bic.models import BusinessInfo, DiagnosisResult, HearingState
+from ai_bic.models import (
+    BusinessInfo,
+    DiagnosisResult,
+    HearingState,
+    Level,
+    Proposal,
+    ReviewResult,
+    ReviewViewpoint,
+    Verdict,
+)
 from ai_bic.simulation import Scenario, SimulationInputs, ValueSource
 
 SCHEMA_VERSION = 1
@@ -52,6 +61,30 @@ class Stamp(BaseModel):
     based_on: dict[str, int] = Field(default_factory=dict)  # 元の結果のキー → 作ったときのその版番号
 
 
+Decision = Literal["採用", "保留", "却下"]
+
+
+class RuleFinding(BaseModel):
+    """プログラムの検証で見つけた問題（AIの判断ではない。review.py）。"""
+
+    viewpoint: ReviewViewpoint
+    severity: Level
+    message: str
+
+
+class ReviewRecord(BaseModel):
+    """1つの改善案のレビューの記録（AI-BIC 2.0 機能D）。"""
+
+    result: ReviewResult  # AIのレビュー（指摘の根拠は照合済み）
+    unverified: list[int] = Field(default_factory=list)  # 根拠の引用を確認できなかった指摘の番号（0から）
+    rule_findings: list[RuleFinding] = Field(default_factory=list)
+    ai_verdict: Verdict  # AIの総合判定
+    verdict: Verdict  # プログラムの検証を反映した総合判定（画面に表示する）
+    override_reasons: list[str] = Field(default_factory=list)  # 判定を変えた理由
+    decisions: dict[int, Decision] = Field(default_factory=dict)  # 指摘の番号 → 採用・保留・却下
+    created_at: datetime
+
+
 class Project(BaseModel):
     schema_version: int = SCHEMA_VERSION
     app: Literal["AI-BIC"] = APP_NAME
@@ -75,13 +108,17 @@ class Project(BaseModel):
     flow_questions: list[str] = Field(default_factory=list)  # 業務フローについてAIが確認したいこと
     flow_notes: list[str] = Field(default_factory=list)  # 照合で格下げしたことなど（プログラムが記録）
     ai_calls: dict[str, int] = Field(default_factory=dict)  # 種類（flow など）→ AIを呼んで成功した回数
+    reviews: dict[str, ReviewRecord] = Field(default_factory=dict)  # 改善案ID → 最新のレビュー
+    proposal_history: dict[str, list[Proposal]] = Field(default_factory=dict)  # 改善案ID → 作り直す前の改善案（古い順）
+    revision_notes: dict[str, list[str]] = Field(default_factory=dict)  # 改善案ID → 最後の作り直しで変えたこと
     selected_proposal: str | None = None  # 確定した改善案（STEP 6）
     stamps: dict[str, Stamp] = Field(default_factory=dict)  # 結果のキー（例：simulation:P1）→ 版の記録
 
     @model_validator(mode="after")
     def _known_proposals(self) -> "Project":
         ids = set(proposal_ids(self))
-        for name in ("to_be", "simulations", "scenarios", "kept_controls", "setup_tasks"):
+        for name in ("to_be", "simulations", "scenarios", "kept_controls", "setup_tasks", "reviews",
+                     "proposal_history", "revision_notes"):
             unknown = set(getattr(self, name)) - ids
             if unknown:
                 raise ValueError(f"存在しない改善案のデータがあります（{name}：{'、'.join(sorted(unknown))}）")

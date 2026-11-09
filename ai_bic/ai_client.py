@@ -24,8 +24,12 @@ from ai_bic.models import (
     FlowResult,
     Framework,
     HearingState,
+    Proposal,
     ProposalResult,
     QuestionResult,
+    ReviewFinding,
+    ReviewResult,
+    RevisedProposal,
 )
 from ai_bic.output_check import check_analysis, check_proposals, check_question_result
 from ai_bic.prompt_builder import (
@@ -33,8 +37,11 @@ from ai_bic.prompt_builder import (
     build_flow_input,
     build_proposal_input,
     build_question_input,
+    build_review_input,
+    build_revise_input,
     load_system_prompt,
 )
+from ai_bic.review import check_review, check_revision
 from ai_bic.usage_log import init_db, record_call
 
 
@@ -116,6 +123,37 @@ class ClaudeClient:
             user_input=build_flow_input(info, state, analysis, proposals),
             output_format=FlowResult,
             check=lambda r: check_flow_result(r, len(proposals.proposals)),
+        )
+
+    def review(
+        self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposal_no: int, material: str
+    ) -> ReviewResult:
+        """改善案チャレンジレビュー（AI-BIC 2.0 機能D）。改善案を作ったときとは別の指示文で評価する。"""
+        return self._call_checked(
+            call_type="review",
+            model=config.MODEL_REVIEW,
+            effort=config.EFFORT_REVIEW,
+            max_tokens=config.MAX_TOKENS_REVIEW,
+            system_name="review_system",
+            user_input=build_review_input(info, state, analysis, proposal_no, material),
+            output_format=ReviewResult,
+            check=check_review,
+        )
+
+    def revise(
+        self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposal_no: int,
+        proposal: Proposal, adopted: list[ReviewFinding],
+    ) -> RevisedProposal:
+        """採用した指摘だけを反映して改善案を作り直す（AI-BIC 2.0 機能D）。"""
+        return self._call_checked(
+            call_type="revise",
+            model=config.MODEL_PROPOSAL,
+            effort=config.EFFORT_PROPOSAL,
+            max_tokens=config.MAX_TOKENS_PROPOSAL,
+            system_name="revise_system",
+            user_input=build_revise_input(info, state, analysis, proposal, adopted),
+            output_format=RevisedProposal,
+            check=lambda r: check_revision(r, proposal, analysis),
         )
 
     # -----------------------------------------------------------
