@@ -335,6 +335,34 @@
             ]
           }
         ]
+      },
+      "simulation": {
+        "note": "1件＝営業所1か所分のファイルとして、144分×5件＝月12時間（ヒアリングの「合計で12時間くらい」）に合わせた架空の値です。人件費・削減率・費用も架空のサンプル値です。",
+        "base": {
+          "minutes_per_case": 144,
+          "cases_per_month": 5,
+          "hourly_cost": 3000
+        },
+        "proposals": [
+          {
+            "reduction_rate": 10,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 60000
+          },
+          {
+            "reduction_rate": 40,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 90000
+          },
+          {
+            "reduction_rate": 60,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 150000
+          }
+        ]
       }
     },
     {
@@ -697,6 +725,34 @@
             ]
           }
         ]
+      },
+      "simulation": {
+        "note": "1件＝修理依頼1件として、1日40件×20日＝月800件（ヒアリングの「1日に40件ほど」）に合わせた架空の値です。1件あたりの時間・人件費・削減率・費用も架空のサンプル値です。",
+        "base": {
+          "minutes_per_case": 12,
+          "cases_per_month": 800,
+          "hourly_cost": 2500
+        },
+        "proposals": [
+          {
+            "reduction_rate": 10,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 50000
+          },
+          {
+            "reduction_rate": 25,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 100000
+          },
+          {
+            "reduction_rate": 40,
+            "initial_cost": 800000,
+            "monthly_running_cost": 50000,
+            "other_initial_cost": 200000
+          }
+        ]
       }
     },
     {
@@ -940,6 +996,34 @@
               "会計ソフトの説明書で、ファイルからの取り込みに対応しているかを確認する",
               "社内規定でマクロを使ってよいかを、情報システムの担当者に確認する"
             ]
+          }
+        ]
+      },
+      "simulation": {
+        "note": "1件＝精算書1枚として、社員約120名×月1回＝月120件、総務部2名×3日間（約48時間）÷120件＝24分に合わせた架空の値です。人件費・削減率・費用も架空のサンプル値です。",
+        "base": {
+          "minutes_per_case": 24,
+          "cases_per_month": 120,
+          "hourly_cost": 3000
+        },
+        "proposals": [
+          {
+            "reduction_rate": 15,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 30000
+          },
+          {
+            "reduction_rate": 30,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 90000
+          },
+          {
+            "reduction_rate": 50,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 240000
           }
         ]
       }

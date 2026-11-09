@@ -18,6 +18,7 @@ import streamlit as st
 from ai_bic import config, report, ui
 from ai_bic import project as pj
 from ai_bic import simulation as sim
+from ai_bic.demo_client import load_scenarios
 from ai_bic.project import Project
 
 STEP = {"minutes_per_case": 1.0, "cases_per_month": 1.0, "hourly_cost": 100.0, "reduction_rate": 5.0,
@@ -34,14 +35,41 @@ def _key(pid: str, name: str) -> str:
     return f"sim_{pid}_{name}"
 
 
+def demo_values(project: Project) -> dict | None:
+    """デモの案件なら、シナリオに用意した試算のデモ値（架空のサンプル）。なければ None。"""
+    if project.mode != "demo":
+        return None
+    scenario = next((sc for sc in load_scenarios() if sc["id"] == project.demo_scenario_id), None)
+    return scenario.get("simulation") if scenario else None
+
+
 def ensure_inputs(project: Project) -> None:
-    """改善案ごとの試算の入力値を用意する（初めて表示したときだけ、診断結果から初期値を入れる）。"""
-    for pid in pj.proposal_ids(project):
+    """改善案ごとの試算の入力値を用意する（初めて表示したときだけ初期値を入れる）。
+
+    AI診断：診断結果の計算式から読み取れる値だけ（出どころ「ヒアリング」）。
+    デモ：シナリオに用意したデモ値をすべて入れる（出どころ「デモ値」。架空のサンプルと明示する）。
+    """
+    demo = demo_values(project)
+    for no, pid in enumerate(pj.proposal_ids(project)):
         if pid in project.simulations:
             continue
-        project.simulations[pid] = sim.prefill(project.business_info.task_name, project.diagnosis.analysis).inputs
+        if demo:
+            values = {**demo["base"], **demo["proposals"][no]}
+            project.simulations[pid] = sim.SimulationInputs(
+                task_name=project.business_info.task_name, **values, sources={k: "デモ値" for k in values},
+            )
+        else:
+            project.simulations[pid] = sim.prefill(project.business_info.task_name, project.diagnosis.analysis).inputs
         project.scenarios[pid] = sim.blank_scenarios()
         pj.mark_updated(project, "simulation", pid)
+
+
+def input_notes(project: Project) -> list[str]:
+    """入力欄の上に出す、初期値の出どころの説明。"""
+    demo = demo_values(project)
+    if demo:
+        return ["□ デモ値：" + demo["note"] + "値を変えると、結果がすぐに変わる様子を試せます。"]
+    return sim.prefill(project.business_info.task_name, project.diagnosis.analysis).notes
 
 
 # ---------------------------------------------------------------
@@ -127,7 +155,7 @@ def render(project: Project) -> None:
 
 def _render_one(project: Project, pid: str) -> None:
     base = project.simulations[pid]
-    for note in sim.prefill(project.business_info.task_name, project.diagnosis.analysis).notes:
+    for note in input_notes(project):
         html(ui.footnote(note))
     _render_inputs(project, pid, base)
     if error := st.session_state.get(f"sim_error_{pid}"):
@@ -224,9 +252,10 @@ def _render_scenarios(project, pid, base, scenarios, by_scenario) -> None:
         "自社の事情に合わせて値を入れてください。"
     )
     editable = [sc for sc in scenarios if sc.name != "標準"]
+    # 空欄（自動）は NaN にして、表に「None」と出さず空のまま表示する
     table = pd.DataFrame(
         [{"シナリオ": sc.name, **{sim.label(f): getattr(sc, f) for f in sim.SCENARIO_FIELDS}} for sc in editable]
-    )
+    ).astype({sim.label(f): "float64" for f in sim.SCENARIO_FIELDS})
     st.data_editor(
         table, hide_index=True, width="stretch", key=_key(pid, "scenarios"), disabled=["シナリオ"],
         column_config={

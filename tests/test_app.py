@@ -299,15 +299,29 @@ def metrics(at: AppTest) -> list[str]:
     return [m.value for m in at.metric][:3]
 
 
-def test_試算は_入力するまで削減効果を出さない(secrets):
+def test_デモでは試算にデモ値が入っていて_すぐに結果を見られる(secrets):
+    """デモで新機能の価値を確認できる（指示書 8章）。値は架空のサンプルと明示する。"""
     at = result_screen(secrets)
     text = all_text(at)
     assert "改善効果の試算" in text
-    # デモの課題には「計算結果」がないため、作業時間も空欄で、入力を案内する
-    assert at.number_input(key="sim_P1_minutes_per_case").value is None
-    assert "読み取れなかった" in text
-    assert "未入力の項目" in text
-    assert metrics(at) == ["—", "—", "—"]
+    assert at.number_input(key="sim_P1_minutes_per_case").value == 144  # 144分×5件＝月12時間
+    assert "□ デモ値" in text and "架空" in text
+    assert "未入力の項目" not in text
+    # 案1：月12時間×10%×12か月＝14.4時間、×3,000円＝43,200円、60,000円÷3,600円＝16.7か月
+    assert metrics(at) == ["14.4時間", "43,200円", "16.7か月"]
+    simulations = at.session_state.project.simulations
+    assert all(s.source_of("hourly_cost") == "デモ値" for s in simulations.values())
+    assert len(simulations) == 3  # 3つの改善案すべてに入っている
+
+
+@pytest.mark.parametrize("title", ["修理依頼の受付・手配（お客様相談室）", "交通費の精算・承認（総務部）"])
+def test_ほかのデモにも試算のデモ値が入っている(secrets, title):
+    at = new_app(secrets)
+    at.selectbox(key="demo_scenario").set_value(title).run()
+    at = result_screen(secrets, at)
+    assert not at.exception
+    assert "—" not in metrics(at)
+    assert "シナリオ" in all_text(at) or at.dataframe
 
 
 def test_試算は_入力を変えるとすぐに更新され_出どころはユーザー入力になる(secrets):
@@ -315,7 +329,9 @@ def test_試算は_入力を変えるとすぐに更新され_出どころはユ
     assert not at.exception
     assert metrics(at) == ["480時間", "1,440,000円", "6か月"]
     assert "30分 × 200件 ÷ 60 ＝ 100時間" in all_text(at)
-    assert at.session_state.project.simulations["P1"].source_of("hourly_cost") == "ユーザー入力"
+    changed = at.session_state.project.simulations["P1"]
+    assert changed.source_of("minutes_per_case") == "ユーザー入力"  # デモ値の144分から変えた
+    assert changed.source_of("hourly_cost") == "デモ値"  # デモ値と同じ3,000円のままなので変わらない
 
     at = set_inputs(at, "P1", reduction_rate=20.0)
     assert metrics(at)[0] == "240時間"
@@ -337,7 +353,7 @@ def test_試算を変えると案件の版が上がる(secrets):
     """改善案のレビューが、古い試算のまま有効に見えないための記録（指示書 6章）。"""
     at = result_screen(secrets)
     before = at.session_state.project.stamps["simulation:P1"].version
-    at = set_inputs(at, "P1", hourly_cost=3000.0)
+    at = set_inputs(at, "P1", hourly_cost=3500.0)
     assert at.session_state.project.stamps["simulation:P1"].version == before + 1
 
 
@@ -355,8 +371,8 @@ def test_試算結果をExcelでダウンロードできる(secrets):
 
 
 def test_新しい診断を始めると_前の試算は残らない(secrets):
-    at = set_inputs(result_screen(secrets), "P1", hourly_cost=3000.0)
+    at = set_inputs(result_screen(secrets), "P1", hourly_cost=5000.0)
     at.button(key="new").click().run()
     assert at.session_state.stage == "top"
     at = result_screen(secrets, at)
-    assert at.number_input(key="sim_P1_hourly_cost").value is None
+    assert at.number_input(key="sim_P1_hourly_cost").value == 3000  # 変えた値ではなく、デモ値に戻る
