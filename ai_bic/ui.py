@@ -181,6 +181,32 @@ header[data-testid="stHeader"] {{ display: none; }}
 .st-key-entry_resume [data-testid="stExpander"] details {{ background: var(--card); border: 1px solid var(--line-blue); }}
 @media (max-width: 720px) {{ .st-key-entry_ai, .st-key-entry_demo {{ padding: 18px 16px; }} }}
 
+/* 試算の改善案の切り替え（ラジオボタンをタブの形にする）：「案1」と短い名前の2段。
+   選択中＝濃紺の面に白い文字、下端に金色の細い線（金色は選択中の印）。未選択＝白い面に濃紺の文字、青灰色の枠 */
+.st-key-sim_plans [data-testid="stElementContainer"] {{ width: 100%; }}
+.st-key-sim_plans [role="radiogroup"] {{ display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: 6px; width: 100%; }}
+.st-key-sim_plans [role="radiogroup"] > div {{ position: relative; display: flex; flex-direction: column; justify-content: center;
+  margin: 0; padding: .5rem .8rem .55rem; min-width: 0; background: var(--card); border: 1px solid var(--line-blue);
+  border-radius: 4px 4px 0 0; cursor: pointer; }}
+.st-key-sim_plans [role="radiogroup"] > div:hover {{ border-color: var(--accent); }}
+.st-key-sim_plans [data-testid="stRadioOption"] {{ margin: 0; padding: 0; width: 100%; cursor: pointer; }}
+/* 短い名前の部分を押しても選べるよう、選択肢の押せる範囲をタブ全体に広げる */
+.st-key-sim_plans [data-testid="stRadioOption"]::before {{ content: ""; position: absolute; inset: 0; z-index: 1; }}
+.st-key-sim_plans [data-testid="stRadioOption"] > div > div:first-child {{ display: none; }}  /* 丸い選択印は使わない */
+.st-key-sim_plans [data-testid="stRadioOption"] p {{ font-size: .75rem; letter-spacing: .08em; color: var(--sub); margin: 0; }}
+.st-key-sim_plans [data-testid="stRadioCaption"] {{ padding: 0; margin: .1rem 0 0; }}
+.st-key-sim_plans [data-testid="stCaptionContainer"] {{ opacity: 1; }}  /* 補足文として薄くしない（案の名前なので） */
+.st-key-sim_plans [data-testid="stRadioCaption"] p {{ font-size: .9rem; font-weight: 600; color: var(--accent); margin: 0;
+  line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }}
+.st-key-sim_plans [role="radiogroup"] > div[data-selected="true"] {{ background: var(--accent); border-color: var(--accent); }}
+.st-key-sim_plans [role="radiogroup"] > div[data-selected="true"]::after {{ content: ""; position: absolute; left: 0; right: 0;
+  bottom: 0; height: 3px; background: var(--gold); }}
+.st-key-sim_plans [role="radiogroup"] > div[data-selected="true"] p {{ color: #fff; }}
+.st-key-sim_plans [role="radiogroup"] > div[data-selected="true"] [data-testid="stRadioOption"] p {{ color: var(--on-navy-sub); }}
+.st-key-sim_plans [role="radiogroup"] > div:has(input:focus-visible) {{ outline: 2px solid var(--gold-deep); outline-offset: 2px; }}
+.bic-plan-title {{ font-size: 1.05rem; font-weight: 700; color: var(--accent); margin: .6rem 0 .2rem; line-height: 1.5; }}
+
 /* 注記 */
 .bic-note {{ font-size: .8rem; color: var(--accent); line-height: 1.75; background: var(--gold-soft);
   border-left: 2px solid var(--gold); padding: .5rem .9rem; margin: .55rem 0; border-radius: 0 4px 4px 0; }}

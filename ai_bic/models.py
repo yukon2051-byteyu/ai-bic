@@ -167,6 +167,9 @@ class Proposal(BaseModel):
     """改善案。"""
 
     title: str
+    # 案を切り替えるタブに出す短い名前（何をする案か分かる12文字程度）。正式な名前は title。
+    # 古い保存データやAIが書かなかったときは None（画面では title を省略せずに折り返して出す）
+    short_title: str | None = None
     category: ProposalCategory
     description: str
     target_issue_ids: list[str]

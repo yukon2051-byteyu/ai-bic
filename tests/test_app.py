@@ -302,6 +302,8 @@ def result_screen(secrets, at: AppTest | None = None) -> AppTest:
 
 
 def set_inputs(at: AppTest, pid: str, **values) -> AppTest:
+    if at.radio(key="sim_plan").value != pid:  # 入力欄は、選んでいる案のものだけ表示される
+        at.radio(key="sim_plan").set_value(pid).run()
     for name, value in values.items():
         at.number_input(key=f"sim_{pid}_{name}").set_value(value).run()
     return at
@@ -328,6 +330,43 @@ def test_デモでは試算にデモ値が入っていて_すぐに結果を見�
     simulations = at.session_state.project.simulations
     assert all(s.source_of("hourly_cost") == "デモ値" for s in simulations.values())
     assert len(simulations) == 3  # 3つの改善案すべてに入っている
+
+
+def test_試算の案の切り替えは_番号と短い名前の2段で_選んだ案の正式名と詳細を出す(secrets):
+    at = new_app(secrets)
+    at.selectbox(key="demo_scenario").set_value("交通費の精算・承認（総務部）").run()
+    at = result_screen(secrets, at)
+    plans = at.radio(key="sim_plan")
+    assert list(plans.options) == ["案1", "案2", "案3"]
+    captions = list(plans.proto.captions)
+    assert captions == ["記入見本と提出前チェック", "表計算で精算を標準化", "会計ソフトへの連携"]
+    assert not any("…" in c for c in captions)  # 省略しない
+    assert plans.value == "P1"
+    assert "案1：精算書の記入見本と、提出前チェックリストの配布" in all_text(at)  # 正式な名前は詳細の見出しに出す
+    plans.set_value("P3").run()
+    assert not at.exception
+    text = all_text(at)
+    assert "案3：精算データから、会計ソフトの取り込み用ファイルを自動作成" in text
+    assert "案1：精算書の記入見本" not in text  # 選んでいない案の詳細は出さない
+    assert at.number_input(key="sim_P3_minutes_per_case")  # 入力欄も選んだ案のもの
+
+
+def test_短い名前がない改善案は_正式な名前を省略せずにタブに出す():
+    from ai_bic.views.simulator import tab_name
+    from tests.fakes import make_proposal
+
+    p = make_proposal()
+    assert p.short_title is None  # 古い保存データ（短い名前がない）も読める
+    assert tab_name(p) == p.title
+    assert tab_name(p.model_copy(update={"short_title": "  見本の配布 "})) == "見本の配布"
+
+
+def test_デモの改善案にはすべて_重ならない短い名前がある():
+    from ai_bic.demo_client import load_scenarios
+
+    for s in load_scenarios():
+        shorts = [p["short_title"] for p in s["proposals"]["proposals"]]
+        assert len(set(shorts)) == len(shorts) and all(0 < len(x) <= 14 for x in shorts), s["id"]
 
 
 @pytest.mark.parametrize("title", ["修理依頼の受付・手配（お客様相談室）", "交通費の精算・承認（総務部）"])

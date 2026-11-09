@@ -132,10 +132,17 @@ def render(project: Project) -> None:
     st.caption("計算はプログラムが行います（AIは計算していません）。入力を変えると、すぐに計算し直します。")
     _render_overview(project, pids, proposals)
 
-    tabs = st.tabs([f"案{no}：{_short(p.title)}" for no, p in enumerate(proposals, start=1)])
-    for tab, pid in zip(tabs, pids):
-        with tab:
-            _render_one(project, pid)
+    # 案の切り替え：「案1」と、何をする案か分かる短い名前の2段（省略記号は使わない）。正式な名前は選んだあとの見出しに出す
+    numbers = {pid: no for no, pid in enumerate(pids, start=1)}
+    by_pid = dict(zip(pids, proposals))
+    if st.session_state.get(PLAN_KEY) not in pids:
+        st.session_state[PLAN_KEY] = pids[0]
+    with st.container(key="sim_plans"):
+        pid = st.radio("改善案", pids, key=PLAN_KEY, horizontal=True, label_visibility="collapsed",
+                       format_func=lambda x: f"案{numbers[x]}",
+                       captions=[_md(tab_name(by_pid[x])) for x in pids])
+    html(f'<div class="bic-plan-title">案{numbers[pid]}：{ui.esc(by_pid[pid].title)}</div>')
+    _render_one(project, pid)
 
     created_at = datetime.now(config.JST)
     st.download_button(
@@ -148,8 +155,17 @@ def render(project: Project) -> None:
     html(ui.footnote("試算は入力した値による想定です。実測の結果ではありません。" + sim.NOTE_TIME_VALUE))
 
 
-def _short(title: str, limit: int = 14) -> str:
-    return title if len(title) <= limit else title[:limit] + "…"
+PLAN_KEY = "sim_plan"  # 試算で選んでいる改善案（P1 など）
+
+
+def tab_name(p) -> str:
+    """案を切り替えるタブに出す名前。短い名前がなければ正式な名前を省略せずに使う（画面では折り返す）。"""
+    return (p.short_title or "").strip() or p.title
+
+
+def _md(text: str) -> str:
+    """選択肢の説明文は Markdown として表示されるため、記号をそのまま文字として出す。"""
+    return "".join("\\" + c if c in "\\`*_{}[]()#+-.!|~<>$" else c for c in text)
 
 
 def _render_overview(project: Project, pids: list[str], proposals) -> None:
