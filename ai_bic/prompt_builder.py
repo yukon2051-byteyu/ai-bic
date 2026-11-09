@@ -10,11 +10,12 @@ AIに指示を出す攻撃（プロンプトインジェクション）を防ぐ
 （引用の照合では normalize() が全角を半角に戻すので、照合には影響しない）
 """
 
+import json
 from pathlib import Path
 
 from ai_bic.config import MAX_HEARING_TURNS
 from ai_bic.item_rules import askable_item_ids, blocked_reason, question_count
-from ai_bic.models import AnalysisResult, Attachment, BusinessInfo, Framework, HearingState
+from ai_bic.models import AnalysisResult, Attachment, BusinessInfo, Framework, HearingState, ProposalResult
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
@@ -161,5 +162,29 @@ def build_proposal_input(
             _hearing_log_block(state),
             f"<analysis>\n{analysis_json}\n</analysis>",
             "課題分析の結果をもとに、改善案を最大3つ提案してください。",
+        ]
+    )
+
+
+def build_flow_input(
+    info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposals: ProposalResult
+) -> str:
+    """業務フロー（As-Is・To-Be）のAIに渡す文章（AI-BIC 2.0 機能B）。
+
+    改善案には番号（1から）をつけて渡し、To-Be の proposal_no と対応させる。
+    """
+    analysis_json = _escape(analysis.model_dump_json(indent=2))
+    numbered = [
+        {"proposal_no": no, **p.model_dump(include={"title", "category", "description", "before", "after", "target_issue_ids"})}
+        for no, p in enumerate(proposals.proposals, start=1)
+    ]
+    proposals_json = _escape(json.dumps(numbered, ensure_ascii=False, indent=2))
+    return "\n\n".join(
+        [
+            _business_info_block(info),
+            _hearing_log_block(state),
+            f"<analysis>\n{analysis_json}\n</analysis>",
+            f"<proposals>\n{proposals_json}\n</proposals>",
+            f"現状の業務フローと、改善案{len(numbered)}つそれぞれの改善後の業務フローを作ってください。",
         ]
     )

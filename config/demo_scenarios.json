@@ -363,6 +363,888 @@
             "other_initial_cost": 150000
           }
         ]
+      },
+      "flows": {
+        "as_is_steps": [
+          {
+            "ref": "S1",
+            "name": "営業所から売上Excelを受け取る",
+            "kind": "作業",
+            "actor": "営業管理部（担当者）",
+            "description": "1件＝営業所1か所分のファイル",
+            "system": "Excel・メール",
+            "manual": true,
+            "minutes_per_case": 6,
+            "time_basis": "AI推定",
+            "evidence_quote": "5つの営業所から届く売上Excel",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S2",
+            "name": "提出が遅れている営業所に催促する",
+            "kind": "作業",
+            "actor": "営業管理部（担当者）",
+            "description": "提出の遅れがあると課題分析で推測した工程。割合は目安",
+            "system": "",
+            "manual": true,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": null,
+            "occurrence_rate": 40,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": true
+          },
+          {
+            "ref": "S3",
+            "name": "商品ごとの売上を集計用ファイルに転記する",
+            "kind": "作業",
+            "actor": "営業管理部（担当者）",
+            "description": "",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 90,
+            "time_basis": "ヒアリング",
+            "evidence_quote": "商品ごとの売上を集計用ファイルにコピーして貼り付けます",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "営業所ごとに形式が違い、項目の位置を探しながら手作業で転記している",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S4",
+            "name": "合計を電卓で検算する",
+            "kind": "作業",
+            "actor": "営業管理部（担当者）",
+            "description": "",
+            "system": "電卓",
+            "manual": true,
+            "minutes_per_case": 18,
+            "time_basis": "AI推定",
+            "evidence_quote": "最後に合計を電卓で検算しています",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "手作業の検算に時間がかかる",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S5",
+            "name": "月次売上報告書を作成する",
+            "kind": "作業",
+            "actor": "営業管理部（担当者）",
+            "description": "月1回の作業を、営業所1か所あたりに割った目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 30,
+            "time_basis": "AI推定",
+            "evidence_quote": "部長会議用の月次売上報告書を作成している",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S6",
+            "name": "報告書を部長へメールで送付する",
+            "kind": "作業",
+            "actor": "営業管理部（担当者）",
+            "description": "",
+            "system": "メール",
+            "manual": true,
+            "minutes_per_case": 5,
+            "time_basis": "AI推定",
+            "evidence_quote": "部長へメールで送付している",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S7",
+            "name": "部長が数字を確認する",
+            "kind": "判断",
+            "actor": "部長",
+            "description": "",
+            "system": "",
+            "manual": null,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": "部長から会議の直前に指摘されることが多いです",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S8",
+            "name": "数字が合わない原因を調べて直す",
+            "kind": "作業",
+            "actor": "営業管理部（担当者）",
+            "description": "割合は目安（毎月どこかで数字が合わない＝5件のうち1件程度）",
+            "system": "",
+            "manual": true,
+            "minutes_per_case": 180,
+            "time_basis": "ヒアリング",
+            "evidence_quote": "原因を探すのに毎回3時間ほどかかります",
+            "occurrence_rate": 20,
+            "wait_or_rework": "会議の直前に差し戻される",
+            "problem": "不一致が会議の直前に見つかり、原因調査に時間がかかる",
+            "needs_confirmation": false
+          }
+        ],
+        "as_is_edges": [
+          {
+            "source": "S1",
+            "target": "S2",
+            "label": "提出が遅れた"
+          },
+          {
+            "source": "S1",
+            "target": "S3",
+            "label": "期限内に届いた"
+          },
+          {
+            "source": "S2",
+            "target": "S3",
+            "label": ""
+          },
+          {
+            "source": "S3",
+            "target": "S4",
+            "label": ""
+          },
+          {
+            "source": "S4",
+            "target": "S5",
+            "label": ""
+          },
+          {
+            "source": "S5",
+            "target": "S6",
+            "label": ""
+          },
+          {
+            "source": "S6",
+            "target": "S7",
+            "label": ""
+          },
+          {
+            "source": "S7",
+            "target": "S8",
+            "label": "数字が合わない"
+          },
+          {
+            "source": "S8",
+            "target": "S5",
+            "label": "直して作り直す"
+          }
+        ],
+        "questions": [
+          "提出が遅れる営業所はありますか？ある場合、誰がどのように催促していますか？",
+          "完成した報告書は、どのように部長へ渡していますか？",
+          "1つの営業所のファイルの転記には、どれくらいの時間がかかりますか？"
+        ],
+        "to_be": [
+          {
+            "proposal_no": 1,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "営業所から売上Excelを受け取る",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "1件＝営業所1か所分のファイル",
+                "system": "Excel・メール",
+                "manual": true,
+                "minutes_per_case": 6,
+                "time_basis": "AI推定",
+                "evidence_quote": "5つの営業所から届く売上Excel",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S2",
+                "name": "提出が遅れている営業所に催促する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "提出の遅れがあると課題分析で推測した工程。割合は目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": null,
+                "occurrence_rate": 40,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "商品ごとの売上を集計用ファイルに転記する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 90,
+                "time_basis": "AI推定",
+                "evidence_quote": "商品ごとの売上を集計用ファイルにコピーして貼り付けます",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "営業所ごとに形式が違い、項目の位置を探しながら手作業で転記している",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "手順書に沿って、主担当・副担当のどちらでも転記できる"
+              },
+              {
+                "ref": "S4",
+                "name": "合計を電卓で検算する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "電卓",
+                "manual": true,
+                "minutes_per_case": 18,
+                "time_basis": "AI推定",
+                "evidence_quote": "最後に合計を電卓で検算しています",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "手作業の検算に時間がかかる",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "月次売上報告書を作成する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "月1回の作業を、営業所1か所あたりに割った目安",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 30,
+                "time_basis": "AI推定",
+                "evidence_quote": "部長会議用の月次売上報告書を作成している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S6",
+                "name": "報告書を部長へメールで送付する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "メール",
+                "manual": true,
+                "minutes_per_case": 5,
+                "time_basis": "AI推定",
+                "evidence_quote": "部長へメールで送付している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "部長が数字を確認する",
+                "kind": "判断",
+                "actor": "部長",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "部長から会議の直前に指摘されることが多いです",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "数字が合わない原因を調べて直す",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "割合は目安（毎月どこかで数字が合わない＝5件のうち1件程度）",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 180,
+                "time_basis": "ヒアリング",
+                "evidence_quote": "原因を探すのに毎回3時間ほどかかります",
+                "occurrence_rate": 20,
+                "wait_or_rework": "会議の直前に差し戻される",
+                "problem": "不一致が会議の直前に見つかり、原因調査に時間がかかる",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S9",
+                "name": "集計手順書を作成・更新する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "月1回の見直しを営業所1か所あたりに割った目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "手順を文書にし、変更があれば更新する"
+              },
+              {
+                "ref": "S10",
+                "name": "副担当者が集計結果を確認する",
+                "kind": "承認",
+                "actor": "営業管理部（副担当者）",
+                "description": "",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 5,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "主担当以外の目で数字を確認する"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": "提出が遅れた"
+              },
+              {
+                "source": "S1",
+                "target": "S3",
+                "label": "期限内に届いた"
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": ""
+              },
+              {
+                "source": "S7",
+                "target": "S8",
+                "label": "数字が合わない"
+              },
+              {
+                "source": "S8",
+                "target": "S5",
+                "label": "直して作り直す"
+              },
+              {
+                "source": "S9",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S4",
+                "target": "S10",
+                "label": ""
+              },
+              {
+                "source": "S10",
+                "target": "S5",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S4 電卓での検算：副担当者が作業する場合も、数字の確認として残す",
+              "S7 部長の確認：報告内容の承認として残す"
+            ]
+          },
+          {
+            "proposal_no": 2,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "営業所から売上Excelを受け取る",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "1件＝営業所1か所分のファイル",
+                "system": "Excel・メール",
+                "manual": true,
+                "minutes_per_case": 6,
+                "time_basis": "AI推定",
+                "evidence_quote": "5つの営業所から届く売上Excel",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S2",
+                "name": "提出が遅れている営業所に催促する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "提出の遅れがあると課題分析で推測した工程。割合は目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": null,
+                "occurrence_rate": 40,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "商品ごとの売上を集計用ファイルに転記する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 50,
+                "time_basis": "AI推定",
+                "evidence_quote": "商品ごとの売上を集計用ファイルにコピーして貼り付けます",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "営業所ごとに形式が違い、項目の位置を探しながら手作業で転記している",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "様式がそろい、貼り付け位置を探す手間が減る"
+              },
+              {
+                "ref": "S4",
+                "name": "合計を電卓で検算する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "電卓",
+                "manual": true,
+                "minutes_per_case": 18,
+                "time_basis": "AI推定",
+                "evidence_quote": "最後に合計を電卓で検算しています",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "手作業の検算に時間がかかる",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "月次売上報告書を作成する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "月1回の作業を、営業所1か所あたりに割った目安",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 30,
+                "time_basis": "AI推定",
+                "evidence_quote": "部長会議用の月次売上報告書を作成している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S6",
+                "name": "報告書を部長へメールで送付する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "メール",
+                "manual": true,
+                "minutes_per_case": 5,
+                "time_basis": "AI推定",
+                "evidence_quote": "部長へメールで送付している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "部長が数字を確認する",
+                "kind": "判断",
+                "actor": "部長",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "部長から会議の直前に指摘されることが多いです",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "数字が合わない原因を調べて直す",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "割合は目安（毎月どこかで数字が合わない＝5件のうち1件程度）",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 120,
+                "time_basis": "AI推定",
+                "evidence_quote": "原因を探すのに毎回3時間ほどかかります",
+                "occurrence_rate": 10,
+                "wait_or_rework": "会議の直前に差し戻される",
+                "problem": "不一致が会議の直前に見つかり、原因調査に時間がかかる",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "項目の位置ずれによる不一致が減る想定（割合は目安）"
+              },
+              {
+                "ref": "S9",
+                "name": "統一様式を営業所に配布・更新する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 3,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "全営業所が同じ様式で提出する"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": "提出が遅れた"
+              },
+              {
+                "source": "S1",
+                "target": "S3",
+                "label": "期限内に届いた"
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": ""
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": ""
+              },
+              {
+                "source": "S7",
+                "target": "S8",
+                "label": "数字が合わない"
+              },
+              {
+                "source": "S8",
+                "target": "S5",
+                "label": "直して作り直す"
+              },
+              {
+                "source": "S9",
+                "target": "S1",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S7 部長の確認：報告内容の承認として残す"
+            ]
+          },
+          {
+            "proposal_no": 3,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "営業所から売上Excelを受け取る",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "1件＝営業所1か所分のファイル",
+                "system": "Excel・メール",
+                "manual": true,
+                "minutes_per_case": 6,
+                "time_basis": "AI推定",
+                "evidence_quote": "5つの営業所から届く売上Excel",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S2",
+                "name": "提出が遅れている営業所に催促する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "提出の遅れがあると課題分析で推測した工程。割合は目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": null,
+                "occurrence_rate": 40,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "商品ごとの売上を集計用ファイルに転記する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 50,
+                "time_basis": "AI推定",
+                "evidence_quote": "商品ごとの売上を集計用ファイルにコピーして貼り付けます",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "営業所ごとに形式が違い、項目の位置を探しながら手作業で転記している",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "統一様式のファイルを貼り付ける（様式の統一が前提）"
+              },
+              {
+                "ref": "S4",
+                "name": "合計を電卓で検算する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "電卓",
+                "manual": true,
+                "minutes_per_case": 18,
+                "time_basis": "AI推定",
+                "evidence_quote": "最後に合計を電卓で検算しています",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "手作業の検算に時間がかかる",
+                "needs_confirmation": false,
+                "change": "廃止",
+                "change_note": "計算式で合計が自動的に出るため、電卓での検算が不要になる想定"
+              },
+              {
+                "ref": "S5",
+                "name": "月次売上報告書を作成する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "月1回の作業を、営業所1か所あたりに割った目安",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 30,
+                "time_basis": "AI推定",
+                "evidence_quote": "部長会議用の月次売上報告書を作成している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S6",
+                "name": "報告書を部長へメールで送付する",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "メール",
+                "manual": true,
+                "minutes_per_case": 5,
+                "time_basis": "AI推定",
+                "evidence_quote": "部長へメールで送付している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "部長が数字を確認する",
+                "kind": "判断",
+                "actor": "部長",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "部長から会議の直前に指摘されることが多いです",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "数字が合わない原因を調べて直す",
+                "kind": "作業",
+                "actor": "営業管理部（担当者）",
+                "description": "割合は目安（毎月どこかで数字が合わない＝5件のうち1件程度）",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 180,
+                "time_basis": "ヒアリング",
+                "evidence_quote": "原因を探すのに毎回3時間ほどかかります",
+                "occurrence_rate": 20,
+                "wait_or_rework": "会議の直前に差し戻される",
+                "problem": "不一致が会議の直前に見つかり、原因調査に時間がかかる",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S9",
+                "name": "計算式の合計と営業所の合計を照合する",
+                "kind": "判断",
+                "actor": "営業管理部（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 5,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "検算の代わりに、合計が一致するかを確認する"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": "提出が遅れた"
+              },
+              {
+                "source": "S1",
+                "target": "S3",
+                "label": "期限内に届いた"
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": ""
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": ""
+              },
+              {
+                "source": "S7",
+                "target": "S8",
+                "label": "数字が合わない"
+              },
+              {
+                "source": "S8",
+                "target": "S5",
+                "label": "直して作り直す"
+              },
+              {
+                "source": "S3",
+                "target": "S9",
+                "label": ""
+              },
+              {
+                "source": "S9",
+                "target": "S5",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S9 合計の照合：電卓での検算をなくす代わりに、営業所の合計と一致するかを確認する工程を残す",
+              "S7 部長の確認：報告内容の承認として残す"
+            ]
+          }
+        ]
       }
     },
     {
@@ -753,6 +1635,793 @@
             "other_initial_cost": 200000
           }
         ]
+      },
+      "flows": {
+        "as_is_steps": [
+          {
+            "ref": "S1",
+            "name": "電話で修理依頼を受け、受付票に手書きする",
+            "kind": "作業",
+            "actor": "お客様相談室（4名）",
+            "description": "",
+            "system": "電話・紙の受付票",
+            "manual": true,
+            "minutes_per_case": 5,
+            "time_basis": "AI推定",
+            "evidence_quote": "電話を受けながら受付票に手書きし",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S2",
+            "name": "業者ごとにFAXかメールで手配する",
+            "kind": "作業",
+            "actor": "お客様相談室",
+            "description": "",
+            "system": "FAX・メール",
+            "manual": true,
+            "minutes_per_case": 3,
+            "time_basis": "AI推定",
+            "evidence_quote": "業者ごとにFAXかメールで送ります",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S3",
+            "name": "業者からの返事を受付票に書き足す",
+            "kind": "作業",
+            "actor": "お客様相談室",
+            "description": "",
+            "system": "電話・紙の受付票",
+            "manual": true,
+            "minutes_per_case": 2,
+            "time_basis": "AI推定",
+            "evidence_quote": "業者からの返事は電話で来るので、受付票に書き足します",
+            "occurrence_rate": 100,
+            "wait_or_rework": "業者からの返事待ち",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S4",
+            "name": "お客様からの状況確認の電話を受ける",
+            "kind": "作業",
+            "actor": "お客様相談室",
+            "description": "割合は目安（1日10件以上÷40件）",
+            "system": "電話",
+            "manual": true,
+            "minutes_per_case": 3,
+            "time_basis": "AI推定",
+            "evidence_quote": "お客様からの状況確認の電話も1日に10件以上あります",
+            "occurrence_rate": 25,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S5",
+            "name": "受付票の束から探す・受けた人に聞く",
+            "kind": "作業",
+            "actor": "お客様相談室",
+            "description": "",
+            "system": "紙の受付票",
+            "manual": true,
+            "minutes_per_case": 6,
+            "time_basis": "AI推定",
+            "evidence_quote": "受付票の束から探したり、受けた人に聞いたりします",
+            "occurrence_rate": 25,
+            "wait_or_rework": "",
+            "problem": "対応状況をすぐに答えられない",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S6",
+            "name": "状況が分かったか",
+            "kind": "判断",
+            "actor": "お客様相談室",
+            "description": "",
+            "system": "",
+            "manual": null,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": "担当者が休みだと分からないこともあります",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "受けた担当者が休みだと分からない",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S7",
+            "name": "確認してお客様に折り返し連絡する",
+            "kind": "作業",
+            "actor": "お客様相談室",
+            "description": "すぐに答えられない場合の対応として補った工程",
+            "system": "",
+            "manual": true,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": null,
+            "occurrence_rate": 5,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": true
+          },
+          {
+            "ref": "S8",
+            "name": "完了した受付票を保管する",
+            "kind": "作業",
+            "actor": "お客様相談室",
+            "description": "受付票の保管方法は聞けていない",
+            "system": "紙の受付票",
+            "manual": true,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": null,
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": true
+          }
+        ],
+        "as_is_edges": [
+          {
+            "source": "S1",
+            "target": "S2",
+            "label": ""
+          },
+          {
+            "source": "S2",
+            "target": "S3",
+            "label": ""
+          },
+          {
+            "source": "S3",
+            "target": "S8",
+            "label": "修理完了"
+          },
+          {
+            "source": "S4",
+            "target": "S5",
+            "label": ""
+          },
+          {
+            "source": "S5",
+            "target": "S6",
+            "label": ""
+          },
+          {
+            "source": "S6",
+            "target": "S7",
+            "label": "分からない"
+          }
+        ],
+        "questions": [
+          "すぐに答えられなかったとき、お客様にはどのように折り返していますか？",
+          "完了した受付票は、どこに、どのような順番で保管していますか？",
+          "1件の受付から手配までに、どれくらいの時間がかかりますか？"
+        ],
+        "to_be": [
+          {
+            "proposal_no": 1,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "電話で修理依頼を受け、受付票に手書きする",
+                "kind": "作業",
+                "actor": "お客様相談室（4名）",
+                "description": "",
+                "system": "電話・紙の受付票",
+                "manual": true,
+                "minutes_per_case": 5,
+                "time_basis": "AI推定",
+                "evidence_quote": "電話を受けながら受付票に手書きし",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S2",
+                "name": "業者ごとにFAXかメールで手配する",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "FAX・メール",
+                "manual": true,
+                "minutes_per_case": 3,
+                "time_basis": "AI推定",
+                "evidence_quote": "業者ごとにFAXかメールで送ります",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "業者からの返事を受付票に書き足す",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "電話・紙の受付票",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": "業者からの返事は電話で来るので、受付票に書き足します",
+                "occurrence_rate": 100,
+                "wait_or_rework": "業者からの返事待ち",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "返事の内容を、受付票の決まった欄に記入する"
+              },
+              {
+                "ref": "S4",
+                "name": "お客様からの状況確認の電話を受ける",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "割合は目安（1日10件以上÷40件）",
+                "system": "電話",
+                "manual": true,
+                "minutes_per_case": 3,
+                "time_basis": "AI推定",
+                "evidence_quote": "お客様からの状況確認の電話も1日に10件以上あります",
+                "occurrence_rate": 25,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "受付票の束から探す・受けた人に聞く",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "紙の受付票",
+                "manual": true,
+                "minutes_per_case": 3,
+                "time_basis": "AI推定",
+                "evidence_quote": "受付票の束から探したり、受けた人に聞いたりします",
+                "occurrence_rate": 25,
+                "wait_or_rework": "",
+                "problem": "対応状況をすぐに答えられない",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "案件番号順の保管と状況欄で、誰でもすぐに探せる"
+              },
+              {
+                "ref": "S6",
+                "name": "状況が分かったか",
+                "kind": "判断",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "担当者が休みだと分からないこともあります",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "受けた担当者が休みだと分からない",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "確認してお客様に折り返し連絡する",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "すぐに答えられない場合の対応として補った工程",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": null,
+                "occurrence_rate": 5,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "完了した受付票を保管する",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "受付票の保管方法は聞けていない",
+                "system": "紙の受付票",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S9",
+                "name": "受付票に案件番号を振る",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 1,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "案件番号で受付票を探せるようにする"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S8",
+                "label": "修理完了"
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": "分からない"
+              },
+              {
+                "source": "S1",
+                "target": "S9",
+                "label": ""
+              },
+              {
+                "source": "S9",
+                "target": "S2",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S2 業者への手配：手配内容は人が確認してから送る"
+            ]
+          },
+          {
+            "proposal_no": 2,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "電話で修理依頼を受け、受付票に手書きする",
+                "kind": "作業",
+                "actor": "お客様相談室（4名）",
+                "description": "",
+                "system": "電話・共有の案件一覧（表計算ソフト）",
+                "manual": true,
+                "minutes_per_case": 5,
+                "time_basis": "AI推定",
+                "evidence_quote": "電話を受けながら受付票に手書きし",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "受付票の代わりに、共有の案件一覧に入力する"
+              },
+              {
+                "ref": "S2",
+                "name": "業者ごとにFAXかメールで手配する",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "FAX・メール",
+                "manual": true,
+                "minutes_per_case": 3,
+                "time_basis": "AI推定",
+                "evidence_quote": "業者ごとにFAXかメールで送ります",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "業者からの返事を受付票に書き足す",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "共有の案件一覧",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": "業者からの返事は電話で来るので、受付票に書き足します",
+                "occurrence_rate": 100,
+                "wait_or_rework": "業者からの返事待ち",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "案件一覧の状況欄を更新する"
+              },
+              {
+                "ref": "S4",
+                "name": "お客様からの状況確認の電話を受ける",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "割合は目安（1日10件以上÷40件）",
+                "system": "電話",
+                "manual": true,
+                "minutes_per_case": 3,
+                "time_basis": "AI推定",
+                "evidence_quote": "お客様からの状況確認の電話も1日に10件以上あります",
+                "occurrence_rate": 25,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "受付票の束から探す・受けた人に聞く",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "共有の案件一覧",
+                "manual": true,
+                "minutes_per_case": 1,
+                "time_basis": "AI推定",
+                "evidence_quote": "受付票の束から探したり、受けた人に聞いたりします",
+                "occurrence_rate": 25,
+                "wait_or_rework": "",
+                "problem": "対応状況をすぐに答えられない",
+                "needs_confirmation": false,
+                "change": "自動化",
+                "change_note": "案件一覧を検索して、その場で状況を答える"
+              },
+              {
+                "ref": "S6",
+                "name": "状況が分かったか",
+                "kind": "判断",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "担当者が休みだと分からないこともあります",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "受けた担当者が休みだと分からない",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "確認してお客様に折り返し連絡する",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "すぐに答えられない場合の対応として補った工程",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": null,
+                "occurrence_rate": 5,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "完了した受付票を保管する",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "受付票の保管方法は聞けていない",
+                "system": "紙の受付票",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "廃止",
+                "change_note": "一覧に履歴が残るため、紙の保管は不要になる想定（社内ルールの確認が必要）"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": ""
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S8",
+                "label": "修理完了"
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": "分からない"
+              }
+            ],
+            "kept_controls": [
+              "S2 業者への手配：手配内容の誤りを防ぐため、送信前の確認は人が行う"
+            ]
+          },
+          {
+            "proposal_no": 3,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "電話で修理依頼を受け、受付票に手書きする",
+                "kind": "作業",
+                "actor": "お客様相談室（4名）",
+                "description": "",
+                "system": "受付・手配管理システム",
+                "manual": true,
+                "minutes_per_case": 5,
+                "time_basis": "AI推定",
+                "evidence_quote": "電話を受けながら受付票に手書きし",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "システムに受付内容を入力する"
+              },
+              {
+                "ref": "S2",
+                "name": "業者ごとにFAXかメールで手配する",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "受付・手配管理システム",
+                "manual": true,
+                "minutes_per_case": 1,
+                "time_basis": "AI推定",
+                "evidence_quote": "業者ごとにFAXかメールで送ります",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "自動化",
+                "change_note": "システムから業者へ手配を送る"
+              },
+              {
+                "ref": "S3",
+                "name": "業者からの返事を受付票に書き足す",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "受付・手配管理システム",
+                "manual": true,
+                "minutes_per_case": 0,
+                "time_basis": "AI推定",
+                "evidence_quote": "業者からの返事は電話で来るので、受付票に書き足します",
+                "occurrence_rate": 100,
+                "wait_or_rework": "業者からの返事待ち",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "自動化",
+                "change_note": "業者がシステムに返事を登録する"
+              },
+              {
+                "ref": "S4",
+                "name": "お客様からの状況確認の電話を受ける",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "割合は目安（1日10件以上÷40件）",
+                "system": "電話",
+                "manual": true,
+                "minutes_per_case": 3,
+                "time_basis": "AI推定",
+                "evidence_quote": "お客様からの状況確認の電話も1日に10件以上あります",
+                "occurrence_rate": 25,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "受付票の束から探す・受けた人に聞く",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "受付・手配管理システム",
+                "manual": true,
+                "minutes_per_case": 1,
+                "time_basis": "AI推定",
+                "evidence_quote": "受付票の束から探したり、受けた人に聞いたりします",
+                "occurrence_rate": 25,
+                "wait_or_rework": "",
+                "problem": "対応状況をすぐに答えられない",
+                "needs_confirmation": false,
+                "change": "自動化",
+                "change_note": "システムで状況を検索する"
+              },
+              {
+                "ref": "S6",
+                "name": "状況が分かったか",
+                "kind": "判断",
+                "actor": "お客様相談室",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "担当者が休みだと分からないこともあります",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "受けた担当者が休みだと分からない",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "確認してお客様に折り返し連絡する",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "すぐに答えられない場合の対応として補った工程",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": null,
+                "occurrence_rate": 5,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "完了した受付票を保管する",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "受付票の保管方法は聞けていない",
+                "system": "紙の受付票",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "廃止",
+                "change_note": "システムに履歴が残るため、紙の保管は不要になる想定"
+              },
+              {
+                "ref": "S9",
+                "name": "責任者が手配内容を確認する",
+                "kind": "承認",
+                "actor": "お客様相談室（責任者）",
+                "description": "",
+                "system": "受付・手配管理システム",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "自動送信の前に、手配内容を確認する"
+              },
+              {
+                "ref": "S10",
+                "name": "業者へのシステム利用の案内・アカウント管理",
+                "kind": "作業",
+                "actor": "お客様相談室",
+                "description": "月1回程度の作業を1件あたりに割った目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 1,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "協力業者がシステムを使えるようにする"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S8",
+                "label": "修理完了"
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": "分からない"
+              },
+              {
+                "source": "S1",
+                "target": "S9",
+                "label": ""
+              },
+              {
+                "source": "S9",
+                "target": "S2",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S9 手配内容の確認：自動送信にしても、手配の誤りを防ぐため責任者の確認を残す"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1024,6 +2693,817 @@
             "initial_cost": 0,
             "monthly_running_cost": 0,
             "other_initial_cost": 240000
+          }
+        ]
+      },
+      "flows": {
+        "as_is_steps": [
+          {
+            "ref": "S1",
+            "name": "紙の精算書に記入し、領収書を貼る",
+            "kind": "作業",
+            "actor": "社員",
+            "description": "社員側の作業",
+            "system": "紙の精算書",
+            "manual": true,
+            "minutes_per_case": 10,
+            "time_basis": "AI推定",
+            "evidence_quote": "紙の精算書へ交通費を記入し、領収書を貼り",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S2",
+            "name": "上長が押印する",
+            "kind": "承認",
+            "actor": "上長",
+            "description": "",
+            "system": "紙の精算書",
+            "manual": true,
+            "minutes_per_case": 2,
+            "time_basis": "AI推定",
+            "evidence_quote": "上長の押印をもらって総務部に提出している",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "押印漏れが多い",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S3",
+            "name": "総務部が内容と金額を確認する",
+            "kind": "作業",
+            "actor": "総務部（2名）",
+            "description": "",
+            "system": "",
+            "manual": true,
+            "minutes_per_case": 10,
+            "time_basis": "AI推定",
+            "evidence_quote": "総務部の2名が内容と金額を確認し",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "運賃の計算間違いの確認に時間がかかる",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S4",
+            "name": "不備があるか",
+            "kind": "判断",
+            "actor": "総務部",
+            "description": "",
+            "system": "",
+            "manual": null,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": "記入漏れや計算間違いの差し戻しが多い",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S5",
+            "name": "社員へ差し戻す",
+            "kind": "作業",
+            "actor": "総務部",
+            "description": "割合は「毎月20件くらい」÷約120件からの目安",
+            "system": "",
+            "manual": true,
+            "minutes_per_case": 15,
+            "time_basis": "AI推定",
+            "evidence_quote": "毎月20件くらいです",
+            "occurrence_rate": 17,
+            "wait_or_rework": "再提出待ち",
+            "problem": "差し戻しが多い",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S6",
+            "name": "会計ソフトに手入力する",
+            "kind": "作業",
+            "actor": "総務部",
+            "description": "",
+            "system": "会計ソフト（パソコンにインストール）",
+            "manual": true,
+            "minutes_per_case": 10,
+            "time_basis": "AI推定",
+            "evidence_quote": "会計ソフトに手入力して",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "手入力に時間がかかる",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S7",
+            "name": "振込データを作成する",
+            "kind": "作業",
+            "actor": "総務部",
+            "description": "",
+            "system": "会計ソフト",
+            "manual": true,
+            "minutes_per_case": 2,
+            "time_basis": "AI推定",
+            "evidence_quote": "振込データを作成している",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S8",
+            "name": "領収書の原本を保管する",
+            "kind": "作業",
+            "actor": "総務部",
+            "description": "",
+            "system": "紙",
+            "manual": true,
+            "minutes_per_case": 1,
+            "time_basis": "AI推定",
+            "evidence_quote": "紙の領収書の原本は保管が必要です",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          }
+        ],
+        "as_is_edges": [
+          {
+            "source": "S1",
+            "target": "S2",
+            "label": ""
+          },
+          {
+            "source": "S2",
+            "target": "S3",
+            "label": ""
+          },
+          {
+            "source": "S3",
+            "target": "S4",
+            "label": ""
+          },
+          {
+            "source": "S4",
+            "target": "S5",
+            "label": "不備あり"
+          },
+          {
+            "source": "S5",
+            "target": "S1",
+            "label": "再提出"
+          },
+          {
+            "source": "S4",
+            "target": "S6",
+            "label": "不備なし"
+          },
+          {
+            "source": "S6",
+            "target": "S7",
+            "label": ""
+          },
+          {
+            "source": "S7",
+            "target": "S8",
+            "label": ""
+          }
+        ],
+        "questions": [
+          "差し戻した精算書は、どのように社員へ返し、再提出を受けていますか？",
+          "精算書1枚の確認と入力に、それぞれどれくらいの時間がかかりますか？"
+        ],
+        "to_be": [
+          {
+            "proposal_no": 1,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "紙の精算書に記入し、領収書を貼る",
+                "kind": "作業",
+                "actor": "社員",
+                "description": "社員側の作業",
+                "system": "紙の精算書",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "紙の精算書へ交通費を記入し、領収書を貼り",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S2",
+                "name": "上長が押印する",
+                "kind": "承認",
+                "actor": "上長",
+                "description": "",
+                "system": "紙の精算書",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": "上長の押印をもらって総務部に提出している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "押印漏れが多い",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "総務部が内容と金額を確認する",
+                "kind": "作業",
+                "actor": "総務部（2名）",
+                "description": "",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 8,
+                "time_basis": "AI推定",
+                "evidence_quote": "総務部の2名が内容と金額を確認し",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "運賃の計算間違いの確認に時間がかかる",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "提出前の確認で、明らかな記入漏れが減る想定"
+              },
+              {
+                "ref": "S4",
+                "name": "不備があるか",
+                "kind": "判断",
+                "actor": "総務部",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "記入漏れや計算間違いの差し戻しが多い",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "社員へ差し戻す",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "割合は「毎月20件くらい」÷約120件からの目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 15,
+                "time_basis": "AI推定",
+                "evidence_quote": "毎月20件くらいです",
+                "occurrence_rate": 8,
+                "wait_or_rework": "再提出待ち",
+                "problem": "差し戻しが多い",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "差し戻しが減る想定（割合は目安）"
+              },
+              {
+                "ref": "S6",
+                "name": "会計ソフトに手入力する",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "",
+                "system": "会計ソフト（パソコンにインストール）",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "会計ソフトに手入力して",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "手入力に時間がかかる",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "振込データを作成する",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "",
+                "system": "会計ソフト",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": "振込データを作成している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "領収書の原本を保管する",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "",
+                "system": "紙",
+                "manual": true,
+                "minutes_per_case": 1,
+                "time_basis": "AI推定",
+                "evidence_quote": "紙の領収書の原本は保管が必要です",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S9",
+                "name": "社員と上長がチェックリストで確認する",
+                "kind": "作業",
+                "actor": "社員・上長",
+                "description": "",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "提出前に記入漏れ・押印漏れを確認する"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": ""
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": "不備あり"
+              },
+              {
+                "source": "S5",
+                "target": "S1",
+                "label": "再提出"
+              },
+              {
+                "source": "S4",
+                "target": "S6",
+                "label": "不備なし"
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": ""
+              },
+              {
+                "source": "S7",
+                "target": "S8",
+                "label": ""
+              },
+              {
+                "source": "S1",
+                "target": "S9",
+                "label": ""
+              },
+              {
+                "source": "S9",
+                "target": "S2",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S2 上長の押印：承認の証跡として残す",
+              "S3 総務部の確認：チェックリストの導入後も最終確認として残す"
+            ]
+          },
+          {
+            "proposal_no": 2,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "紙の精算書に記入し、領収書を貼る",
+                "kind": "作業",
+                "actor": "社員",
+                "description": "社員側の作業",
+                "system": "表計算ソフトの精算書様式",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "紙の精算書へ交通費を記入し、領収書を貼り",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "様式に入力して印刷し、領収書を貼る"
+              },
+              {
+                "ref": "S2",
+                "name": "上長が押印する",
+                "kind": "承認",
+                "actor": "上長",
+                "description": "",
+                "system": "紙の精算書",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": "上長の押印をもらって総務部に提出している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "押印漏れが多い",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "総務部が内容と金額を確認する",
+                "kind": "作業",
+                "actor": "総務部（2名）",
+                "description": "",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 6,
+                "time_basis": "AI推定",
+                "evidence_quote": "総務部の2名が内容と金額を確認し",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "運賃の計算間違いの確認に時間がかかる",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "合計が自動計算されるため、金額の検算が減る"
+              },
+              {
+                "ref": "S4",
+                "name": "不備があるか",
+                "kind": "判断",
+                "actor": "総務部",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "記入漏れや計算間違いの差し戻しが多い",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "社員へ差し戻す",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "割合は「毎月20件くらい」÷約120件からの目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 15,
+                "time_basis": "AI推定",
+                "evidence_quote": "毎月20件くらいです",
+                "occurrence_rate": 10,
+                "wait_or_rework": "再提出待ち",
+                "problem": "差し戻しが多い",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "計算間違いによる差し戻しが減る想定（割合は目安）"
+              },
+              {
+                "ref": "S6",
+                "name": "会計ソフトに手入力する",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "",
+                "system": "会計ソフト（パソコンにインストール）",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "会計ソフトに手入力して",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "手入力に時間がかかる",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "振込データを作成する",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "",
+                "system": "会計ソフト",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": "振込データを作成している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "領収書の原本を保管する",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "",
+                "system": "紙",
+                "manual": true,
+                "minutes_per_case": 1,
+                "time_basis": "AI推定",
+                "evidence_quote": "紙の領収書の原本は保管が必要です",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": ""
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": ""
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": "不備あり"
+              },
+              {
+                "source": "S5",
+                "target": "S1",
+                "label": "再提出"
+              },
+              {
+                "source": "S4",
+                "target": "S6",
+                "label": "不備なし"
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": ""
+              },
+              {
+                "source": "S7",
+                "target": "S8",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S2 上長の押印：承認の証跡として残す",
+              "S8 領収書の原本の保管：社内規定のため残す"
+            ]
+          },
+          {
+            "proposal_no": 3,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "紙の精算書に記入し、領収書を貼る",
+                "kind": "作業",
+                "actor": "社員",
+                "description": "社員側の作業",
+                "system": "表計算ソフトの精算書様式",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "紙の精算書へ交通費を記入し、領収書を貼り",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "様式に入力する（ファイルを総務部にも渡す）"
+              },
+              {
+                "ref": "S2",
+                "name": "上長が押印する",
+                "kind": "承認",
+                "actor": "上長",
+                "description": "",
+                "system": "紙の精算書",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": "上長の押印をもらって総務部に提出している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "押印漏れが多い",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "総務部が内容と金額を確認する",
+                "kind": "作業",
+                "actor": "総務部（2名）",
+                "description": "",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "総務部の2名が内容と金額を確認し",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "運賃の計算間違いの確認に時間がかかる",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S4",
+                "name": "不備があるか",
+                "kind": "判断",
+                "actor": "総務部",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "記入漏れや計算間違いの差し戻しが多い",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "社員へ差し戻す",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "割合は「毎月20件くらい」÷約120件からの目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 15,
+                "time_basis": "AI推定",
+                "evidence_quote": "毎月20件くらいです",
+                "occurrence_rate": 17,
+                "wait_or_rework": "再提出待ち",
+                "problem": "差し戻しが多い",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S6",
+                "name": "会計ソフトに手入力する",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "",
+                "system": "取り込み用ファイル・会計ソフト",
+                "manual": true,
+                "minutes_per_case": 1,
+                "time_basis": "AI推定",
+                "evidence_quote": "会計ソフトに手入力して",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "手入力に時間がかかる",
+                "needs_confirmation": false,
+                "change": "自動化",
+                "change_note": "精算書のファイルから取り込み用ファイルを自動で作り、会計ソフトに取り込む"
+              },
+              {
+                "ref": "S7",
+                "name": "振込データを作成する",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "",
+                "system": "会計ソフト",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": "振込データを作成している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "領収書の原本を保管する",
+                "kind": "作業",
+                "actor": "総務部",
+                "description": "",
+                "system": "紙",
+                "manual": true,
+                "minutes_per_case": 1,
+                "time_basis": "AI推定",
+                "evidence_quote": "紙の領収書の原本は保管が必要です",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S9",
+                "name": "取り込み結果と精算書の合計を照合する",
+                "kind": "判断",
+                "actor": "総務部",
+                "description": "",
+                "system": "会計ソフト",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "手入力をなくす代わりに、取り込み結果を確認する"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": ""
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": ""
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": "不備あり"
+              },
+              {
+                "source": "S5",
+                "target": "S1",
+                "label": "再提出"
+              },
+              {
+                "source": "S4",
+                "target": "S6",
+                "label": "不備なし"
+              },
+              {
+                "source": "S7",
+                "target": "S8",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S9",
+                "label": ""
+              },
+              {
+                "source": "S9",
+                "target": "S7",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S9 照合：手入力をなくす代わりに、取り込み結果の確認を残す",
+              "S8 領収書の原本の保管：社内規定のため残す"
+            ]
           }
         ]
       }

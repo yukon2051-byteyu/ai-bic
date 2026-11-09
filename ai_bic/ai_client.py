@@ -16,10 +16,12 @@ from pydantic import BaseModel, ValidationError
 
 from ai_bic import config
 from ai_bic.errors import AIError
+from ai_bic.flow_ai import check_flow_result
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
     BusinessInfo,
+    FlowResult,
     Framework,
     HearingState,
     ProposalResult,
@@ -28,6 +30,7 @@ from ai_bic.models import (
 from ai_bic.output_check import check_analysis, check_proposals, check_question_result
 from ai_bic.prompt_builder import (
     build_analysis_input,
+    build_flow_input,
     build_proposal_input,
     build_question_input,
     load_system_prompt,
@@ -98,6 +101,21 @@ class ClaudeClient:
             user_input=build_proposal_input(info, state, analysis),
             output_format=ProposalResult,
             check=lambda r: check_proposals(r, analysis),
+        )
+
+    def make_flows(
+        self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposals: ProposalResult
+    ) -> FlowResult:
+        """業務フロー（As-Is と、改善案ごとの To-Be）を1回の呼び出しで作る（AI-BIC 2.0 機能B）。"""
+        return self._call_checked(
+            call_type="flow",
+            model=config.MODEL_FLOW,
+            effort=config.EFFORT_FLOW,
+            max_tokens=config.MAX_TOKENS_FLOW,
+            system_name="flow_system",
+            user_input=build_flow_input(info, state, analysis, proposals),
+            output_format=FlowResult,
+            check=lambda r: check_flow_result(r, len(proposals.proposals)),
         )
 
     # -----------------------------------------------------------

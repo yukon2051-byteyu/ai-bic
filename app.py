@@ -17,7 +17,7 @@ import streamlit as st
 from ai_bic import config, guard, report, ui
 from ai_bic.ai_client import ClaudeClient
 from ai_bic.project import new_project
-from ai_bic.views import simulator
+from ai_bic.views import flows, simulator
 from ai_bic.attachments import load_attachments
 from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
 from ai_bic.errors import AIError, is_retryable, user_message
@@ -30,7 +30,7 @@ from ai_bic.hearing import (
 )
 from ai_bic.validation import validate_answer, validate_business_info
 
-st.set_page_config(page_title="AI-BIC 業務改善診断", page_icon="📋", layout="centered")
+st.set_page_config(page_title="AI-BIC 業務改善診断", page_icon="📋", layout="wide")  # 幅は ui.CSS で抑え、結果画面だけ広げる
 
 FRAMEWORK = config.load_framework("general")
 ITEMS = {item.id: item for item in FRAMEWORK.hearing_items}
@@ -388,6 +388,8 @@ def render_report_download(data: bytes, name: str, key: str) -> None:
 
 def render_result() -> None:
     s = st.session_state
+    # 結果画面だけ横幅を広げる（業務フロー図を狭いカードに押し込まないため。指示書 7.2）
+    html("<style>.block-container { max-width: 1200px; }</style>")
     result = s.diagnosis
     analysis = result.analysis
     info = s.business_info
@@ -444,6 +446,8 @@ def render_result() -> None:
     else:
         for no, p in enumerate(result.proposals.proposals, start=1):
             html(ui.proposal_card(no, p))
+        # STEP 2〜4：業務フロー（現状と改善後）→ 改善効果の試算（指示書 6章の順）
+        flows.render(s.project, get_client)
         simulator.render(s.project)
 
     html(ui.footnote(ui.DISCLAIMER))

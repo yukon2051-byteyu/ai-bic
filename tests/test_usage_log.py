@@ -92,3 +92,47 @@ def test_何度初期化しても記録は消えない(db):
 def test_ありえない値はデータベースが拒否する(db, call_type, status, tokens):
     with pytest.raises(sqlite3.IntegrityError):
         record_call(db, "s1", call_type, "m", tokens, 0, status, None, at(1))
+
+
+# ---------------------------------------------------------------
+# 呼び出しの種類が増えたとき（AI-BIC 2.0：業務フロー・レビュー・再生成）
+# ---------------------------------------------------------------
+OLD_TABLE_SQL = """
+CREATE TABLE usage_log (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at    TEXT    NOT NULL,
+    session_id    TEXT    NOT NULL,
+    call_type     TEXT    NOT NULL CHECK (call_type IN ('question', 'analysis', 'proposal')),
+    model         TEXT    NOT NULL,
+    input_tokens  INTEGER NOT NULL DEFAULT 0 CHECK (input_tokens >= 0),
+    output_tokens INTEGER NOT NULL DEFAULT 0 CHECK (output_tokens >= 0),
+    status        TEXT    NOT NULL CHECK (status IN ('success', 'error')),
+    error_type    TEXT
+)
+"""
+
+
+@pytest.mark.parametrize("call_type", ["flow", "review", "revise"])
+def test_新しい種類の呼び出しも記録できる(tmp_path, call_type):
+    db = str(tmp_path / "u.db")
+    init_db(db)
+    record_call(db, "s1", call_type, "m", 10, 5, "success")
+    with closing(sqlite3.connect(db)) as conn:
+        assert conn.execute("SELECT call_type FROM usage_log").fetchone()[0] == call_type
+
+
+def test_古い制約の表は_記録を引き継いで作り直す(tmp_path):
+    """公開前に作られた usage.db でも、業務フローの呼び出しを記録できる（制約が古いままだとエラーになっていた）。"""
+    db = str(tmp_path / "old.db")
+    with closing(sqlite3.connect(db)) as conn, conn:
+        conn.execute(OLD_TABLE_SQL)
+        conn.execute("INSERT INTO usage_log (created_at, session_id, call_type, model, status)"
+                     " VALUES ('2026-11-01T10:00:00+09:00', 's0', 'analysis', 'm', 'success')")
+    init_db(db)
+    record_call(db, "s1", "flow", "m", 10, 5, "success")
+    with closing(sqlite3.connect(db)) as conn:
+        rows = conn.execute("SELECT session_id, call_type FROM usage_log ORDER BY id").fetchall()
+    assert rows == [("s0", "analysis"), ("s1", "flow")]
+    init_db(db)  # 2回目以降は作り直さない
+    with closing(sqlite3.connect(db)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM usage_log").fetchone()[0] == 2

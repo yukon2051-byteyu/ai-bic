@@ -171,6 +171,77 @@ def test_確認すべき点を知らせる():
     warnings = check_flow(flow)
     assert any("要確認の工程が1個" in w for w in warnings)
     assert any("作業時間が不明な工程が1個" in w for w in warnings)
-    # 循環しかないフロー
-    loop = Flow(steps=[step(1), step(2)], edges=edges((1, 2), (2, 1)), next_no=3)
-    assert any("最初の工程" in w for w in check_flow(loop))
+    # 差し戻しの循環は普通の形なので、注意しない
+    loop = Flow(steps=[step(1, 1), step(2, 1)], edges=edges((1, 2), (2, 1)), next_no=3)
+    assert check_flow(loop) == []
+    # 最初の工程からたどり着けない工程（S3→S4 が S1・S2 の流れから切れている。S4 は前の工程があるので出発点ではない）
+    cut = Flow(steps=[step(1, 1), step(2, 1), step(3, 1), step(4, 1)], edges=edges((1, 2), (3, 4), (4, 3)), next_no=5)
+    assert any("たどり着けない工程があります（S4）" in w or "（S3、S4）" in w for w in check_flow(cut))
+
+
+# ---------------------------------------------------------------
+# 図の描画（DOT）と画像の出力
+# ---------------------------------------------------------------
+from ai_bic.flow import compare_flows, render_image, to_dot  # noqa: E402
+
+
+def test_図には色だけでなく記号と文字で区分を書く():
+    flow = Flow(steps=[step(1, 10, problem="手作業が多い"), step(2, 5, needs_confirmation=True)],
+                edges=edges((1, 2)), next_no=3)
+    dot = to_dot(flow)
+    assert "【▲ 問題あり】" in dot and "【？ 要確認】" in dot
+    to_be = update_step(update_step(flow, "S1", change="自動化"), "S2", change="廃止")
+    dot = to_dot(to_be, to_be=True)
+    assert "【◆ 自動化】" in dot and "【× 廃止予定】" in dot and "dashed" in dot
+    assert "問題あり" not in dot  # 改善後は変化の種類で表示する
+
+
+def test_判断と承認の工程は形を変える():
+    flow = Flow(steps=[step(1, kind="判断"), step(2, kind="承認"), step(3)], next_no=4)
+    dot = to_dot(flow)
+    assert dot.count("shape=hexagon") == 2
+
+
+def test_利用者の入力で図の記述を壊せない():
+    """工程名に「"」や「\\」があっても、DOT の文字列の外に出ない。"""
+    flow = Flow(steps=[FlowStep(id="S1", name='確認" ]; S9 [label="x', actor=r"a\b")], next_no=2)
+    dot = to_dot(flow)
+    assert r'S1 [label="S1 確認\" ]; S9 [label=\"x' in dot  # 「"」は「\"」になり、文字列の中にとどまる
+    assert r"担当：a\\b" in dot  # 「\」は「\\」になる
+    assert [line for line in dot.splitlines() if line.startswith("  S")] == [dot.splitlines()[4]]  # 工程は S1 だけ
+    assert "\n  S9 " not in dot  # 名前の中の文字で、余計な工程（S9）が作られていない
+
+
+def test_接続の条件も図に出る():
+    flow = Flow(steps=[step(1), step(2)], edges=[FlowEdge(source="S1", target="S2", label="差異あり")], next_no=3)
+    assert 'S1 -> S2 [label="差異あり"]' in to_dot(flow)
+
+
+def test_Graphvizがない環境では画像を作らない(monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    assert render_image("digraph {}") is None
+
+
+def test_Graphvizがあれば画像を作る_失敗や時間切れはNone(monkeypatch):
+    import subprocess
+    from types import SimpleNamespace
+
+    monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/dot")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout=b"PNG"))
+    assert render_image("digraph {}") == b"PNG"
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=1, stdout=b""))
+    assert render_image("digraph {}") is None
+
+    def timeout(*a, **k):
+        raise subprocess.TimeoutExpired("dot", 1)
+
+    monkeypatch.setattr(subprocess, "run", timeout)
+    assert render_image("digraph {}") is None
+
+
+def test_比較では変化の種類ごとに工程を数え_時間を比べる():
+    as_is = linear()
+    to_be = update_step(update_step(linear(), "S2", change="廃止"), "S3", change="短縮", minutes_per_case=10)
+    d = compare_flows(as_is, to_be)
+    assert d.counts == {"廃止": 1, "短縮": 1}
+    assert d.as_is_minutes.minutes_per_case == 60 and d.to_be_minutes.minutes_per_case == 20

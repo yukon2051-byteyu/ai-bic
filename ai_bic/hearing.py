@@ -19,6 +19,7 @@ from ai_bic.models import (
     Attachment,
     BusinessInfo,
     DiagnosisResult,
+    FlowResult,
     Framework,
     HearingItem,
     HearingState,
@@ -59,6 +60,12 @@ class AIClient(Protocol):
     def propose(
         self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult
     ) -> ProposalResult: ...
+
+    def make_flows(
+        self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposals: ProposalResult
+    ) -> FlowResult:
+        """業務フロー（As-Is と改善案ごとの To-Be）。AI-BIC 2.0 機能B。"""
+        ...
 
 
 def start_hearing(framework: Framework) -> HearingState:

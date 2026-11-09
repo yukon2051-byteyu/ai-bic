@@ -24,6 +24,11 @@ ProposalCategory = Literal[
     "自動化",
     "新規システム導入",
 ]
+# 業務フロー（AI-BIC 2.0 機能B）。flow.py と、AIの出力の形（下の FlowResult）で共通に使う
+StepKind = Literal["作業", "判断", "承認"]
+# To-Be での変化（As-Is では「変更なし」）。指示書 4.3 の分類
+ChangeType = Literal["変更なし", "自動化", "変更", "短縮", "追加", "廃止"]
+TimeBasis = Literal["ヒアリング", "AI推定", "不明"]
 
 
 # ---------------------------------------------------------------
@@ -184,6 +189,56 @@ class ProposalResult(BaseModel):
 
     summary: DiagnosisSummary
     proposals: list[Proposal]
+
+
+# ---------------------------------------------------------------
+# AIの出力④：業務フロー（AI-BIC 2.0 機能B）
+# 画面で使う形（flow.Flow）には、flow_ai.py が確認・変換してから入れる
+# ---------------------------------------------------------------
+class AIFlowStep(BaseModel):
+    """AIが返す工程。"""
+
+    ref: str  # 工程の番号（S1, S2 …）。同じフローの中で重複しない
+    name: str
+    kind: StepKind
+    actor: str  # 担当者・担当部門（分からなければ空）
+    description: str
+    system: str  # 使用システム（分からなければ空）
+    manual: bool | None  # 手作業か（分からなければ null）
+    minutes_per_case: float | None  # 1件あたりの作業時間（分）。分からなければ null
+    time_basis: TimeBasis  # 作業時間の根拠
+    evidence_quote: str | None  # 工程や時間の根拠となる、利用者の発言の引用（そのまま）
+    occurrence_rate: float  # 全件のうち、この工程を行う割合（%）
+    wait_or_rework: str
+    problem: str  # 課題・ボトルネック（なければ空）
+    needs_confirmation: bool  # ヒアリングで確かめられていない工程
+
+
+class AIFlowEdge(BaseModel):
+    source: str
+    target: str
+    label: str  # 分岐の条件など（なければ空）
+
+
+class AIToBeStep(AIFlowStep):
+    change: ChangeType
+    change_note: str  # 改善内容（変更なしなら空）
+
+
+class AIToBeFlow(BaseModel):
+    proposal_no: int  # 改善案の番号（1から）
+    steps: list[AIToBeStep]
+    edges: list[AIFlowEdge]
+    kept_controls: list[str]  # 品質管理・内部統制のために残す工程と、その理由
+
+
+class FlowResult(BaseModel):
+    """業務フローのAIが返す内容。"""
+
+    as_is_steps: list[AIFlowStep]
+    as_is_edges: list[AIFlowEdge]
+    questions: list[str]  # 業務フローを確定するために、利用者に確認したいこと
+    to_be: list[AIToBeFlow]
 
 
 # ---------------------------------------------------------------

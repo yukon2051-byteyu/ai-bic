@@ -67,13 +67,17 @@ class Project(BaseModel):
     to_be: dict[str, Flow] = Field(default_factory=dict)  # 改善案ID（P1…）→ 改善後のフロー
     simulations: dict[str, SimulationInputs] = Field(default_factory=dict)  # 改善案ID → 試算の入力値
     scenarios: dict[str, list[Scenario]] = Field(default_factory=dict)  # 改善案ID → 3シナリオ
+    kept_controls: dict[str, list[str]] = Field(default_factory=dict)  # 改善案ID → 統制のために残した工程と理由
+    flow_questions: list[str] = Field(default_factory=list)  # 業務フローについてAIが確認したいこと
+    flow_notes: list[str] = Field(default_factory=list)  # 照合で格下げしたことなど（プログラムが記録）
+    ai_calls: dict[str, int] = Field(default_factory=dict)  # 種類（flow など）→ AIを呼んで成功した回数
     selected_proposal: str | None = None  # 確定した改善案（STEP 6）
     stamps: dict[str, Stamp] = Field(default_factory=dict)  # 結果のキー（例：simulation:P1）→ 版の記録
 
     @model_validator(mode="after")
     def _known_proposals(self) -> "Project":
         ids = set(proposal_ids(self))
-        for name in ("to_be", "simulations", "scenarios"):
+        for name in ("to_be", "simulations", "scenarios", "kept_controls"):
             unknown = set(getattr(self, name)) - ids
             if unknown:
                 raise ValueError(f"存在しない改善案のデータがあります（{name}：{'、'.join(sorted(unknown))}）")

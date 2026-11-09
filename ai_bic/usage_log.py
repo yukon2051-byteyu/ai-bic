@@ -14,12 +14,17 @@ from datetime import date, datetime
 
 from ai_bic.config import JST
 
-CREATE_TABLE_SQL = """
+# 記録するAI呼び出しの種類。増やすときはここに足す（古い表は init_db が作り直す）
+# flow：業務フロー、review：改善案のレビュー、revise：改善案の再生成（AI-BIC 2.0）
+CALL_TYPES = ("question", "analysis", "proposal", "flow", "review", "revise")
+_CALL_TYPES_SQL = ", ".join(f"'{t}'" for t in CALL_TYPES)
+
+CREATE_TABLE_SQL = f"""
 CREATE TABLE IF NOT EXISTS usage_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at    TEXT    NOT NULL,  -- 日本時間（例：2026-11-01T10:30:00+09:00）
     session_id    TEXT    NOT NULL,  -- 診断ごとのランダムなID（個人は特定しない）
-    call_type     TEXT    NOT NULL CHECK (call_type IN ('question', 'analysis', 'proposal')),
+    call_type     TEXT    NOT NULL CHECK (call_type IN ({_CALL_TYPES_SQL})),
     model         TEXT    NOT NULL,
     input_tokens  INTEGER NOT NULL DEFAULT 0 CHECK (input_tokens >= 0),
     output_tokens INTEGER NOT NULL DEFAULT 0 CHECK (output_tokens >= 0),
@@ -42,8 +47,22 @@ def _connect(db_path: str) -> sqlite3.Connection:
 
 
 def init_db(db_path: str) -> None:
-    """usage_log テーブルがなければ作る。何度呼んでもよい。"""
+    """usage_log テーブルがなければ作る。何度呼んでもよい。
+
+    呼び出しの種類が増える前に作られた表（CHECK 制約が古い）は、記録を引き継いで作り直す。
+    SQLite では既存の表の CHECK 制約を変更できないため。
+    """
     with closing(_connect(db_path)) as conn, conn:
+        row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'usage_log'").fetchone()
+        if row and any(f"'{t}'" not in row[0] for t in CALL_TYPES):
+            conn.execute("ALTER TABLE usage_log RENAME TO usage_log_old")
+            conn.execute(CREATE_TABLE_SQL)
+            conn.execute(
+                "INSERT INTO usage_log (id, created_at, session_id, call_type, model, input_tokens, output_tokens,"
+                " status, error_type) SELECT id, created_at, session_id, call_type, model, input_tokens,"
+                " output_tokens, status, error_type FROM usage_log_old"
+            )
+            conn.execute("DROP TABLE usage_log_old")
         conn.execute(CREATE_TABLE_SQL)
         conn.execute(CREATE_SLOT_TABLE_SQL)
 

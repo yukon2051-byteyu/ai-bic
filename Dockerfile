@@ -2,6 +2,12 @@
 # 手元の開発環境と同じ Python 3.15 を使う
 FROM python:3.15-slim
 
+# 業務フロー図を画像（PNG）にする Graphviz と、図の日本語を表示するフォント（AI-BIC 2.0 機能B）
+# 画面上の図はブラウザが描くため、これがなくても表示はできる（画像の出力だけが使えなくなる）
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends graphviz fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+
 # HF Spaces はユーザーID 1000 でアプリを動かすため、同じIDの利用者を作る
 # （利用記録 usage.db をアプリのフォルダに書き込めるようにするため）
 RUN useradd -m -u 1000 user

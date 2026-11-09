@@ -18,6 +18,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from ai_bic import simulation as sim
+from ai_bic.flow import Flow, compare_flows
 from ai_bic.models import BusinessInfo, DiagnosisResult, Framework, HearingState
 from ai_bic.project import Project, proposal_ids
 from ai_bic.ui import DISCLAIMER, EVIDENCE_TEXT, evidence_source, missing_item_text
@@ -211,6 +212,72 @@ def build_simulation_report(project: Project, created_at: datetime) -> bytes:
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
+
+
+# ---------------------------------------------------------------
+# 業務フロー（AI-BIC 2.0 機能B）：As-Is／To-Be の比較と工程一覧
+# ---------------------------------------------------------------
+def flow_file_name(created_at: datetime) -> str:
+    return f"AI-BIC_業務フロー_{created_at:%Y%m%d_%H%M}.xlsx"
+
+
+STEP_HEADERS = ["工程ID", "工程名", "種類", "担当", "作業内容", "使用システム", "手作業", "1件あたりの時間（分）",
+                "時間の出どころ", "実施割合（%）", "待ち・手戻り", "課題・ボトルネック", "要確認", "変化", "改善内容", "次の工程"]
+STEP_WIDTHS = [7, 28, 7, 16, 30, 18, 7, 12, 12, 10, 22, 30, 7, 9, 34, 22]
+
+
+def build_flow_report(project: Project, created_at: datetime) -> bytes:
+    """業務フローを Excel にする。比較サマリー・現状フロー・改善後フロー（改善案ごと）のシート。"""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "比較サマリー"
+    rows = []
+    for no, (pid, proposal) in enumerate(_proposals(project), start=1):
+        to_be = project.to_be.get(pid)
+        if project.as_is is None or to_be is None:
+            continue
+        d = compare_flows(project.as_is, to_be)
+        rows.append([
+            f"案{no}：{proposal.title}", len(project.as_is.steps), len(to_be.steps),
+            _num(d.as_is_minutes.minutes_per_case), _num(d.to_be_minutes.minutes_per_case),
+            "、".join(f"{k}{v}" for k, v in d.counts.items()) or "なし",
+            len(d.as_is_minutes.unknown_step_ids) + len(d.to_be_minutes.unknown_step_ids),
+            _bullets(project.kept_controls.get(pid, [])),
+        ])
+    _table(ws, ["改善案", "工程数（現状）", "工程数（改善後）", "1件あたりの時間（現状・分）", "1件あたりの時間（改善後・分）",
+                "変化した工程", "時間が不明な工程の数", "品質管理・内部統制のために残した工程"],
+           rows, [34, 10, 10, 14, 14, 26, 12, 50])
+    notes = [
+        f"作成日時：{created_at:%Y-%m-%d %H:%M}",
+        "1件あたりの時間は、工程ごとの「時間×実施割合」を1回ずつ足した値です（分岐や差し戻しで二重に数えない）。"
+        "時間が不明な工程は含みません。改善後は「廃止」の工程を含みません。",
+        "時間の出どころが「AI推定」の値は、AIの推定（参考値）です。",
+    ]
+    if project.mode == "demo":
+        notes.insert(0, "デモ：事前に作った架空のサンプルです（AIは使用していません）。")
+    for offset, text in enumerate(notes, start=len(rows) + 3):
+        _put(ws, offset, 1, text)
+    if project.as_is is not None:
+        _table(wb.create_sheet("現状フロー"), STEP_HEADERS, _step_rows(project.as_is), STEP_WIDTHS)
+    for no, pid in enumerate(proposal_ids(project), start=1):
+        if pid in project.to_be:
+            _table(wb.create_sheet(f"改善後フロー（案{no}）"), STEP_HEADERS, _step_rows(project.to_be[pid]), STEP_WIDTHS)
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+def _step_rows(flow: Flow) -> list[list]:
+    rows = []
+    for s in flow.steps:
+        nexts = [f"{e.target}（{e.label}）" if e.label else e.target for e in flow.edges if e.source == s.id]
+        manual = {True: "はい", False: "いいえ", None: "不明"}[s.manual]
+        rows.append([
+            s.id, s.name, s.kind, s.actor, s.description, s.system, manual, s.minutes_per_case,
+            s.minutes_source or "", s.occurrence_rate, s.wait_or_rework, s.problem,
+            "要確認" if s.needs_confirmation else "", s.change, s.change_note, "、".join(nexts),
+        ])
+    return rows
 
 
 def _proposals(project: Project):

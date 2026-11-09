@@ -186,3 +186,30 @@ def test_試算のExcelでもイコールで始まる改善案名は数式にし
         for row in ws.iter_rows():
             for c in row:
                 assert c.data_type != "f"
+
+
+# ---------------------------------------------------------------
+# 業務フロー（AI-BIC 2.0 機能B）
+# ---------------------------------------------------------------
+def flow_book(mode="demo"):
+    from ai_bic.demo_client import DemoClient
+    from ai_bic.flow_ai import generate_flows
+    from ai_bic.project import new_project
+    from ai_bic.report import build_flow_report
+
+    info, state, result = run_demo("sales_report")
+    project = new_project(mode, info, state, result, demo_scenario_id="sales_report" if mode == "demo" else None)
+    scenario = next(s for s in load_scenarios() if s["id"] == "sales_report")
+    generate_flows(DemoClient(scenario), project)
+    return load_workbook(BytesIO(build_flow_report(project, CREATED_AT)))
+
+
+def test_業務フローのExcelは比較サマリーと工程一覧を残す():
+    wb = flow_book()
+    assert wb.sheetnames == ["比較サマリー", "現状フロー", "改善後フロー（案1）", "改善後フロー（案2）", "改善後フロー（案3）"]
+    summary = sheet_text(wb["比較サマリー"])
+    assert "案3：" in summary and "廃止1" in summary and "二重に数えない" in summary
+    assert "デモ" in summary
+    as_is = sheet_text(wb["現状フロー"])
+    assert "商品ごとの売上を集計用ファイルに転記する" in as_is and "要確認" in as_is
+    assert "S8（数字が合わない）" in as_is  # 次の工程と分岐の条件（S7 部長の確認 → S8 原因調査）

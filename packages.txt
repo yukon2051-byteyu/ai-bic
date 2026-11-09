@@ -1,0 +1,2 @@
+graphviz
+fonts-noto-cjk

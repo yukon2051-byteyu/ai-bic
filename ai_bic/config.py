@@ -50,6 +50,11 @@ SCENARIO_FACTORS = {"悲観": (0.5, 1.5), "楽観": (1.5, 1.0)}
 
 # --- 業務フロー（AI-BIC 2.0 機能B） ---
 MAX_FLOW_STEPS = 30  # 1つのフローの工程数の上限（図が読めなくなるのと、AIの出力の暴走を防ぐ）
+MODEL_FLOW = "claude-opus-5-5"  # 課題分析・改善提案と同じモデル（工程の抽出と改善後の設計の品質が成果物の価値を決めるため）
+EFFORT_FLOW = "medium"
+MAX_TOKENS_FLOW = 16_000
+MAX_FLOW_CALLS = 1  # 1案件で業務フローをAIで作れる回数（決定事項：費用を抑える。結果は画面で修正できる）
+DOT_TIMEOUT_SECONDS = 20  # フロー図を画像にする Graphviz の待ち時間の上限
 MAX_STEP_TEXT = 60  # 工程名・担当者・システム名の文字数の上限
 MAX_STEP_NOTE = 200  # 作業内容・課題・改善内容などの文字数の上限
 

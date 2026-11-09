@@ -8,16 +8,11 @@
 """
 
 from dataclasses import dataclass
-from typing import Literal
-
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ai_bic import config
+from ai_bic.models import ChangeType, StepKind
 from ai_bic.simulation import ValueSource
-
-StepKind = Literal["作業", "判断", "承認"]
-# To-Be での変化（As-Is では「変更なし」）。指示書 4.3 の分類
-ChangeType = Literal["変更なし", "自動化", "変更", "短縮", "追加", "廃止"]
 
 
 class FlowStep(BaseModel):
@@ -202,9 +197,21 @@ def check_flow(flow: Flow) -> list[str]:
         for s in flow.steps:
             if s.id not in connected:
                 warnings.append(f"{s.id}「{s.name}」はどの工程ともつながっていません")
-    starts = [s.id for s in flow.steps if not any(e.target == s.id for e in flow.edges)]
-    if not starts:
-        warnings.append("最初の工程（前の工程がない工程）がありません。接続が循環だけになっていないか確認してください")
+    # 差し戻し（循環）があると、最初の工程にも前の工程ができる。そのため「前の工程がない工程」と
+    # 「一覧の先頭の工程」の両方を出発点とし、そこからたどり着けない工程だけを知らせる
+    starts = {s.id for s in flow.steps if not any(e.target == s.id for e in flow.edges)} | {flow.steps[0].id}
+    reached, queue = set(starts), list(starts)
+    while queue:
+        current = queue.pop()
+        for e in flow.edges:
+            if e.source == current and e.target not in reached:
+                reached.add(e.target)
+                queue.append(e.target)
+    unreachable = [s.id for s in flow.steps if s.id not in reached]
+    if unreachable:
+        warnings.append(
+            f"最初の工程からたどり着けない工程があります（{'、'.join(unreachable)}）。接続を確認してください"
+        )
     confirm = [s.id for s in flow.steps if s.needs_confirmation]
     if confirm:
         warnings.append(f"要確認の工程が{len(confirm)}個あります（{'、'.join(confirm)}）")
@@ -212,3 +219,114 @@ def check_flow(flow: Flow) -> list[str]:
     if unknown:
         warnings.append(f"作業時間が不明な工程が{len(unknown)}個あります（{'、'.join(unknown)}）。合計時間には含まれません")
     return warnings
+
+
+# ---------------------------------------------------------------
+# 図の描画（Graphviz の DOT 言語。図は保存データにせず、表示のたびに工程データから作る）
+# ---------------------------------------------------------------
+# 表示の区分 → (記号つきの文字ラベル, 塗り, 線)。色だけで区別しないよう、記号と文字も付ける（指示書 4.4）
+STYLE = {
+    "変更なし": ("", "#F1F3F4", "#9AA0A6"),
+    "問題": ("▲ 問題あり", "#FCE8E6", "#C5221F"),
+    "自動化": ("◆ 自動化", "#E8F0FE", "#1967D2"),
+    "変更": ("● 変更", "#E8F0FE", "#1967D2"),
+    "追加": ("＋ 追加", "#E8F0FE", "#1967D2"),
+    "短縮": ("▼ 短縮", "#E6F4EA", "#137333"),
+    "廃止": ("× 廃止予定", "#FFFFFF", "#9AA0A6"),
+}
+LEGEND = [
+    ("変更なし", "灰色"), ("問題", "赤"), ("自動化", "青"), ("変更", "青"), ("追加", "青"), ("短縮", "緑"), ("廃止", "破線"),
+]
+FONT = "Noto Sans CJK JP, Noto Sans JP, Yu Gothic, Meiryo, sans-serif"
+
+
+def display_class(step: FlowStep, to_be: bool) -> str:
+    """工程の表示の区分。改善後フローは変化の種類、現状フローは課題の有無で決める。"""
+    if to_be and step.change != "変更なし":
+        return step.change
+    return "問題" if step.problem.strip() else "変更なし"
+
+
+def _dot_text(text: str) -> str:
+    """DOT の文字列の中で特別な意味を持つ文字を無効にする（利用者の入力やAIの出力をそのまま図に入れるため）。"""
+    return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", " ")
+
+
+def step_label(step: FlowStep, to_be: bool) -> str:
+    lines = []
+    tag = STYLE[display_class(step, to_be)][0]
+    if tag:
+        lines.append(f"【{tag}】")
+    if step.needs_confirmation:
+        lines.append("【？ 要確認】")
+    kind = "" if step.kind == "作業" else f"〈{step.kind}〉"
+    lines.append(f"{step.id} {kind}{step.name}")
+    if step.actor:
+        lines.append(f"担当：{step.actor}")
+    if step.minutes_per_case is not None:
+        rate = "" if step.occurrence_rate == 100 else f"（{step.occurrence_rate:g}%の件）"
+        lines.append(f"{step.minutes_per_case:g}分{rate}")
+    return r"\n".join(_dot_text(line) for line in lines)  # DOT の改行は「\n」の2文字で書く
+
+
+def to_dot(flow: Flow, to_be: bool = False) -> str:
+    """工程データから DOT を作る。縦向き（上から下）にして、スマートフォンでも縦に読めるようにする。"""
+    out = [
+        "digraph flow {",
+        f'  graph [rankdir=TB, bgcolor="transparent", nodesep=0.35, ranksep=0.4, fontname="{FONT}"];',
+        f'  node [shape=box, style="rounded,filled", fontname="{FONT}", fontsize=11, penwidth=1.4, margin="0.15,0.08"];',
+        f'  edge [color="#80868B", fontname="{FONT}", fontsize=10, arrowsize=0.7, fontcolor="#5F6368"];',
+    ]
+    for s in flow.steps:
+        css = display_class(s, to_be)
+        _, fill, line = STYLE[css]
+        style = "rounded,filled,dashed" if css == "廃止" else "rounded,filled"
+        font = "#9AA0A6" if css == "廃止" else "#14161A"
+        shape = "hexagon" if s.kind in ("判断", "承認") else "box"
+        out.append(
+            f'  {s.id} [label="{step_label(s, to_be)}", shape={shape}, style="{style}", '
+            f'fillcolor="{fill}", color="{line}", fontcolor="{font}"];'
+        )
+    for e in flow.edges:
+        label = f' [label="{_dot_text(e.label)}"]' if e.label else ""
+        out.append(f"  {e.source} -> {e.target}{label};")
+    out.append("}")
+    return "\n".join(out)
+
+
+def render_image(dot: str, fmt: str = "png") -> bytes | None:
+    """DOT を画像にする。Graphviz（dot コマンド）がない環境や、失敗したときは None。
+
+    公開環境（Hugging Face Spaces）では Dockerfile で Graphviz と日本語フォントを入れている。
+    """
+    import shutil
+    import subprocess
+
+    command = shutil.which("dot")
+    if command is None or fmt not in ("png", "svg"):
+        return None
+    try:
+        done = subprocess.run(
+            [command, f"-T{fmt}", "-Gdpi=144"] if fmt == "png" else [command, f"-T{fmt}"],
+            input=dot.encode("utf-8"), capture_output=True, timeout=config.DOT_TIMEOUT_SECONDS, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return done.stdout if done.returncode == 0 and done.stdout else None
+
+
+@dataclass
+class Difference:
+    """現状と改善後の比較の要点（画面とExcelで共通）。"""
+
+    as_is_minutes: FlowTime
+    to_be_minutes: FlowTime
+    counts: dict[str, int]  # 変化の種類 → 工程数（変更なしを除く）
+
+
+def compare_flows(as_is: Flow, to_be: Flow) -> Difference:
+    counts: dict[str, int] = {}
+    for s in to_be.steps:
+        if s.change != "変更なし":
+            counts[s.change] = counts.get(s.change, 0) + 1
+    return Difference(time_per_case(as_is), time_per_case(to_be), counts)

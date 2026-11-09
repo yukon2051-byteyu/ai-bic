@@ -16,6 +16,7 @@ from ai_bic.models import (
     AnalysisResult,
     Attachment,
     BusinessInfo,
+    FlowResult,
     Framework,
     HearingState,
     ItemStatus,
@@ -93,6 +94,12 @@ class DemoClient:
         self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult
     ) -> ProposalResult:
         return ProposalResult.model_validate(self.scenario["proposals"])
+
+    def make_flows(
+        self, info: BusinessInfo, state: HearingState, analysis: AnalysisResult, proposals: ProposalResult
+    ) -> FlowResult:
+        """事前に作った業務フロー（AI-BIC 2.0 機能B）。本物と同じく、flow_ai.to_flows で発言と照合する。"""
+        return FlowResult.model_validate(self.scenario["flows"])
 
 
 def demo_answer(scenario: dict, turn_no: int) -> str:
