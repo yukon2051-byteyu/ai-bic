@@ -46,9 +46,10 @@ def result(proposals=1, steps=None, edges=None, to_be=None) -> FlowResult:
     edges = edges if edges is not None else [AIFlowEdge(source="S1", target="S2", label="")]
     if to_be is None:
         to_be = [AIToBeFlow(proposal_no=n, steps=[tb_step("S1"), tb_step("S2", change="自動化")],
-                            edges=[AIFlowEdge(source="S1", target="S2", label="")], kept_controls=[])
+                            edges=[AIFlowEdge(source="S1", target="S2", label="")], kept_controls=[], setup_tasks=[])
                  for n in range(1, proposals + 1)]
-    return FlowResult(as_is_steps=steps, as_is_edges=edges, questions=[], to_be=to_be)
+    return FlowResult(case_unit="営業所1か所分のファイル", cases_per_month=None, cases_basis="不明", cases_quote=None,
+                      as_is_steps=steps, as_is_edges=edges, questions=[], to_be=to_be)
 
 
 # --- 形の確認（違反があれば呼び直す） ---
@@ -213,3 +214,33 @@ def test_デモの業務フローは本物と同じ確認と照合を通る(scen
         # わざと入れた2つの例で、照合の仕組みが働く様子を見せる
         assert converted.as_is.step("S3").minutes_source == "AI推定"
         assert converted.as_is.step("S6").needs_confirmation
+
+
+# --- 「1件」の意味と月の件数（本物のAIの試験で見つかった問題への対応） ---
+def with_cases(cases, basis, quote, unit="営業所1か所分のファイル") -> FlowResult:
+    return result(1).model_copy(update={"cases_per_month": cases, "cases_basis": basis, "cases_quote": quote,
+                                        "case_unit": unit})
+
+
+def test_1件の意味が空なら違反():
+    assert any("1件" in p for p in check_flow_result(with_cases(None, "不明", None, unit=" "), 1))
+
+
+def test_件数がないのに根拠がヒアリングなら違反():
+    assert any("月の件数がない" in p for p in check_flow_result(with_cases(None, "ヒアリング", None), 1))
+
+
+def test_件数の根拠がヒアリングでも_数を述べた発言がなければAI推定に格下げする():
+    flows = to_flows(with_cases(800, "ヒアリング", "1日に40件ほど受けています"), INFO, STATE, ["P1"])
+    assert flows.cases_source == "AI推定"
+    flows = to_flows(with_cases(12, "ヒアリング", "合計で12時間くらいです"), INFO, STATE, ["P1"])
+    assert flows.cases_source == "ヒアリング" and flows.cases_per_month == 12
+
+
+def test_初回の準備作業は工程ではなく別に持つ():
+    r = result(1)
+    r.to_be[0].setup_tasks = ["集計手順書の作成：約8時間の目安"]
+    project = make_project(proposals=1)
+    generate_flows(Client(r), project)
+    assert project.setup_tasks["P1"] == ["集計手順書の作成：約8時間の目安"]
+    assert all("手順書" not in s.name for s in project.to_be["P1"].steps)

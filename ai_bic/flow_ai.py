@@ -34,6 +34,12 @@ def check_flow_result(result: FlowResult, proposal_count: int) -> list[str]:
         problems.append(f"改善後フローは改善案{proposal_count}つに1つずつ必要です（proposal_no：{numbers}）")
     for t in result.to_be:
         problems += _check_one(f"改善後フロー（案{t.proposal_no}）", t.steps, t.edges)
+    if not result.case_unit.strip():
+        problems.append("「1件」の意味（case_unit）が空です")
+    if result.cases_per_month is not None and result.cases_per_month < 0:
+        problems.append("月の件数が負の数です")
+    if result.cases_per_month is None and result.cases_basis != "不明":
+        problems.append(f"月の件数がないのに、根拠が「{result.cases_basis}」です")
     if len(result.questions) > MAX_QUESTIONS:
         problems.append(f"確認したいことは{MAX_QUESTIONS}つまでです")
     return problems
@@ -76,7 +82,11 @@ class ConvertedFlows:
     as_is: Flow
     to_be: dict[str, Flow]  # 改善案ID（P1…）→ フロー
     kept_controls: dict[str, list[str]]
+    setup_tasks: dict[str, list[str]]
     questions: list[str]
+    case_unit: str
+    cases_per_month: float | None
+    cases_source: str | None
     notes: list[str] = field(default_factory=list)  # 格下げなど、プログラムが直したこと（画面に表示する）
 
 
@@ -86,12 +96,25 @@ def to_flows(result: FlowResult, info: BusinessInfo, state: HearingState, propos
     texts += [turn.answer or "" for turn in state.turns]
     notes: list[str] = []
     as_is = _convert("現状", result.as_is_steps, result.as_is_edges, texts, notes, as_is=True)
-    to_be, kept = {}, {}
+    to_be, kept, setup = {}, {}, {}
     for t in sorted(result.to_be, key=lambda t: t.proposal_no):
         pid = proposal_ids[t.proposal_no - 1]
         to_be[pid] = _convert(f"案{t.proposal_no}", t.steps, t.edges, texts, notes, as_is=False)
         kept[pid] = t.kept_controls
-    return ConvertedFlows(as_is, to_be, kept, result.questions[:MAX_QUESTIONS], notes)
+        setup[pid] = t.setup_tasks
+    # 月の件数も、作業時間と同じく「ヒアリング」なら数を述べた発言を照合する
+    cases_source = {"ヒアリング": "ヒアリング", "AI推定": "AI推定", "不明": None}[result.cases_basis]
+    if result.cases_per_month is None:
+        cases_source = None
+    elif cases_source == "ヒアリング":
+        quote = result.cases_quote
+        if not (quote and _quote_found(quote, texts) and _numbers(quote)):
+            cases_source = "AI推定"
+            notes.append("AIは月の件数を「ヒアリング」としましたが、その数を述べた発言を確認できなかったため「AI推定」としています。")
+    return ConvertedFlows(
+        as_is, to_be, kept, setup, result.questions[:MAX_QUESTIONS],
+        result.case_unit.strip()[: config.MAX_STEP_TEXT], result.cases_per_month, cases_source, notes,
+    )
 
 
 def _convert(name, steps, edges, texts, notes, as_is: bool) -> Flow:
@@ -148,6 +171,10 @@ def generate_flows(client, project: Project) -> None:
     project.as_is = converted.as_is
     project.to_be = converted.to_be
     project.kept_controls = converted.kept_controls
+    project.setup_tasks = converted.setup_tasks
+    project.case_unit = converted.case_unit
+    project.cases_per_month = converted.cases_per_month
+    project.cases_source = converted.cases_source
     project.flow_questions = converted.questions
     project.flow_notes = converted.notes
     if project.mode == "ai":

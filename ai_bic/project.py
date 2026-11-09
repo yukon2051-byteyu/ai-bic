@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 from ai_bic import config
 from ai_bic.flow import Flow
 from ai_bic.models import BusinessInfo, DiagnosisResult, HearingState
-from ai_bic.simulation import Scenario, SimulationInputs
+from ai_bic.simulation import Scenario, SimulationInputs, ValueSource
 
 SCHEMA_VERSION = 1
 APP_NAME = "AI-BIC"
@@ -68,6 +68,10 @@ class Project(BaseModel):
     simulations: dict[str, SimulationInputs] = Field(default_factory=dict)  # 改善案ID → 試算の入力値
     scenarios: dict[str, list[Scenario]] = Field(default_factory=dict)  # 改善案ID → 3シナリオ
     kept_controls: dict[str, list[str]] = Field(default_factory=dict)  # 改善案ID → 統制のために残した工程と理由
+    setup_tasks: dict[str, list[str]] = Field(default_factory=dict)  # 改善案ID → 初回だけの準備作業（初期費用の参考）
+    case_unit: str = ""  # 業務フローの「1件」の意味（例：精算書1枚）。工程の時間は1件あたり
+    cases_per_month: float | None = None  # 業務フローから分かる月の件数
+    cases_source: ValueSource | None = None  # 月の件数の出どころ
     flow_questions: list[str] = Field(default_factory=list)  # 業務フローについてAIが確認したいこと
     flow_notes: list[str] = Field(default_factory=list)  # 照合で格下げしたことなど（プログラムが記録）
     ai_calls: dict[str, int] = Field(default_factory=dict)  # 種類（flow など）→ AIを呼んで成功した回数
@@ -77,7 +81,7 @@ class Project(BaseModel):
     @model_validator(mode="after")
     def _known_proposals(self) -> "Project":
         ids = set(proposal_ids(self))
-        for name in ("to_be", "simulations", "scenarios", "kept_controls"):
+        for name in ("to_be", "simulations", "scenarios", "kept_controls", "setup_tasks"):
             unknown = set(getattr(self, name)) - ids
             if unknown:
                 raise ValueError(f"存在しない改善案のデータがあります（{name}：{'、'.join(sorted(unknown))}）")

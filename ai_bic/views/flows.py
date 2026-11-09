@@ -89,6 +89,10 @@ def render(project: Project, get_client) -> None:
 
     # 1. 結論
     _render_summary(project.as_is, to_be)
+    if project.case_unit:
+        cases = (f"、月{project.cases_per_month:g}件（{project.cases_source}）"
+                 if project.cases_per_month is not None else "、月の件数は不明")
+        html(ui.footnote(f"工程の時間は「1件＝{project.case_unit}」あたりです{cases}。"))
     # 2. 要点
     if view == VIEWS[0]:
         _render_chart(project.as_is, to_be=False)
@@ -105,6 +109,9 @@ def render(project: Project, get_client) -> None:
     _render_legend()
     if kept := project.kept_controls.get(pid):
         html(ui.footnote("品質管理・内部統制のために残した工程：" + "／".join(kept)))
+    if setup := project.setup_tasks.get(pid):
+        html(ui.footnote("初回だけの準備作業（毎回の時間には含めていません。効果試算の「その他の初期費用」の参考）："
+                         + "／".join(setup)))
 
     # 3. 根拠
     _render_detail(project, pid, view, to_be)
@@ -406,8 +413,13 @@ def _render_simulation_link(project: Project, pid: str, title: str) -> None:
         return
     rate = round(max(0.0, min(100.0, (1 - after / before) * 100)), 1)
     st.markdown("**効果試算への反映**")
-    text = (f"{title}の試算の「1件あたりの作業時間」を{before:,.1f}分、「想定削減率」を{rate:g}%"
+    cases = (f"「月間処理件数」を{project.cases_per_month:g}件、" if project.cases_per_month is not None else "")
+    text = (f"{title}の試算の「1件あたりの作業時間」を{before:,.1f}分、{cases}「想定削減率」を{rate:g}%"
             f"（{before:,.1f}分 → {after:,.1f}分）にします。今の値は上書きされます（足し合わせません）。")
+    if project.case_unit:
+        text += f"1件＝{project.case_unit}として数えています。"
+    if project.cases_per_month is None:
+        text += "月の件数は業務フローから分からないため変えません。試算の件数が同じ「1件」の数え方か確かめてください。"
     if d.as_is_minutes.unknown_step_ids or d.to_be_minutes.unknown_step_ids:
         text += "時間が不明な工程は含まれていないため、実際より少なく見積もっている可能性があります。"
     st.caption(text)
@@ -427,9 +439,12 @@ def _apply_to_simulation(project: Project, pid: str, minutes: float, rate: float
     minutes_source = _source_of(project.as_is)
     rate_source = "AI推定" if _source_of(project.as_is, project.to_be[pid]) == "AI推定" else "ユーザー入力"
     sources = {**current.sources, "minutes_per_case": minutes_source, "reduction_rate": rate_source}
-    project.simulations[pid] = current.model_copy(
-        update={"minutes_per_case": round(minutes, 1), "reduction_rate": rate, "sources": sources}
-    )
+    update = {"minutes_per_case": round(minutes, 1), "reduction_rate": rate}
+    if project.cases_per_month is not None:  # 時間と件数の「1件」の意味をそろえる（片方だけ変えると効果が膨らむ）
+        update["cases_per_month"] = project.cases_per_month
+        sources["cases_per_month"] = project.cases_source or "AI推定"
+        st.session_state[f"sim_{pid}_cases_per_month"] = project.cases_per_month
+    project.simulations[pid] = current.model_copy(update={**update, "sources": sources})
     pj.mark_updated(project, "simulation", pid)
     # 試算の入力欄にも反映する（入力欄は自分の値を覚えているため）
     st.session_state[f"sim_{pid}_minutes_per_case"] = round(minutes, 1)

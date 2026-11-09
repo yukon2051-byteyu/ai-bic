@@ -230,11 +230,18 @@ class AIToBeFlow(BaseModel):
     steps: list[AIToBeStep]
     edges: list[AIFlowEdge]
     kept_controls: list[str]  # 品質管理・内部統制のために残す工程と、その理由
+    # 初回だけの準備作業（手順書やひな形の作成など）。毎回の工程には入れない（試算の初期費用の参考）
+    setup_tasks: list[str]
 
 
 class FlowResult(BaseModel):
     """業務フローのAIが返す内容。"""
 
+    # 「1件」の意味と月の件数。工程の時間は「1件あたり」なので、試算の件数と意味をそろえるために必要
+    case_unit: str  # 例：「営業所1か所分のファイル」「修理依頼1件」
+    cases_per_month: float | None  # 月に何件か。分からなければ null
+    cases_basis: TimeBasis  # 件数の根拠
+    cases_quote: str | None  # 件数の根拠となる、利用者の発言の引用（そのまま）
     as_is_steps: list[AIFlowStep]
     as_is_edges: list[AIFlowEdge]
     questions: list[str]  # 業務フローを確定するために、利用者に確認したいこと

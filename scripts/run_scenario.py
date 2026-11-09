@@ -29,7 +29,10 @@ from ai_bic.ai_client import ClaudeClient  # noqa: E402
 from ai_bic.demo_client import demo_attachments, load_scenarios  # noqa: E402
 from ai_bic.errors import AIError  # noqa: E402
 from ai_bic.hearing import add_answer, request_next_question, run_diagnosis, start_hearing  # noqa: E402
-from ai_bic.models import BusinessInfo  # noqa: E402
+from ai_bic.flow import time_per_case  # noqa: E402
+from ai_bic.flow_ai import generate_flows  # noqa: E402
+from ai_bic.models import BusinessInfo, DiagnosisResult, HearingState  # noqa: E402
+from ai_bic.project import new_project  # noqa: E402
 
 OUTPUT_DIR = config.BASE_DIR / "eval_results"
 
@@ -78,10 +81,35 @@ def usage_summary(db_path: str, session_id: str) -> list[dict]:
     return result
 
 
+def print_flows(project) -> None:
+    """業務フローの中身を、確認しやすい形で表示する。"""
+    def show(name, flow):
+        t = time_per_case(flow)
+        print(f"\n  [{name}] 工程{len(flow.steps)}個・1件あたり{t.minutes_per_case:.1f}分（時間不明 {len(t.unknown_step_ids)}個）")
+        for s in flow.steps:
+            minutes = f"{s.minutes_per_case:g}分（{s.minutes_source}）" if s.minutes_per_case is not None else "時間不明"
+            flags = "".join(f"【{x}】" for x, on in [("要確認", s.needs_confirmation), ("問題", bool(s.problem))] if on)
+            change = "" if s.change == "変更なし" else f"［{s.change}：{s.change_note}］"
+            print(f"    {s.id} {flags}{s.name}／{s.actor or '担当不明'}／{minutes}・{s.occurrence_rate:g}%{change}")
+        print("    接続：" + "、".join(f"{e.source}→{e.target}" + (f"({e.label})" if e.label else "") for e in flow.edges))
+
+    show("現状", project.as_is)
+    for pid, flow in project.to_be.items():
+        show(f"改善後 {pid}", flow)
+        for kept in project.kept_controls.get(pid, []):
+            print(f"    残した統制：{kept}")
+    print("\n  確認したいこと：" + " ／ ".join(project.flow_questions))
+    for note in project.flow_notes:
+        print(f"  照合：{note}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("scenario_id", help="シナリオのID（例：sales_report）")
     parser.add_argument("--no-attachments", action="store_true", help="添付ファイルを使わない")
+    parser.add_argument("--flows", action="store_true", help="診断のあとに業務フロー（AI-BIC 2.0 機能B）も作る")
+    parser.add_argument("--reuse", metavar="JSON",
+                        help="保存した結果のヒアリングと診断を再利用し、業務フローだけを作る（費用を抑える）")
     args = parser.parse_args()
 
     scenarios = {s["id"]: s for s in load_scenarios()}
@@ -97,7 +125,7 @@ def main() -> int:
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     stamp = datetime.now(config.JST).strftime("%Y%m%d_%H%M%S")
-    suffix = "_noattach" if args.no_attachments else ""
+    suffix = ("_noattach" if args.no_attachments else "") + ("_flows" if args.flows or args.reuse else "")
     db_path = str(OUTPUT_DIR / "eval_usage.db")
     session_id = uuid.uuid4().hex
 
@@ -110,24 +138,32 @@ def main() -> int:
 
     print(f"■ シナリオ：{scenario['title']}（添付：{len(attachments)}件）\n")
     started = time.perf_counter()
-    try:
-        while True:
-            t0 = time.perf_counter()
-            turn = request_next_question(client, info, state, framework)
-            if turn is None:
-                break
-            answer = respondent.answer(turn.item_id)
-            add_answer(state, answer)
-            print(f"Q{turn.turn_no} [{turn.item_id}]（{time.perf_counter() - t0:.1f}秒）{turn.question}")
-            print(f"A{turn.turn_no} {answer}\n")
-        print(f"→ {state.finished_reason}\n")
+    if args.reuse:
+        # 保存した結果のヒアリングと診断を使い、AIは業務フローだけ呼ぶ（指示文を直したあとの確認の費用を抑える）
+        saved = json.loads(Path(args.reuse).read_text(encoding="utf-8"))
+        state = HearingState.model_validate(saved["hearing"])
+        result = DiagnosisResult.model_validate(saved["diagnosis"])
+        args.flows = True
+        print(f"→ {args.reuse} のヒアリングと診断を再利用します（AIは業務フローだけ呼びます）\n")
+    else:
+        try:
+            while True:
+                t0 = time.perf_counter()
+                turn = request_next_question(client, info, state, framework)
+                if turn is None:
+                    break
+                answer = respondent.answer(turn.item_id)
+                add_answer(state, answer)
+                print(f"Q{turn.turn_no} [{turn.item_id}]（{time.perf_counter() - t0:.1f}秒）{turn.question}")
+                print(f"A{turn.turn_no} {answer}\n")
+            print(f"→ {state.finished_reason}\n")
 
-        t0 = time.perf_counter()
-        result = run_diagnosis(client, info, state, framework, attachments)
-        print(f"■ 診断（分析＋提案：{time.perf_counter() - t0:.1f}秒）\n")
-    except AIError as e:
-        print(f"AIエラー：{e.kind}（{e.detail}）")
-        result = None
+            t0 = time.perf_counter()
+            result = run_diagnosis(client, info, state, framework, attachments)
+            print(f"■ 診断（分析＋提案：{time.perf_counter() - t0:.1f}秒）\n")
+        except AIError as e:
+            print(f"AIエラー：{e.kind}（{e.detail}）")
+            result = None
 
     for issue in result.analysis.issues if result else []:
         mark = "（格下げ）" if issue.issue_id in result.downgraded else ""
@@ -148,6 +184,17 @@ def main() -> int:
             for step in p.first_steps:
                 print(f"  □ {step}")
 
+    project = None
+    if args.flows and result and result.proposals:
+        project = new_project("ai", info, state, result)
+        t0 = time.perf_counter()
+        try:
+            generate_flows(client, project)
+            print(f"\n■ 業務フロー（{time.perf_counter() - t0:.1f}秒）")
+            print_flows(project)
+        except AIError as e:
+            print(f"\n業務フローのAIエラー：{e.kind}（{e.detail}）")
+
     usage = usage_summary(db_path, session_id)
     total = sum(u["dollars"] for u in usage)
     print("\n■ 利用状況（実測）")
@@ -167,6 +214,9 @@ def main() -> int:
                            "proposal": config.MODEL_PROPOSAL},
                 "hearing": state.model_dump(),
                 "diagnosis": result.model_dump() if result else None,
+                "flows": project.model_dump(
+                    mode="json", include={"as_is", "to_be", "kept_controls", "flow_questions", "flow_notes"}
+                ) if project and project.as_is else None,
                 "usage": usage,
                 "total_dollars": round(total, 5),
             },

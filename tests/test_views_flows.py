@@ -123,8 +123,19 @@ def test_フローの時間を試算に反映すると_上書きされ_出どこ
     s = project.simulations["P2"]
     assert s.minutes_per_case == 185 and s.reduction_rate == 33  # 足し合わせず上書き
     assert s.source_of("minutes_per_case") == "AI推定"  # 工程の時間に AI推定 が含まれる
-    assert s.cases_per_month == 5  # 件数は変えない
-    assert st.session_state["sim_P2_minutes_per_case"] == 185
+    assert s.cases_per_month == 5  # フローの「1件」の数にそろえる
+    # このテストの業務情報には根拠の発言がないため、照合で「AI推定」になっている。その出どころを引き継ぐ
+    assert s.source_of("cases_per_month") == project.cases_source == "AI推定"
+    assert st.session_state["sim_P2_minutes_per_case"] == 185 and st.session_state["sim_P2_cases_per_month"] == 5
+
+
+def test_フローから月の件数が分からなければ_件数は変えない():
+    project = demo_project()
+    simulator.ensure_inputs(project)
+    project.cases_per_month, project.cases_source = None, None
+    project.simulations["P1"] = project.simulations["P1"].model_copy(update={"cases_per_month": 7})
+    view._apply_to_simulation(project, "P1", 100.0, 10.0)
+    assert project.simulations["P1"].cases_per_month == 7
 
 
 # ---------------------------------------------------------------
