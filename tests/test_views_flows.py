@@ -12,6 +12,8 @@ from streamlit.testing.v1 import AppTest
 from ai_bic import project as pj
 from ai_bic.demo_client import DemoClient, load_scenarios
 from ai_bic.flow_ai import generate_flows
+from ai_bic import flow as fl
+from ai_bic.views import flow_canvas
 from ai_bic.views import flows as view
 from ai_bic.views import simulator
 from tests.test_app import new_app, result_screen  # noqa: F401
@@ -152,7 +154,7 @@ def test_デモではAIを使わずにサンプルの業務フローを表示で
     at = result_screen(secrets)
     assert "サンプルの業務フローを表示する" in [b.label for b in at.button]
     at = flow_screen(secrets)
-    assert len(at.get("graphviz_chart")) == 1
+    assert len(at.get("iframe")) == 1  # 図の表示部品（flow_canvas.py）
     texts = [m.label for m in at.metric]
     assert "1件あたりの時間（現状）" in texts and "1件あたりの時間（改善後）" in texts
     assert at.session_state.project.ai_calls == {}  # デモはAIを使わない
@@ -161,7 +163,7 @@ def test_デモではAIを使わずにサンプルの業務フローを表示で
 def test_左右に並べて比較できる(secrets):  # noqa: F811
     at = flow_screen(secrets)
     at.radio(key="flow_view").set_value("左右に並べて比較").run()
-    assert len(at.get("graphviz_chart")) == 2
+    assert len(at.get("iframe")) == 1  # 2つの図を1つの部品の中に、同じ縮尺で並べる
     at.selectbox(key="flow_pid").set_value("P3").run()
     assert not at.exception
 
@@ -174,11 +176,35 @@ def test_照合で直したことと_確認したいことを表示する(secret
     assert "「要確認」としています" in text  # S6 の根拠なし
 
 
-def test_工程を選ぶと詳細を表示する(secrets):  # noqa: F811
-    at = flow_screen(secrets)
-    at.selectbox(key="flow_detail").set_value(("as_is", "S8")).run()
-    text = "\n".join(m.value for m in at.markdown)
-    assert "原因調査に時間がかかる" in text and "180分（ヒアリング）" in text
+def test_工程をクリックしたときの詳細は_全文と改善内容を含む():
+    """図の工程をクリックすると表示する内容（指示書：選択時に全文を確認できる）。"""
+    project = demo_project()
+    as_is = dict(flow_canvas.step_details(project.as_is.step("S8"), to_be=False))
+    assert as_is["工程"] == "S8 数字が合わない原因を調べて直す"
+    # このテストの業務情報には「3時間ほど」の発言がないため、照合で「AI推定」になっている
+    assert as_is["作業時間"] == "180分（AI推定）" and "原因調査" in as_is["課題"]
+    assert "改善内容" not in as_is
+    to_be = dict(flow_canvas.step_details(project.to_be["P3"].step("S4"), to_be=True))
+    assert to_be["変化"] == "廃止" and "検算が不要" in to_be["改善内容"]
+    assert "確認事項" in dict(flow_canvas.step_details(project.as_is.step("S6"), to_be=False))  # 要確認の工程
+
+
+def test_図の部品は_比較で2つの図と詳細を持ち_データで画面を壊せない():
+    project = demo_project()
+    project.as_is = fl.update_step(project.as_is, "S1", name="</script><script>alert(1)</script>")
+    panes = [flow_canvas.pane("現状", project.as_is, False), flow_canvas.pane("改善後", project.to_be["P1"], True)]
+    html = flow_canvas.build_html(panes, 600)
+    assert html.count("</script>") == 3  # データ用・部品の読み込み・処理の3つだけ（工程名の「</script>」は無効化）
+    assert "<\\/script><script>alert(1)" in html
+    assert "@viz-js/viz@3.29.0" in html  # 版を固定
+    assert "textContent" in html and "innerHTML" not in html  # 画面に出す文字は HTML として解釈させない
+
+
+def test_図の部品の高さは工程数に応じ_上限で止める():
+    project = demo_project()
+    assert 460 <= flow_canvas.height_for(project.as_is) <= 860
+    many = fl.Flow(steps=[fl.FlowStep(id=f"S{i}", name="工程") for i in range(1, 31)])
+    assert flow_canvas.height_for(many) == 860
 
 
 def test_現状を変えたら_改善後フローの確認を求め_確認すれば消える(secrets):  # noqa: F811

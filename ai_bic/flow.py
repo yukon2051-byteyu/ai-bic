@@ -224,20 +224,36 @@ def check_flow(flow: Flow) -> list[str]:
 # ---------------------------------------------------------------
 # 図の描画（Graphviz の DOT 言語。図は保存データにせず、表示のたびに工程データから作る）
 # ---------------------------------------------------------------
-# 表示の区分 → (記号つきの文字ラベル, 塗り, 線)。色だけで区別しないよう、記号と文字も付ける（指示書 4.4）
+# 表示の区分 → (バッジの文字, 塗り, 線)。色だけで区別しないよう、バッジの文字も付ける（指示書 4.4）
 STYLE = {
-    "変更なし": ("", "#F1F3F4", "#9AA0A6"),
-    "問題": ("▲ 問題あり", "#FCE8E6", "#C5221F"),
-    "自動化": ("◆ 自動化", "#E8F0FE", "#1967D2"),
-    "変更": ("● 変更", "#E8F0FE", "#1967D2"),
-    "追加": ("＋ 追加", "#E8F0FE", "#1967D2"),
-    "短縮": ("▼ 短縮", "#E6F4EA", "#137333"),
-    "廃止": ("× 廃止予定", "#FFFFFF", "#9AA0A6"),
+    "変更なし": ("", "#F8F9FA", "#9AA0A6"),
+    "問題": ("問題あり", "#FCE8E6", "#C5221F"),
+    "自動化": ("自動化", "#E8F0FE", "#1967D2"),
+    "変更": ("変更", "#E8F0FE", "#1967D2"),
+    "追加": ("追加", "#E8F0FE", "#1967D2"),
+    "短縮": ("短縮", "#E6F4EA", "#137333"),
+    "廃止": ("廃止予定", "#FFFFFF", "#9AA0A6"),
 }
 LEGEND = [
     ("変更なし", "灰色"), ("問題", "赤"), ("自動化", "青"), ("変更", "青"), ("追加", "青"), ("短縮", "緑"), ("廃止", "破線"),
 ]
+# バッジの色（濃い地に白い文字。区分の線の色と同じ）。要確認と、判断・承認の種類にもバッジを付ける
+BADGE_CONFIRM = ("要確認", "#B06000")
+BADGE_KIND = "#5F6368"
 FONT = "Noto Sans CJK JP, Noto Sans JP, Yu Gothic, Meiryo, sans-serif"
+
+# 工程の箱の大きさ（指示書：横幅220〜280px・高さ60〜90px・工程名14〜15px・補助情報11〜12px・縦の間隔24〜40px）
+# Graphviz の1インチは図の上で72px。幅3.3インチ＝約238px、縦の間隔0.4インチ＝約29px
+NODE_WIDTH_IN = 3.3
+NODE_MIN_HEIGHT_IN = 0.85  # 約61px
+RANK_SEP_IN = 0.4
+NODE_SEP_IN = 0.3
+NAME_PT, SUB_PT, BADGE_PT = 14, 11, 9
+# 工程名の1行の文字数（全角）。2行を超える分は「…」で省略し、選んだときに全文を表示する。
+# Graphviz は日本語の文字幅を実際より狭く見積もるため、15文字では箱からはみ出した（実際に描いて確認）。13文字にする
+NAME_LINE_CHARS = 13
+SUB_CHARS = 18
+EDGE_LABEL_CHARS = 8  # 分岐の条件の文字数。長いと図の端で切れるため（実際に描いて確認）
 
 
 def display_class(step: FlowStep, to_be: bool) -> str:
@@ -252,44 +268,144 @@ def _dot_text(text: str) -> str:
     return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", " ")
 
 
-def step_label(step: FlowStep, to_be: bool) -> str:
-    lines = []
-    tag = STYLE[display_class(step, to_be)][0]
-    if tag:
-        lines.append(f"【{tag}】")
+def _html(text: str) -> str:
+    """HTML形式のラベルの中で特別な意味を持つ文字を無効にする（図の記述を壊されないため）。"""
+    text = " ".join(text.split())
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def _width(ch: str) -> float:
+    """文字の幅（全角を1とした目安）。半角の英数字は約半分。"""
+    return 0.55 if ord(ch) < 0x2E80 else 1.0
+
+
+def clip_lines(text: str, per_line: float, lines: int) -> list[str]:
+    """文字を、1行の幅（全角の文字数）で折り返し、最大 lines 行にする。超える分は最後の行を「…」で省略する。"""
+    text = " ".join(text.split())
+    result, current, width = [], "", 0.0
+    for ch in text:
+        w = _width(ch)
+        if width + w > per_line:
+            result.append(current)
+            current, width = "", 0.0
+            if len(result) == lines:
+                break
+        current += ch
+        width += w
+    else:
+        if current:
+            result.append(current)
+        return result
+    last = result[-1]
+    while sum(_width(c) for c in last) + 1 > per_line and last:
+        last = last[:-1]
+    result[-1] = last + "…"
+    return result
+
+
+def _badge(text: str, color: str) -> str:
+    # Graphviz は日本語の文字幅を狭く見積もるため、前後に余白を足して文字が欠けないようにする（実際に描いて確認）
+    pad = "&#160;" * 2
+    return f'<td bgcolor="{color}"><font point-size="{BADGE_PT}" color="#FFFFFF">{pad}{_html(text)}{pad}</font></td>'
+
+
+def step_badges(step: FlowStep, to_be: bool) -> list[tuple[str, str]]:
+    """工程の状態のバッジ（文字, 色）。"""
+    badges = []
+    css = display_class(step, to_be)
+    tag, _, line = STYLE[css]
+    if tag:  # 改善後フローでは変化の種類を表示する（課題は、選んだときの詳細で確認できる）
+        badges.append((tag, line))
     if step.needs_confirmation:
-        lines.append("【？ 要確認】")
-    kind = "" if step.kind == "作業" else f"〈{step.kind}〉"
-    lines.append(f"{step.id} {kind}{step.name}")
+        badges.append(BADGE_CONFIRM)
+    if step.kind != "作業":
+        badges.append((step.kind, BADGE_KIND))
+    return badges
+
+
+def step_label(step: FlowStep, to_be: bool) -> str:
+    """工程の箱の中身（HTML形式のラベル）。工程ID・工程名・担当・作業時間・状態のバッジだけを表示する。"""
+    rows = []
+    badges = step_badges(step, to_be)
+    if badges:
+        # 空のセルで余った幅を吸収する。ないとバッジが1つのとき横長の帯になる（実際に描いて確認）
+        cells = "".join(_badge(text, color) for text, color in badges) + "<td> </td>" * 3
+        # 内側の表を左寄せにしないと、バッジが横長の帯になる（実際に描いて確認）
+        rows.append(f'<tr><td align="left"><table border="0" cellspacing="2" cellpadding="1" align="left">'
+                    f'<tr>{cells}</tr></table></td></tr>')
+    name = clip_lines(f"{step.id} {step.name}", NAME_LINE_CHARS, 2)
+    color = "#9AA0A6" if display_class(step, to_be) == "廃止" else "#14161A"
+    name_html = "<br/>".join(_html(line) for line in name)
+    rows.append(f'<tr><td align="left" balign="left"><font point-size="{NAME_PT}" color="{color}">{name_html}</font></td></tr>')
+    sub = []
     if step.actor:
-        lines.append(f"担当：{step.actor}")
+        sub.append(clip_lines(step.actor, 11, 1)[0])
     if step.minutes_per_case is not None:
-        rate = "" if step.occurrence_rate == 100 else f"（{step.occurrence_rate:g}%の件）"
-        lines.append(f"{step.minutes_per_case:g}分{rate}")
-    return r"\n".join(_dot_text(line) for line in lines)  # DOT の改行は「\n」の2文字で書く
+        rate = "" if step.occurrence_rate == 100 else f"×{step.occurrence_rate:g}%"
+        sub.append(f"{step.minutes_per_case:g}分{rate}")
+    if sub:
+        text = clip_lines("・".join(sub), SUB_CHARS, 1)[0]
+        rows.append(f'<tr><td align="left"><font point-size="{SUB_PT}" color="#5F6368">{_html(text)}</font></td></tr>')
+    return f'<<table border="0" cellborder="0" cellspacing="0" cellpadding="1">{"".join(rows)}</table>>'
+
+
+def back_edges(flow: Flow) -> set[tuple[str, str]]:
+    """差し戻し（流れを輪にする接続）を見つける。
+
+    最初の工程（前の工程がない工程と、一覧の先頭）から深さ優先でたどり、たどっている途中の工程へ戻る接続を
+    「輪を閉じる接続」とする。一覧の順番では判定しない（改善後フローで追加した工程は一覧の最後に来るため、
+    順番で判定すると普通の流れを差し戻しと誤り、図が崩れた。実際に描いて確認）。
+    """
+    nexts: dict[str, list[str]] = {s.id: [] for s in flow.steps}
+    for e in flow.edges:
+        nexts[e.source].append(e.target)
+    targets = {e.target for e in flow.edges}
+    starts = [s.id for s in flow.steps if s.id not in targets] + [s.id for s in flow.steps]
+    found, done, path = set(), set(), set()
+
+    def visit(node: str) -> None:
+        path.add(node)
+        for nxt in nexts[node]:
+            if nxt in path:
+                found.add((node, nxt))
+            elif nxt not in done:
+                visit(nxt)
+        path.discard(node)
+        done.add(node)
+
+    for start in starts:
+        if start not in done:
+            visit(start)
+    return found
 
 
 def to_dot(flow: Flow, to_be: bool = False) -> str:
-    """工程データから DOT を作る。縦向き（上から下）にして、スマートフォンでも縦に読めるようにする。"""
+    """工程データから DOT を作る。縦向き（上から下）にして、スマートフォンでも縦に読めるようにする。
+
+    差し戻し（流れを輪にする接続）は配置の計算に使わない（constraint=false）。
+    使うと、戻る矢印に引っぱられて図が縦に伸び、線が大回りするため。接続そのものは表示する。
+    """
+    loops = back_edges(flow)
     out = [
         "digraph flow {",
-        f'  graph [rankdir=TB, bgcolor="transparent", nodesep=0.35, ranksep=0.4, fontname="{FONT}"];',
-        f'  node [shape=box, style="rounded,filled", fontname="{FONT}", fontsize=11, penwidth=1.4, margin="0.15,0.08"];',
-        f'  edge [color="#80868B", fontname="{FONT}", fontsize=10, arrowsize=0.7, fontcolor="#5F6368"];',
+        f'  graph [rankdir=TB, newrank=true, bgcolor="transparent", nodesep={NODE_SEP_IN}, ranksep={RANK_SEP_IN}, '
+        f'pad=0.3, fontname="{FONT}"];',
+        f'  node [shape=box, style="rounded,filled", fontname="{FONT}", width={NODE_WIDTH_IN}, '
+        f'height={NODE_MIN_HEIGHT_IN}, margin="0.1,0.04", penwidth=1.3];',
+        f'  edge [color="#80868B", fontname="{FONT}", fontsize=10, arrowsize=0.6, penwidth=1.1, fontcolor="#5F6368"];',
     ]
     for s in flow.steps:
         css = display_class(s, to_be)
         _, fill, line = STYLE[css]
         style = "rounded,filled,dashed" if css == "廃止" else "rounded,filled"
-        font = "#9AA0A6" if css == "廃止" else "#14161A"
-        shape = "hexagon" if s.kind in ("判断", "承認") else "box"
-        out.append(
-            f'  {s.id} [label="{step_label(s, to_be)}", shape={shape}, style="{style}", '
-            f'fillcolor="{fill}", color="{line}", fontcolor="{font}"];'
-        )
+        out.append(f'  {s.id} [label={step_label(s, to_be)}, style="{style}", fillcolor="{fill}", color="{line}"];')
     for e in flow.edges:
-        label = f' [label="{_dot_text(e.label)}"]' if e.label else ""
-        out.append(f"  {e.source} -> {e.target}{label};")
+        attrs = []
+        if e.label:
+            attrs.append(f'label="{_dot_text(clip_lines(e.label, EDGE_LABEL_CHARS, 1)[0])}"')
+        if (e.source, e.target) in loops:  # 差し戻し
+            attrs += ["constraint=false", 'style="dashed"', 'color="#B0B4BA"']
+        out.append(f"  {e.source} -> {e.target}" + (f" [{', '.join(attrs)}]" if attrs else "") + ";")
     out.append("}")
     return "\n".join(out)
 

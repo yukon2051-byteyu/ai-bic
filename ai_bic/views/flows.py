@@ -20,6 +20,7 @@ from ai_bic import flow as fl
 from ai_bic import flow_ai
 from ai_bic import project as pj
 from ai_bic.errors import AIError, is_retryable, user_message
+from ai_bic.views import flow_canvas
 from ai_bic.project import Project
 
 VIEWS = ["現状（As-Is）", "改善後（To-Be）", "左右に並べて比較"]
@@ -93,19 +94,13 @@ def render(project: Project, get_client) -> None:
         cases = (f"、月{project.cases_per_month:g}件（{project.cases_source}）"
                  if project.cases_per_month is not None else "、月の件数は不明")
         html(ui.footnote(f"工程の時間は「1件＝{project.case_unit}」あたりです{cases}。"))
-    # 2. 要点
-    if view == VIEWS[0]:
-        _render_chart(project.as_is, to_be=False)
-    elif view == VIEWS[1]:
-        _render_chart(to_be, to_be=True)
-    else:
-        left, right = st.columns(2)  # スマートフォンでは自動で縦に並ぶ
-        with left:
-            st.markdown("**現状（As-Is）**")
-            _render_chart(project.as_is, to_be=False)
-        with right:
-            st.markdown(f"**改善後（To-Be）　{ui.esc(titles[pid])}**")
-            _render_chart(to_be, to_be=True)
+    # 2. 要点：図（ズーム・パン・工程のクリックで詳細。比較は同じ縮尺、スマートフォンではタブ切替）
+    shown = []
+    if view != VIEWS[1]:
+        shown.append(("現状（As-Is）", project.as_is, False))
+    if view != VIEWS[0]:
+        shown.append((f"改善後（To-Be）　{titles[pid]}", to_be, True))
+    _render_chart(shown)
     _render_legend()
     if kept := project.kept_controls.get(pid):
         html(ui.footnote("品質管理・内部統制のために残した工程：" + "／".join(kept)))
@@ -185,13 +180,17 @@ def _image(dot: str) -> bytes | None:
     return fl.render_image(dot)
 
 
-def _render_chart(flow: fl.Flow, to_be: bool) -> None:
-    if not flow.steps:
-        html(ui.note("工程がありません。下の「工程を編集する」から追加できます。"))
-        return
-    st.graphviz_chart(fl.to_dot(flow, to_be=to_be), width="stretch")
-    for warning in fl.check_flow(flow):
-        st.caption(f"注意：{warning}")
+def _render_chart(shown: list[tuple[str, fl.Flow, bool]]) -> None:
+    """図を表示する（flow_canvas.py）。工程のない図は表示せず、案内を出す。"""
+    panes = [flow_canvas.pane(title, flow, to_be) for title, flow, to_be in shown if flow.steps]
+    for title, flow, _ in shown:
+        if not flow.steps:
+            html(ui.note(f"{title}：工程がありません。下の「工程を編集する」から追加できます。"))
+    if panes:
+        flow_canvas.render(panes, flow_canvas.height_for(*(flow for _, flow, _ in shown)))
+    for title, flow, _ in shown:
+        for warning in fl.check_flow(flow) if flow.steps else []:
+            st.caption(f"注意（{title.split('　')[0]}）：{warning}")
 
 
 def _render_legend() -> None:
@@ -204,40 +203,16 @@ def _render_legend() -> None:
             f'<span style="display:inline-block;margin:.15rem .35rem .15rem 0;padding:.1rem .5rem;font-size:.75rem;'
             f'background:{fill};border:1.5px {border} {line};border-radius:4px">{ui.esc(text)}（{color_name}）</span>'
         )
-    chips.append('<span style="font-size:.75rem;color:#5F6368">【？ 要確認】＝ヒアリングで確かめられていない工程／'
-                 '〈判断〉〈承認〉＝六角形</span>')
+    chips.append('<span style="font-size:.75rem;color:#5F6368">バッジ：要確認＝ヒアリングで確かめられていない工程／'
+                 '判断・承認＝工程の種類／点線の矢印＝差し戻し</span>')
     html("".join(chips))
 
 
 def _render_detail(project: Project, pid: str, view: str, to_be: fl.Flow) -> None:
-    """工程を選ぶと、担当者・作業時間・使用システム・改善内容を表示する（指示書 4.4）。"""
-    options = [("as_is", s.id) for s in project.as_is.steps] if view != VIEWS[1] else []
-    options += [(pid, s.id) for s in to_be.steps] if view != VIEWS[0] else []
-    if not options:
-        return
+    """業務フローについてAIが確認したいことと、照合でプログラムが直したこと。
 
-    def label(option):
-        target, sid = option
-        step = _get(project, target).step(sid)
-        return f"{'現状' if target == 'as_is' else '改善後'}　{sid} {step.name}"
-
-    chosen = st.selectbox("工程の詳細を見る", options, format_func=label, key="flow_detail")
-    target, sid = chosen
-    s = _get(project, target).step(sid)
-    rows = [
-        ("担当", s.actor or "未確認"), ("作業内容", s.description or "—"), ("使用システム", s.system or "未確認"),
-        ("手作業", {True: "はい", False: "いいえ", None: "不明"}[s.manual]),
-        ("作業時間", f"{s.minutes_per_case:g}分（{s.minutes_source}）" if s.minutes_per_case is not None else "不明"),
-        ("実施割合", f"{s.occurrence_rate:g}%"), ("待ち・手戻り", s.wait_or_rework or "—"),
-        ("課題・ボトルネック", s.problem or "—"),
-    ]
-    if target != "as_is":
-        rows += [("変化", s.change), ("改善内容", s.change_note or "—")]
-    if s.needs_confirmation:
-        rows.append(("要確認", "ヒアリングで確かめられていない工程です。実際の業務と合っているか確認してください"))
-    details = "".join(f"<dt>{ui.esc(k)}</dt><dd>{ui.esc(v)}</dd>" for k, v in rows)
-    html(f'<div class="bic-card"><dl class="bic-dl">{details}</dl></div>')
-
+    工程ごとの詳細（担当・作業時間・使用システム・改善内容など）は、図の工程をクリックすると図の下に表示する。
+    """
     if project.flow_questions:
         st.markdown("**業務フローについて、確認したいこと**")
         st.markdown("\n".join(f"- {ui.esc(q)}" for q in project.flow_questions))

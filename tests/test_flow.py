@@ -185,36 +185,62 @@ def test_確認すべき点を知らせる():
 from ai_bic.flow import compare_flows, render_image, to_dot  # noqa: E402
 
 
-def test_図には色だけでなく記号と文字で区分を書く():
+def test_図には色だけでなくバッジの文字で区分を書く():
     flow = Flow(steps=[step(1, 10, problem="手作業が多い"), step(2, 5, needs_confirmation=True)],
                 edges=edges((1, 2)), next_no=3)
     dot = to_dot(flow)
-    assert "【▲ 問題あり】" in dot and "【？ 要確認】" in dot
+    assert "問題あり" in dot and "要確認" in dot
     to_be = update_step(update_step(flow, "S1", change="自動化"), "S2", change="廃止")
     dot = to_dot(to_be, to_be=True)
-    assert "【◆ 自動化】" in dot and "【× 廃止予定】" in dot and "dashed" in dot
+    assert "自動化" in dot and "廃止予定" in dot and "dashed" in dot
     assert "問題あり" not in dot  # 改善後は変化の種類で表示する
 
 
-def test_判断と承認の工程は形を変える():
+def test_工程の箱は指定の大きさと文字の大きさで描く():
+    """指示書：横幅220〜280px・高さ60〜90px・工程名14〜15px・補助11〜12px・縦の間隔24〜40px（1インチ＝72px）。"""
+    dot = to_dot(linear())
+    assert "width=3.3" in dot and "height=0.85" in dot and "ranksep=0.4" in dot  # 238px・61px・29px
+    assert 'point-size="14"' in dot and 'point-size="11"' in dot
+
+
+def test_判断と承認の工程はバッジで示す():
     flow = Flow(steps=[step(1, kind="判断"), step(2, kind="承認"), step(3)], next_no=4)
     dot = to_dot(flow)
-    assert dot.count("shape=hexagon") == 2
+    assert "判断" in dot and "承認" in dot
+
+
+def test_長い工程名は2行で省略する():
+    from ai_bic.flow import clip_lines
+
+    lines = clip_lines("S1 営業所から届いた売上ファイルの内容を一件ずつ確認して転記する", 13, 2)
+    assert len(lines) == 2 and lines[-1].endswith("…")
+    assert clip_lines("S1 短い", 13, 2) == ["S1 短い"]
 
 
 def test_利用者の入力で図の記述を壊せない():
-    """工程名に「"」や「\\」があっても、DOT の文字列の外に出ない。"""
-    flow = Flow(steps=[FlowStep(id="S1", name='確認" ]; S9 [label="x', actor=r"a\b")], next_no=2)
+    """工程名に「<」「>」「&」があっても、図のラベル（HTML形式）の外に出ない。"""
+    flow = Flow(steps=[FlowStep(id="S1", name='確認</font><b>x" & y', actor="a<b>")], next_no=2)
     dot = to_dot(flow)
-    assert r'S1 [label="S1 確認\" ]; S9 [label=\"x' in dot  # 「"」は「\"」になり、文字列の中にとどまる
-    assert r"担当：a\\b" in dot  # 「\」は「\\」になる
-    assert [line for line in dot.splitlines() if line.startswith("  S")] == [dot.splitlines()[4]]  # 工程は S1 だけ
-    assert "\n  S9 " not in dot  # 名前の中の文字で、余計な工程（S9）が作られていない
+    assert "確認&lt;/font&gt;&lt;b&gt;x&quot; &amp; y" in dot
+    assert "a&lt;b&gt;" in dot
+    assert "\n  S9 " not in dot
 
 
 def test_接続の条件も図に出る():
     flow = Flow(steps=[step(1), step(2)], edges=[FlowEdge(source="S1", target="S2", label="差異あり")], next_no=3)
     assert 'S1 -> S2 [label="差異あり"]' in to_dot(flow)
+
+
+def test_差し戻しは輪になる接続だけで判定し_配置の計算から外す():
+    """改善後フローで一覧の最後に追加した工程からの普通の流れを、差し戻しと誤らない（実際に描いて見つけた不具合）。"""
+    from ai_bic.flow import back_edges
+
+    # S1 → S3 → S2 の順に流れ、S2 → S1 だけが差し戻し。一覧の順番（S1, S2, S3）とは関係なく判定する
+    flow = Flow(steps=[step(1), step(2), step(3)], edges=edges((1, 3), (3, 2), (2, 1)), next_no=4)
+    assert back_edges(flow) == {("S2", "S1")}
+    dot = to_dot(flow)
+    assert "S3 -> S2;" in dot  # 普通の流れ
+    assert "S2 -> S1 [constraint=false" in dot
 
 
 def test_Graphvizがない環境では画像を作らない(monkeypatch):
