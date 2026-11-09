@@ -1,0 +1,199 @@
+{
+  "scenario_id": "repair_reception",
+  "turns": [],
+  "offered": true,
+  "readiness_before": [
+    {
+      "機能": "業務フロー",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "不足",
+      "不足（必須）": [
+        "H3"
+      ]
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "不足",
+      "不足（必須）": [
+        "H5",
+        "H6"
+      ]
+    }
+  ],
+  "readiness_after": [
+    {
+      "機能": "業務フロー",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "不足",
+      "不足（必須）": [
+        "H3"
+      ]
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "一部不足",
+      "不足（必須）": []
+    }
+  ],
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H5",
+        "question": "お客様に対応状況を聞かれて答えられないのは、どのような場面ですか。",
+        "answer_example": "例：受付票は手元にあるが、業者に連絡したかどうかが紙では確認できず、折り返し電話している",
+        "answer": "受付票の束から探したり、受けた人に聞いたりします。担当者が休みだと分からないこともあります。",
+        "extra": false
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H3",
+        "question": "修理依頼1件の受付から業者手配までに、だいたいどのくらい時間がかかりますか。",
+        "answer_example": "例：1件あたり10分くらい。1日に5〜10件、受付は2人で対応",
+        "answer": "けっこう多いです。忙しい日は大変です。",
+        "extra": false
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H3",
+        "question": "そのうち、最も時間がかかっている作業はどれで、何分くらいですか。",
+        "answer_example": "例：業者へのFAX送信に、1件あたり10分ほど",
+        "answer": "1日に40件ほどを4人で受けています。お客様からの状況確認の電話も1日に10件以上あります。",
+        "extra": false
+      },
+      {
+        "turn_no": 4,
+        "item_id": "H6",
+        "question": "改善に使える予算や、使ってよいツールに決まりや制限はありますか。",
+        "answer_example": "例：予算は月1万円まで、新しいソフトは購入できない など",
+        "answer": "予算は相談次第です。",
+        "extra": true
+      },
+      {
+        "turn_no": 5,
+        "item_id": "H6",
+        "question": "業務改善で新しいツールを使う場合、会社として使ってよいものや守るべき社内ルールはありますか。",
+        "answer_example": "例：会社指定のシステムだけ使える、特に決まりはない",
+        "answer": "パソコンの表計算ソフトは全員使えます。新しいシステムを入れる場合は、部長の承認と見積もりが必要です。",
+        "extra": true
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "未確認",
+        "known_facts": "",
+        "lacking": "修理依頼の受付票や業者手配の結果を誰に渡し、何に使われるか"
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "受け取るもの：お客様からの給湯器・トイレの修理依頼（電話）。主な作業：内容を紙の受付票に記入し、協力業者へFAXまたはメールで手配。作るもの：紙の受付票、業者への手配連絡。",
+        "lacking": ""
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "不十分",
+        "known_facts": "1日に40件ほどを4人で受けている。お客様からの状況確認の電話が1日に10件以上ある。",
+        "lacking": "1回あたりの作業時間、最も手間のかかる作業の時間"
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "充足",
+        "known_facts": "紙の受付票、FAX、メールを使用。",
+        "lacking": ""
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "お客様から対応状況を聞かれてもすぐに答えられない。受付票の束から探したり、受けた人に聞いたりする。担当者が休みだと分からないこともある。",
+        "lacking": ""
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "充足",
+        "known_facts": "予算は相談次第。パソコンの表計算ソフトは全員使える。新しいシステムを入れる場合は部長の承認と見積もりが必要。",
+        "lacking": ""
+      }
+    },
+    "finished_reason": "利用者の操作により、ここまでの情報で診断しました",
+    "judged_answers": 5,
+    "extra_started": true,
+    "extra_targets": [],
+    "extra_finished_reason": "追加確認で、分析に必要な情報がそろいました"
+  },
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3668,
+      "output_tokens": 554,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00064
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4052,
+      "output_tokens": 587,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.0007
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4170,
+      "output_tokens": 589,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00071
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4353,
+      "output_tokens": 949,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00091
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4413,
+      "output_tokens": 1310,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.0011
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4428,
+      "output_tokens": 1224,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00105
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4586,
+      "output_tokens": 1203,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00106
+    }
+  ],
+  "total_dollars": 0.00617
+}

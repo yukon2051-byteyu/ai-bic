@@ -1,0 +1,170 @@
+{
+  "scenario_id": "repair_reception",
+  "turns": [],
+  "offered": false,
+  "readiness_before": [
+    {
+      "機能": "業務フロー",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "不足",
+      "不足（必須）": [
+        "H3"
+      ]
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "不足",
+      "不足（必須）": [
+        "H6"
+      ]
+    }
+  ],
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H5",
+        "question": "対応状況をすぐに答えられないとき、どの情報が探しにくいのでしょうか。",
+        "answer_example": "例：業者に手配したかどうかが、受付票を探さないと分からない",
+        "answer": "受付票の束から探したり、受けた人に聞いたりします。担当者が休みだと分からないこともあります。",
+        "extra": false
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H3",
+        "question": "修理依頼1件の受付から業者手配までに、およそどれくらいの時間がかかりますか。",
+        "answer_example": "例：1件あたり10分くらい。1日に5件ほど、2人で対応",
+        "answer": "けっこう多いです。忙しい日は大変です。",
+        "extra": false
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H3",
+        "question": "修理依頼1件の受付から手配までで、一番時間がかかる作業はどれで、何分くらいですか。",
+        "answer_example": "例：受付票を探して業者に連絡するのに10分くらい",
+        "answer": "1日に40件ほどを4人で受けています。お客様からの状況確認の電話も1日に10件以上あります。",
+        "extra": false
+      },
+      {
+        "turn_no": 4,
+        "item_id": "H6",
+        "question": "今回の改善に使えるお金の上限や、使ってよいツール、守るべき社内ルールはありますか。",
+        "answer_example": "例：予算は特になく、新しいツールは相談すれば使える",
+        "answer": "予算は相談次第です。",
+        "extra": false
+      },
+      {
+        "turn_no": 5,
+        "item_id": "H6",
+        "question": "今回の改善で、使えるツールや守るべき社内ルールに制限はありますか。",
+        "answer_example": "例：新しいシステムの導入は不可、社内ルールは特になし",
+        "answer": "パソコンの表計算ソフトは全員使えます。新しいシステムを入れる場合は、部長の承認と見積もりが必要です。",
+        "extra": false
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "未確認",
+        "known_facts": "",
+        "lacking": "修理依頼の受付票や業者への手配内容を、誰に渡し何に使われるかが分からない"
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "お客様から給湯器やトイレの修理依頼を電話で受け、紙の受付票に記入し、協力業者へFAXまたはメールで手配している。",
+        "lacking": ""
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "不十分",
+        "known_facts": "1日に40件ほどを4人で受けている。お客様からの状況確認の電話が1日に10件以上ある。",
+        "lacking": "1回あたりの作業時間、最も時間のかかる作業の時間"
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "充足",
+        "known_facts": "紙の受付票、FAX、メールを使用している。",
+        "lacking": ""
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "対応状況をお客様から聞かれても、すぐに答えられない。受付票の束から探したり、受けた人に聞いたりする。担当者が休みだと分からないこともある。",
+        "lacking": ""
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "不十分",
+        "known_facts": "予算は相談次第です。パソコンの表計算ソフトは全員使える。新しいシステムを入れる場合は、部長の承認と見積もりが必要です。",
+        "lacking": "社内ルールの有無や使えるツールの制限について、制約の有無がまだ確認できていない"
+      }
+    },
+    "finished_reason": "質問回数の上限に達したため終了しました",
+    "judged_answers": 5,
+    "extra_started": false,
+    "extra_targets": [],
+    "extra_finished_reason": null
+  },
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3668,
+      "output_tokens": 502,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00062
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4016,
+      "output_tokens": 543,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00067
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4133,
+      "output_tokens": 1506,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00117
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4276,
+      "output_tokens": 542,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.0007
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4340,
+      "output_tokens": 542,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00071
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4523,
+      "output_tokens": 549,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00073
+    }
+  ],
+  "total_dollars": 0.0046
+}

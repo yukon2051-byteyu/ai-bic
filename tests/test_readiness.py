@@ -166,3 +166,21 @@ def test_基本のヒアリングが終わる前には追加確認を始めな�
     state = start_hearing(FW)
     with pytest.raises(ValueError):
         start_extra(state, FW)
+
+
+
+def test_不足したまま聞ける項目がなくなったら_そろったとは表示しない():
+    """作業時間（H3）が上限まで聞いて不足のまま、制約条件（H6）だけが追加確認でそろった場合（本物のAIでの確認で発見）。"""
+    from ai_bic.hearing import EXTRA_NO_ITEMS
+
+    state = state_with({**ALL, "H3": "不十分", "H6": "不十分"}, asked={"H3": 2})
+    start_extra(state, FW)
+    assert state.extra_targets == ["H6"]
+    client = FakeClient(questions=[
+        make_question({**ALL, "H3": "不十分", "H6": "不十分"}, next_item_id="H6"),
+        make_question({**ALL, "H3": "不十分"}, next_item_id=None, is_sufficient=True),
+    ])
+    request_extra_question(client, INFO, state, FW)
+    add_answer(state, "表計算ソフトは全員使えます")
+    assert request_extra_question(client, INFO, state, FW) is None
+    assert state.extra_finished_reason == EXTRA_NO_ITEMS  # 「必要な情報がそろいました」ではない

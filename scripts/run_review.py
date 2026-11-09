@@ -32,6 +32,33 @@ from ai_bic.simulation import SimulationInputs, blank_scenarios  # noqa: E402
 from scripts.run_scenario import OUTPUT_DIR, YEN_PER_DOLLAR, usage_summary  # noqa: E402
 
 
+def build_project(saved: dict, pid: str):
+    """保存した結果（診断と業務フロー）から案件を組み立てる。試算はシナリオのデモ値を「ユーザー入力」として入れる。
+
+    run_revise.py からも使う。
+    """
+    scenario = next(s for s in load_scenarios() if s["id"] == saved["scenario_id"])
+    info = BusinessInfo(**scenario["business_info"])
+    project = new_project("ai", info, HearingState.model_validate(saved["hearing"]),
+                          DiagnosisResult.model_validate(saved["diagnosis"]))
+    flows = saved["flows"]
+    project.as_is = Flow.model_validate(flows["as_is"])
+    project.to_be = {p: Flow.model_validate(f) for p, f in flows["to_be"].items()}
+    project.kept_controls = flows.get("kept_controls", {})
+    project.setup_tasks = flows.get("setup_tasks", {})
+    mark_updated(project, "as_is")
+    for p in project.to_be:
+        mark_updated(project, "to_be", p)
+    no = int(pid[1:])
+    demo = scenario["simulation"]
+    values = {**demo["base"], **demo["proposals"][no - 1]}
+    project.simulations[pid] = SimulationInputs(
+        task_name=info.task_name, **values, sources={k: "ユーザー入力" for k in values})
+    project.scenarios[pid] = blank_scenarios()
+    mark_updated(project, "simulation", pid)
+    return project
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("saved", help="run_scenario.py が保存した結果（業務フローを含むもの）")
@@ -45,24 +72,8 @@ def main() -> int:
         print("APIキーが設定されていません（.streamlit/secrets.toml）")
         return 1
 
-    info = BusinessInfo(**scenario["business_info"])
-    project = new_project("ai", info, HearingState.model_validate(saved["hearing"]),
-                          DiagnosisResult.model_validate(saved["diagnosis"]))
-    flows = saved["flows"]
-    project.as_is = Flow.model_validate(flows["as_is"])
-    project.to_be = {pid: Flow.model_validate(f) for pid, f in flows["to_be"].items()}
-    project.kept_controls = flows.get("kept_controls", {})
-    project.setup_tasks = flows.get("setup_tasks", {})
-    mark_updated(project, "as_is")
-    for pid in project.to_be:
-        mark_updated(project, "to_be", pid)
+    project = build_project(saved, args.pid)
     no = int(args.pid[1:])
-    demo = scenario["simulation"]
-    values = {**demo["base"], **demo["proposals"][no - 1]}
-    project.simulations[args.pid] = SimulationInputs(
-        task_name=info.task_name, **values, sources={k: "ユーザー入力" for k in values})
-    project.scenarios[args.pid] = blank_scenarios()
-    mark_updated(project, "simulation", args.pid)
 
     db_path = str(OUTPUT_DIR / "eval_usage.db")
     session_id = uuid.uuid4().hex

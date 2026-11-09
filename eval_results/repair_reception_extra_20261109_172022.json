@@ -1,0 +1,212 @@
+{
+  "scenario_id": "repair_reception",
+  "turns": [],
+  "offered": true,
+  "readiness_before": [
+    {
+      "機能": "業務フロー",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "不足",
+      "不足（必須）": [
+        "H3"
+      ]
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "不足",
+      "不足（必須）": [
+        "H5",
+        "H6"
+      ]
+    }
+  ],
+  "readiness_after": [
+    {
+      "機能": "業務フロー",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "不足",
+      "不足（必須）": [
+        "H3"
+      ]
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "不足",
+      "不足（必須）": [
+        "H5",
+        "H6"
+      ]
+    }
+  ],
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H5",
+        "question": "対応状況をお客様に聞かれて答えられないのは、どの段階の、どんな情報が分からないときですか？",
+        "answer_example": "例：業者に手配したあと、業者が来たかどうかが紙の受付票では分からないとき",
+        "answer": "受付票の束から探したり、受けた人に聞いたりします。担当者が休みだと分からないこともあります。",
+        "extra": false
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H5",
+        "question": "担当者が休みのとき、お客様への対応状況はどの段階で分からなくなりますか？",
+        "answer_example": "例：受付票は見つかるが、業者へ手配済みかどうかが誰にも分からない",
+        "answer": "すみません、その点は分かりません。",
+        "extra": false
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H3",
+        "question": "修理依頼1件の受付から手配までに、どのくらいの時間がかかりますか？",
+        "answer_example": "例：1件あたり10分くらい、1日に5件ほど",
+        "answer": "けっこう多いです。忙しい日は大変です。",
+        "extra": false
+      },
+      {
+        "turn_no": 4,
+        "item_id": "H3",
+        "question": "修理依頼1件の受付から手配までに、最も時間がかかっている作業はどれで、何分くらいですか？",
+        "answer_example": "例：受付票への記入に5分ほど、業者への手配に10分ほど",
+        "answer": "1日に40件ほどを4人で受けています。お客様からの状況確認の電話も1日に10件以上あります。",
+        "extra": true
+      },
+      {
+        "turn_no": 5,
+        "item_id": "H6",
+        "question": "今回の改善で、予算や使えるツール、社内ルールなどの制約はありますか？",
+        "answer_example": "例：予算は月数万円まで。新しいソフトは入れにくい。特に制約はない。",
+        "answer": "予算は相談次第です。",
+        "extra": true
+      },
+      {
+        "turn_no": 6,
+        "item_id": "H6",
+        "question": "予算は相談次第とのことですが、使えるツールや社内ルールに決まりはありますか？",
+        "answer_example": "例：ツールは既存のExcelのみ、社内ルールは特にない",
+        "answer": "パソコンの表計算ソフトは全員使えます。新しいシステムを入れる場合は、部長の承認と見積もりが必要です。",
+        "extra": true
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "未確認",
+        "known_facts": "",
+        "lacking": "修理依頼の受付票や業者への手配内容を誰に渡し、何に使われるかが分からない"
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "修理依頼を電話で受け、内容を紙の受付票に記入し、協力業者へFAXまたはメールで手配する。",
+        "lacking": ""
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "不十分",
+        "known_facts": "1日に40件ほどを4人で受けている。お客様からの状況確認の電話は1日に10件以上ある。",
+        "lacking": "1回あたりにかかる時間、最も時間がかかる作業の時間が分からない"
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "充足",
+        "known_facts": "紙の受付票、FAX、メールを使用している。",
+        "lacking": ""
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "不十分",
+        "known_facts": "対応状況をお客様から聞かれても、すぐに答えられない。受付票の束から探したり、受けた人に聞いたりする。担当者が休みだと分からないこともある。",
+        "lacking": "担当者が休みの時に、お客様への対応状況がどの段階で分からなくなるか"
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "不十分",
+        "known_facts": "予算は相談次第とのこと。",
+        "lacking": "予算に上限があるか、使えるツールや社内ルールに制限があるかないかが分からない"
+      }
+    },
+    "finished_reason": "利用者の操作により、ここまでの情報で診断しました",
+    "judged_answers": 5,
+    "extra_started": true,
+    "extra_targets": [
+      "H6"
+    ],
+    "extra_finished_reason": "追加確認の上限に達しました"
+  },
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 3668,
+      "output_tokens": 573,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00065
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4079,
+      "output_tokens": 550,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00068
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4163,
+      "output_tokens": 537,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00068
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4276,
+      "output_tokens": 501,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00068
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4348,
+      "output_tokens": 569,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00072
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4482,
+      "output_tokens": 581,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00074
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4565,
+      "output_tokens": 1184,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00105
+    }
+  ],
+  "total_dollars": 0.0052
+}

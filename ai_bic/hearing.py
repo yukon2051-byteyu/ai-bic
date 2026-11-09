@@ -29,7 +29,7 @@ from ai_bic.models import (
     QuestionResult,
 )
 from ai_bic.output_check import verify_evidences
-from ai_bic.readiness import extra_count, extra_targets
+from ai_bic.readiness import evaluate, extra_count, extra_targets
 
 # 終了理由（結果画面と利用状況の確認に使う）
 FINISH_MAX_TURNS = "質問回数の上限に達したため終了しました"
@@ -209,7 +209,10 @@ def request_extra_question(
     _record_statuses(state, result)
     state.extra_targets = extra_targets(state, framework)  # 新しい判定で、まだ足りない項目に絞り直す
     if not state.extra_targets or not (result.next_item_id in state.extra_targets and result.question):
-        state.extra_finished_reason = EXTRA_SUFFICIENT if not state.extra_targets else EXTRA_NO_ITEMS
+        # 「聞ける項目がない」と「必要な情報がそろった」を区別する。必須の項目が不足したまま聞けなくなったのに
+        # 「そろいました」と表示していた（本物のAIでの確認で見つけた）
+        lacking = any(f.missing_required for f in evaluate(state))
+        state.extra_finished_reason = EXTRA_NO_ITEMS if lacking else EXTRA_SUFFICIENT
         return None
 
     turn = HearingTurn(
