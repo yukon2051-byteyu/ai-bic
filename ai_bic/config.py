@@ -42,6 +42,19 @@ UNKNOWN_ANSWER_FILLERS = (
 UNKNOWN_ANSWER_MAX_REST_CHARS = 2  # 取り除いたあとに残ってよい文字数
 MAX_ISSUES = 5  # 課題の件数（決定事項C2）
 MAX_PROPOSALS = 3  # 改善案の件数
+
+# --- 改善効果シミュレーター（AI-BIC 2.0 機能A） ---
+# 悲観・楽観シナリオの初期値：(削減率の倍率, 費用の倍率)。根拠のある予測ではなく「仮の幅」。
+# 画面では利用者が自由に変えられる（開発者の判断：まず幅を見せ、自社の事情で直してもらう）
+SCENARIO_FACTORS = {"悲観": (0.5, 1.5), "楽観": (1.5, 1.0)}
+
+# --- 業務フロー（AI-BIC 2.0 機能B） ---
+MAX_FLOW_STEPS = 30  # 1つのフローの工程数の上限（図が読めなくなるのと、AIの出力の暴走を防ぐ）
+MAX_STEP_TEXT = 60  # 工程名・担当者・システム名の文字数の上限
+MAX_STEP_NOTE = 200  # 作業内容・課題・改善内容などの文字数の上限
+
+# --- 案件の保存・読み込み（AI-BIC 2.0 9.1） ---
+MAX_PROJECT_FILE_BYTES = 1 * 1024 * 1024  # 読み込む案件ファイルの大きさの上限（1MB）
 MAX_FIRST_STEPS = 3  # 改善案ごとの「最初の一歩」の件数
 DAILY_DIAGNOSIS_LIMIT = 20  # 1日の診断回数（決定事項Q4）
 INVALID_OUTPUT_RETRY = 1  # AI出力のチェックに失敗したときの呼び直し回数
