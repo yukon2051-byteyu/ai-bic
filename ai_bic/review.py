@@ -106,10 +106,16 @@ def check_review(result: ReviewResult) -> list[str]:
 
 
 def evidence_texts(project: Project, pid: str, context: str) -> list[str]:
-    """指摘の根拠として認める文章：利用者の入力と、レビューのAIに渡した資料。"""
+    """指摘の根拠として認める文章：利用者の入力と、レビューのAIに渡した資料（課題分析を含む）。
+
+    添付ファイルは保存しないため案件データにないが、課題分析の根拠には、照合済みの添付ファイルの引用が残っている。
+    レビューのAIにも課題分析を渡しているので、照合にも使う（入れていないと、見本ファイルの正しい引用を
+    「未確認」と誤って表示した。画面を撮影して見つけた）。
+    """
     info = project.business_info
     texts = [info.company_name or "", info.department, info.task_name, info.overview, info.pain_points]
     texts += [turn.answer or "" for turn in project.hearing.turns]
+    texts.append(project.diagnosis.analysis.model_dump_json())
     texts.append(context)
     return texts
 

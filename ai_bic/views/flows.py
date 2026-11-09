@@ -122,9 +122,10 @@ def render(project: Project, get_client) -> None:
 
 
 def _render_start(project: Project, get_client) -> None:
-    st.markdown(
-        "ヒアリングの内容と改善案から、**現状の業務フロー（As-Is）**と、改善案ごとの**改善後の業務フロー（To-Be）**を作ります。"
-        "根拠となる発言を確認できない工程は「要確認」として示し、画面で修正できます。"
+    # Markdown の太字（**）は、隣が「（」「）」などの記号だと解釈されず、記号がそのまま出たため HTML の太字にする
+    html(
+        "<p>ヒアリングの内容と改善案から、<b>現状の業務フロー（As-Is）</b>と、改善案ごとの<b>改善後の業務フロー（To-Be）</b>を作ります。"
+        "根拠となる発言を確認できない工程は「要確認」として示し、画面で修正できます。</p>"
     )
     if error := st.session_state.get("flow_error"):
         st.error(user_message(error))

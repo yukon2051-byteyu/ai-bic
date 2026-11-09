@@ -205,9 +205,11 @@ def render_top() -> None:
         )
     )
 
-    col_ai, col_demo = st.columns(2, gap="large")
+    # 2つの入口を、それぞれ1枚のカードにする（AI診断＝濃紺、デモで試す＝淡い金色）。
+    # 入れ物の key がクラス名（st-key-…）になり、ui.CSS でカードの中だけ色を上書きする
+    col_ai, col_demo = st.columns(2, gap="medium")
 
-    with col_ai:
+    with col_ai, st.container(key="entry_ai"):
         html(ui.label("AI Diagnosis", "AI診断", tight=True))
         if guard.ai_available():
             password = st.text_input("アクセス用パスワード", type="password", key="password")
@@ -222,7 +224,7 @@ def render_top() -> None:
         else:
             html(ui.note("AI診断は現在利用できません。デモモードをお試しください。"))
 
-    with col_demo:
+    with col_demo, st.container(key="entry_demo"):
         html(ui.label("Demo", "デモで試す", tight=True))
         scenarios = load_scenarios()
         titles = [sc["title"] for sc in scenarios]
@@ -231,7 +233,8 @@ def render_top() -> None:
             start("demo", scenarios[titles.index(chosen)])
             st.rerun()
 
-    with st.expander("保存した案件を読み込んで再開する"):
+    # 保存した案件の読み込み：2枚のカードの下に、控えめな白い横長の開閉行として置く
+    with st.container(key="entry_resume"), st.expander("保存した案件を読み込んで再開する"):
         st.caption("結果画面の「案件を保存（JSON）」で保存したファイルを読み込みます。"
                    "AI診断の案件は、費用を管理するため、読み込んだあとはAIを使う操作（業務フローの作成・レビュー・作り直し）"
                    "ができません。表の編集・試算・指摘の採否・確定はできます。")
@@ -507,6 +510,9 @@ def render_result() -> None:
     report_name = report.file_name(created_at)
 
     # --- 進み具合（STEP 1〜6 の状態と次にすること。AI-BIC 2.0 指示書 7.3） ---
+    # 試算の初期値は下の試算の画面で入るため、先に入れてから判定する（入れる前だと「未着手」と誤って表示した）
+    if result.proposals is not None:
+        simulator.ensure_inputs(s.project)
     progress_view.render(s.project)
 
     # --- 診断サマリー（最初の数秒で価値が伝わるように） ---

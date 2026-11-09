@@ -19,15 +19,16 @@ def render(project: Project) -> None:
         mark, color = MARK[s.status]
         title = f' title="{ui.esc(s.detail)}"' if s.detail else ""
         cells.append(
-            f'<div{title} style="flex:1;min-width:120px;border:1px solid var(--line);border-top:3px solid {color};'
-            f'border-radius:4px;padding:.35rem .55rem;font-size:.78rem">'
-            f'<div style="color:var(--sub)">STEP {s.no}</div><div style="font-weight:600">{ui.esc(s.name)}</div>'
+            f'<div{title} style="flex:1;min-width:120px;background:var(--card);border:1px solid var(--line-blue);'
+            f'border-top:3px solid {color};border-radius:4px;padding:.35rem .55rem;font-size:.78rem">'
+            f'<div style="color:var(--sub)">STEP {s.no}</div><div style="font-weight:600;color:var(--accent)">{ui.esc(s.name)}</div>'
             f'<div style="color:{color}">{mark} {ui.esc(s.status)}</div></div>'
         )
     st.markdown(f'<div style="display:flex;flex-wrap:wrap;gap:6px;margin:.2rem 0 .4rem">{"".join(cells)}</div>',
                 unsafe_allow_html=True)
     action = progress.next_action(states)
-    st.caption(f"次にすること　{action}" if action else "すべての STEP が完了しています。")
+    # 次にすることは、読み手に拾ってほしい案内なので淡い金色の面にする（配色の役割）
+    st.markdown(ui.note(f"次にすること　{action}" if action else "すべての STEP が完了しています。"), unsafe_allow_html=True)
     details = [f"STEP {s.no}：{s.detail}" for s in states if s.detail]
     if details:
         st.caption("　／　".join(details))

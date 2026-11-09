@@ -179,15 +179,29 @@ def generate_flows(client, project: Project) -> None:
     project.flow_notes = converted.notes
     if project.mode == "ai":
         project.ai_calls["flow"] = project.ai_calls.get("flow", 0) + 1
-    pj.mark_updated(project, "as_is")
-    for pid in converted.to_be:
-        pj.mark_updated(project, "to_be", pid)
+    _stamp_new_flows(project, list(converted.to_be))
 
 
 def start_blank(project: Project) -> None:
     """AIを使わずに、空の業務フローから自分で作る（改善後フローは、画面で現状フローを写して始められる）。"""
     project.as_is = Flow()
-    pj.mark_updated(project, "as_is")
     for pid in pj.proposal_ids(project):
         project.to_be[pid] = Flow()
+    _stamp_new_flows(project, pj.proposal_ids(project))
+
+
+def _stamp_new_flows(project: Project, pids: list[str]) -> None:
+    """業務フローを作ったことを記録する。
+
+    初めて作ったときは、それまでの試算を「再計算が必要」にしない。試算は業務フローより前に作られ、
+    業務フローを使っていないため（画面を撮影して見つけた誤表示）。作り直したときは、これまでどおり古い扱いにする。
+    """
+    first = "as_is" not in project.stamps
+    fresh = [pid for pid in pids if first and pj.status(project, "simulation", pid) == "完了"]
+    pj.mark_updated(project, "as_is")
+    for pid in pids:
         pj.mark_updated(project, "to_be", pid)
+    for pid in fresh:
+        project.stamps[pj.key("simulation", pid)].based_on = {
+            pj.key(dep, pid): pj.version(project, dep, pid) for dep in pj.DEPENDS["simulation"]
+        }

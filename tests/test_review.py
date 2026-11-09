@@ -262,3 +262,14 @@ def test_レビューの資料には実施割合と1件あたりの合計時間�
     assert "実施割合20%" in context  # S8 原因調査（20%の件だけ）
     assert "1件＝営業所1か所分の売上ファイル" in context
     assert "1件あたりの合計：現状" in context
+
+
+
+def test_見本ファイルからの正しい引用は_課題分析の根拠から照合できる():
+    """添付ファイルは保存しないが、課題分析に残った照合済みの引用で確かめる（画面を撮影して見つけた誤表示）。"""
+    project, client = demo("production_report")
+    record = rv.generate_review(client, project, "P1")
+    first = record.result.findings[0]
+    assert first.evidence == "設備ごとに日付と品番の書き方が違う"  # 見本ファイルの文
+    assert 0 not in record.unverified
+    assert record.unverified == []  # 製造業デモ 案1の指摘は、どちらも根拠を確認できる

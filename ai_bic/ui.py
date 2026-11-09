@@ -29,9 +29,19 @@ CSS = f"""
   --surface: #F6F6F7;
   --accent: {ACCENT};
   --accent-soft: #EEF1F6;
-  --gold: #C9B37E;  /* 控えめな強調色（紺の面の上） */
-  --gold-deep: #A88B4E;  /* 白い背景の上で使う、少し濃い金色 */
+  --gold: #C9B37E;  /* 金色：短い線や小さな装飾に使う */
+  --gold-deep: #A88B4E;  /* 白い背景の上で、文字や細い線として使う少し濃い金色 */
+  --gold-soft: #F5EFE2;  /* 金色の面：デモの入口・補足案内・注目ポイント。上の文字は濃紺 */
+  --gold-soft-strong: #EBDFC3;  /* 金色の面を一段濃くした色（ホバー） */
+  --page: #F3F5F8;  /* ページの背景（薄い青灰色）。白い作業面との区切りをはっきりさせる */
+  --card: #FFFFFF;  /* 入力・結果の作業面 */
+  --line-blue: #C8D2E0;  /* 青灰色の枠 */
+  --on-navy-sub: #D9E2F0;  /* 濃紺の面の上の補足の文字 */
 }}
+/* 色の役割（開発者の指示）：
+   濃紺＝ページの見出し・現在のステップ・主操作のボタン。濃紺の広い面は、画面の起点（TOPのAI診断・診断サマリー）だけ
+   金色＝短い線・小さな装飾。面で使うときは淡い金色（--gold-soft）
+   作業エリア＝薄い青灰色の背景（--page）の上に、白い入力・結果の面（--card）。エラー・警告・成功は Streamlit の既定の色 */
 
 /* 書体は画面全体に設定し、各部品には引き継がせる。
    Streamlit のアイコン（目のマークや▶など）は、専用のアイコン用書体で文字を絵に変えて表示している。
@@ -43,8 +53,8 @@ html, body, .stApp, .stMarkdown, label, input, textarea, button {{
 [data-testid="stIconMaterial"], .material-symbols-rounded {{
   font-family: "Material Symbols Rounded" !important;
 }}
-/* 背景：真っ白にせず、上部にごく薄い青みを入れて奥行きを出す */
-.stApp {{ background: linear-gradient(180deg, #EEF1F6 0px, #F7F8FA 360px, #FFFFFF 720px); color: var(--ink); }}
+/* 背景：薄い青灰色。白い作業面（フォーム・カード・表）との区切りをはっきりさせる */
+.stApp {{ background: var(--page); color: var(--ink); }}
 .block-container {{ max-width: 880px; padding-top: .75rem; padding-bottom: 4rem; }}
 /* 最上部の余白を詰める（開発者の指摘：今の3分の1でよい）。
    Streamlit の版によって中身の入れ物の名前が違うため、両方に指定し、既定の大きな余白を上書きする */
@@ -62,7 +72,26 @@ header[data-testid="stHeader"] {{ display: none; }}
   border-radius: 4px; letter-spacing: .06em; font-weight: 500; padding: .55rem 1.4rem;
 }}
 .stTextInput input, .stTextArea textarea {{ border-radius: 4px; }}
-[data-testid="stForm"] {{ border: 1px solid var(--line); border-radius: 4px; padding: 1.75rem; }}
+[data-testid="stForm"] {{ border: 1px solid var(--line-blue); border-radius: 6px; padding: 1.75rem; background: var(--card); }}
+[data-testid="stExpander"] details {{ background: var(--card); border-color: var(--line-blue); border-radius: 6px; }}
+[data-testid="stDataFrame"], [data-testid="stTable"] {{ background: var(--card); border-radius: 4px; }}
+/* 入力欄は白い面と青灰色の枠に。Streamlit 1.66 は入力欄の背景に補助の背景色（#F6F6F7）を使い、
+   ページ背景（#F3F5F8）とほぼ同じ色で見分けにくかった（画面を撮影して確認）。部品の名前は実際の画面で調べた */
+[data-testid="stTextInputRootElement"], [data-testid="stTextAreaRootElement"], [data-testid="stNumberInputContainer"],
+.react-aria-ComboBox > div, [data-testid="stFileUploaderDropzone"] {{
+  background: var(--card) !important; border: 1px solid var(--line-blue) !important;
+}}
+/* キーボードで入力欄を選んだときは、金色の枠で示す（濃紺のカードの上でも見える） */
+[data-testid="stTextInputRootElement"]:focus-within, [data-testid="stTextAreaRootElement"]:focus-within,
+[data-testid="stNumberInputContainer"]:focus-within, .react-aria-ComboBox > div:focus-within {{
+  border-color: var(--accent) !important; box-shadow: 0 0 0 2px var(--gold) !important;
+}}
+/* 進み具合の棒の土台：ページ背景と区別できる青灰色 */
+[data-testid="stProgressBarTrack"] {{ background: var(--line-blue) !important; }}
+/* キーボードで操作したとき、いま選んでいる部品が分かるようにする */
+.stButton > button:focus-visible, .stFormSubmitButton > button:focus-visible, .stDownloadButton > button:focus-visible {{
+  outline: 2px solid var(--gold-deep); outline-offset: 2px;
+}}
 
 /* 見出し：英字の小さなラベル＋日本語の見出し */
 .bic-label {{
@@ -70,7 +99,7 @@ header[data-testid="stHeader"] {{ display: none; }}
   letter-spacing: .2em; color: var(--accent); text-transform: uppercase; margin: 2.75rem 0 .35rem;
   display: flex; align-items: center; gap: .6rem;
 }}
-.bic-label::before {{ content: ""; width: 18px; height: 2px; background: var(--gold-deep); }}
+.bic-label::before {{ content: ""; width: 18px; height: 2px; background: var(--gold); }}
 .bic-h2 {{ font-size: 1.45rem; font-weight: 500; letter-spacing: .06em; margin: 0 0 1.25rem; }}
 /* トップページ用の詰めた見出し（1画面に収めるため） */
 .bic-label.tight {{ margin-top: .7rem; }}
@@ -118,15 +147,47 @@ header[data-testid="stHeader"] {{ display: none; }}
   .bic-features h3 {{ margin: 0 0 .2rem; }}
 }}
 
+/* TOPの入口のカード（AI診断＝濃紺、デモで試す＝淡い金色）。
+   Streamlit の入れ物に key を付けると「st-key-（key）」というクラス名になるため、それを目印にカードの中だけ上書きする */
+.st-key-entry_ai, .st-key-entry_demo {{
+  border-radius: 8px; padding: 22px 24px; height: 100%; gap: .55rem;
+}}
+.st-key-entry_ai {{ background: var(--accent); color: #FFFFFF; }}
+.st-key-entry_demo {{ background: var(--gold-soft); color: var(--accent); border: 1px solid #E6DAC0; }}
+/* 2枚のカードの高さをそろえ、開始ボタンを下端にそろえる */
+[data-testid="stHorizontalBlock"]:has(.st-key-entry_ai) {{ align-items: stretch; }}
+[data-testid="stColumn"]:has(.st-key-entry_ai) > div, [data-testid="stColumn"]:has(.st-key-entry_demo) > div {{ height: 100%; }}
+.st-key-entry_ai [data-testid="stElementContainer"]:has(.stButton),
+.st-key-entry_demo [data-testid="stElementContainer"]:has(.stButton) {{ margin-top: auto; }}
+.st-key-entry_ai .bic-label, .st-key-entry_ai .bic-h2 {{ color: #FFFFFF; margin-top: 0; }}
+.st-key-entry_demo .bic-label, .st-key-entry_demo .bic-h2 {{ color: var(--accent); margin-top: 0; }}
+.st-key-entry_ai [data-testid="stWidgetLabel"] p {{ color: var(--on-navy-sub); }}
+.st-key-entry_demo [data-testid="stWidgetLabel"] p {{ color: var(--accent); }}
+/* 入力欄・選択欄：白い面に濃紺の文字とアイコン（パスワードの表示切り替えのアイコンも濃紺） */
+.st-key-entry_ai input, .st-key-entry_demo [data-baseweb="select"] > div {{ color: var(--accent) !important; }}
+.st-key-entry_ai [data-testid="stTextInputRootElement"], .st-key-entry_ai [data-baseweb="input"] {{ background: var(--card) !important; }}
+.st-key-entry_ai [data-testid="stTextInputRootElement"] button, .st-key-entry_ai [data-testid="stTextInputRootElement"] svg,
+.st-key-entry_demo [data-baseweb="select"] svg {{ color: var(--accent) !important; fill: var(--accent) !important; }}
+/* 開始ボタン：AI診断は白い面に濃紺の文字、デモは濃紺の枠と文字（ホバーで淡い金色を一段濃く） */
+.st-key-entry_ai .stButton > button {{ background: var(--card); color: var(--accent); border: 1px solid var(--card); }}
+.st-key-entry_ai .stButton > button:hover {{ background: var(--gold-soft); color: var(--accent); border-color: var(--gold-soft); }}
+.st-key-entry_ai .stButton > button:focus-visible {{ outline: 2px solid var(--gold); outline-offset: 2px; }}
+.st-key-entry_demo .stButton > button {{ background: transparent; color: var(--accent); border: 1px solid var(--accent); }}
+.st-key-entry_demo .stButton > button:hover {{ background: var(--gold-soft-strong); color: var(--accent); border-color: var(--accent); }}
+.st-key-entry_ai .bic-note {{ background: rgba(255,255,255,.08); color: var(--on-navy-sub); border-left-color: var(--gold); }}
+/* 保存した案件の読み込み：開始カードより控えめな、白い横長の開閉行 */
+.st-key-entry_resume [data-testid="stExpander"] details {{ background: var(--card); border: 1px solid var(--line-blue); }}
+@media (max-width: 720px) {{ .st-key-entry_ai, .st-key-entry_demo {{ padding: 18px 16px; }} }}
+
 /* 注記 */
-.bic-note {{ font-size: .8rem; color: var(--sub); line-height: 1.75; background: var(--surface);
-  border-left: 2px solid var(--accent); padding: .5rem .9rem; margin: .55rem 0; border-radius: 0 4px 4px 0; }}
+.bic-note {{ font-size: .8rem; color: var(--accent); line-height: 1.75; background: var(--gold-soft);
+  border-left: 2px solid var(--gold); padding: .5rem .9rem; margin: .55rem 0; border-radius: 0 4px 4px 0; }}
 .bic-tag {{ display: inline-block; font-size: .72rem; letter-spacing: .08em; padding: .2rem .65rem;
-  border: 1px solid var(--line); border-radius: 2px; color: var(--sub); margin: 0 .4rem .3rem 0; }}
+  border: 1px solid var(--line-blue); border-radius: 2px; color: var(--sub); background: var(--card); margin: 0 .4rem .3rem 0; }}
 
 /* 上部のブランドと進み具合 */
 .bic-bar {{ display: flex; justify-content: space-between; align-items: baseline;
-  border-bottom: 1px solid var(--line); padding: .35rem 0 .3rem; margin-bottom: -.45rem; }}
+  border-bottom: 1px solid var(--line-blue); padding: .35rem 0 .3rem; margin-bottom: -.45rem; }}
 /* 下の余白：Streamlit が部品の間に入れるすき間（1rem）を、負の余白で一部打ち消して3分の1ほどにする */
 .bic-brand {{ font-family: "Inter", sans-serif; font-weight: 600; letter-spacing: .22em; font-size: .95rem; }}
 /* ブランド名はTOPへのリンク。見た目は変えず、マウスを乗せたときだけ薄くして押せることを示す */
@@ -138,14 +199,14 @@ a.bic-brand:hover {{ opacity: .7; }}
 .bic-steps .now {{ color: var(--accent); font-weight: 700; border-bottom: 2px solid var(--accent); padding-bottom: .2rem; }}
 @media (max-width: 720px) {{ .bic-bar {{ flex-direction: column; gap: .6rem; }} .bic-steps {{ gap: .7rem; flex-wrap: wrap; }} }}
 
-.bic-demo {{ font-size: .78rem; letter-spacing: .06em; color: var(--accent); background: var(--accent-soft);
-  padding: .55rem .9rem; border-radius: 4px; margin-bottom: 1.2rem; }}
+.bic-demo {{ font-size: .78rem; letter-spacing: .06em; color: var(--accent); background: var(--gold-soft);
+  border-left: 2px solid var(--gold); padding: .55rem .9rem; border-radius: 0 4px 4px 0; margin-bottom: 1.2rem; }}
 
 /* ヒアリングの履歴 */
-.bic-qa {{ border-top: 1px solid var(--line); padding: 1.1rem 0; }}
+.bic-qa {{ border-top: 1px solid var(--line-blue); padding: 1.1rem 0; }}
 .bic-qa .q {{ display: flex; gap: .9rem; line-height: 1.8; }}
 .bic-qa .q b {{ font-family: "Inter", sans-serif; color: var(--accent); font-weight: 600; min-width: 2rem; }}
-.bic-qa .a {{ margin: .6rem 0 0 2.9rem; background: var(--surface); padding: .7rem 1rem; border-radius: 4px;
+.bic-qa .a {{ margin: .6rem 0 0 2.9rem; background: var(--card); border: 1px solid var(--line-blue); padding: .7rem 1rem; border-radius: 4px;
   color: var(--sub); line-height: 1.8; font-size: .92rem; }}
 
 /* 診断サマリー：3段（要点 → 最重要課題と最初の一手 → 数字）で強弱をつける。
@@ -183,7 +244,7 @@ a.bic-brand:hover {{ opacity: .7; }}
 
 /* 課題・改善案のカード
    読む順番：太字（タイトル・要点）→ 根拠や改善後の姿 → 小さく薄い補足（表形式） */
-.bic-card {{ border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 4px;
+.bic-card {{ background: var(--card); border: 1px solid var(--line-blue); border-left: 3px solid var(--line-blue); border-radius: 4px;
   padding: 1.6rem 1.9rem 1.5rem; margin-bottom: 1.1rem; background: #fff; }}
 .bic-card.sev-high {{ border-left-color: var(--gold-deep); }}  /* 重要度「高」は左端を金色に */
 .bic-card.sev-mid {{ border-left-color: var(--accent); }}

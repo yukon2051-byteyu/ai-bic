@@ -22,7 +22,7 @@ from ai_bic.models import (
     HearingState,
     HearingTurn,
 )
-from ai_bic.project import status
+from ai_bic.project import mark_updated, status
 from tests.test_ai_client import INFO, client_with, db, logs, response  # noqa: F401（db はフィクスチャ）
 from tests.test_project import make_project
 
@@ -244,3 +244,28 @@ def test_初回の準備作業は工程ではなく別に持つ():
     generate_flows(Client(r), project)
     assert project.setup_tasks["P1"] == ["集計手順書の作成：約8時間の目安"]
     assert all("手順書" not in s.name for s in project.to_be["P1"].steps)
+
+
+
+def test_業務フローを初めて作っても_それまでの試算は再計算が必要にならない():
+    """試算は業務フローより前に作られ、業務フローを使っていないため（画面を撮影して見つけた誤表示）。"""
+    from ai_bic.simulation import SimulationInputs
+
+    project = make_project(proposals=1)
+    project.simulations["P1"] = SimulationInputs(minutes_per_case=10)
+    mark_updated(project, "simulation", "P1")
+    generate_flows(Client(result(1)), project)
+    assert status(project, "simulation", "P1") == "完了"
+    # 作ったあとに現状フローを直したら、これまでどおり「再計算が必要」
+    mark_updated(project, "as_is")
+    assert status(project, "simulation", "P1") == "再計算が必要"
+
+
+def test_自分で作る場合も_それまでの試算は再計算が必要にならない():
+    from ai_bic.simulation import SimulationInputs
+
+    project = make_project(proposals=1)
+    project.simulations["P1"] = SimulationInputs(minutes_per_case=10)
+    mark_updated(project, "simulation", "P1")
+    start_blank(project)
+    assert status(project, "simulation", "P1") == "完了"
