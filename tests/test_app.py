@@ -33,7 +33,7 @@ APP_PATH = str(config.BASE_DIR / "app.py")  # 相対パスはテストファイ�
 
 
 def new_app(secrets) -> AppTest:
-    at = AppTest.from_file(APP_PATH, default_timeout=30)
+    at = AppTest.from_file(APP_PATH, default_timeout=60)  # 結果画面の処理が増えたため（PCの負荷で30秒を超えることがあった）
     at.run()
     assert not at.exception
     return at
