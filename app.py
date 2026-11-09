@@ -18,6 +18,7 @@ from ai_bic import config, guard, readiness, report, ui
 from ai_bic.ai_client import ClaudeClient
 from ai_bic.project import new_project
 from ai_bic.views import flows, review, simulator
+from ai_bic.views import progress as progress_view
 from ai_bic.attachments import load_attachments
 from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
 from ai_bic.errors import AIError, is_retryable, user_message
@@ -469,6 +470,9 @@ def render_result() -> None:
         info, s.hearing_state, result, FRAMEWORK, created_at, demo=s.mode == "demo"
     )
     report_name = report.file_name(created_at)
+
+    # --- 進み具合（STEP 1〜6 の状態と次にすること。AI-BIC 2.0 指示書 7.3） ---
+    progress_view.render(s.project)
 
     # --- 診断サマリー（最初の数秒で価値が伝わるように） ---
     html(ui.label("Summary", "診断サマリー"))

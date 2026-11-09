@@ -189,6 +189,12 @@ def _source_summary(inputs: list[sim.SimulationInputs]) -> str:
 
 def _render_one(project: Project, pid: str) -> None:
     base = project.simulations[pid]
+    # 元の改善案や業務フローが変わったら、古い試算を有効に見せない（指示書 6章）
+    if reasons := pj.outdated_reasons(project, "simulation", pid):
+        st.warning(f"再計算が必要：{'・'.join(reasons)}。下の値が今の改善案・業務フローに合っているか見直してください。")
+        if st.button("試算の値を確認した（このままでよい）", key=f"sim_ack_{pid}"):
+            pj.mark_updated(project, "simulation", pid)
+            st.rerun()
     # 1. 結論。入力欄の変更はコールバックで案件に反映済みなので、入力欄より先に計算・表示してよい
     result = sim.simulate(base)
     c1, c2, c3 = st.columns(3)

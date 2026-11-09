@@ -212,9 +212,12 @@ def test_現状を変えたら_改善後フローの確認を求め_確認すれ
     project = at.session_state.project
     pj.mark_updated(project, "as_is")
     at.run()
-    assert any("現状の業務フローが変更されました" in w.value for w in at.warning)
+    def flow_warnings():  # 試算の「再計算が必要」にも同じ理由が出るため、業務フローの警告だけを見る
+        return [w.value for w in at.warning if "の改善後フローは" in w.value]
+
+    assert any("現状の業務フローが変更されました" in w for w in flow_warnings())
     at.button(key="flow_ack_P1").click().run()
-    assert not any("現状の業務フローが変更されました" in w.value for w in at.warning)
+    assert flow_warnings() == []
 
 
 def test_フローの時間を効果試算に反映できる(secrets):  # noqa: F811

@@ -508,3 +508,22 @@ def test_デモの初期表示は製造業で_業務フロー_試算_レビュ�
     at.button(key="review_run_P2").click().run()
     assert "△ 条件付き推奨" in all_text(at)
     assert at.session_state.project.ai_calls == {}  # APIは呼んでいない
+
+
+
+def test_結果画面の上部に進み具合と次にすることを表示する(secrets):
+    at = result_screen(secrets)
+    text = all_text(at)
+    assert "STEP 6" in text and "改善案の確定" in text
+    assert "次にすること　STEP 2（現状の業務フロー）" in text
+
+
+def test_試算が古くなったら再計算が必要と表示し_確認すれば消える(secrets):
+    from ai_bic import project as pj
+
+    at = result_screen(secrets)
+    pj.mark_updated(at.session_state.project, "proposal", "P1")
+    at.run()
+    assert any("再計算が必要" in w.value for w in at.warning)
+    at.button(key="sim_ack_P1").click().run()
+    assert not any(w.value.startswith("再計算が必要") for w in at.warning)
