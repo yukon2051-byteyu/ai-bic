@@ -503,7 +503,7 @@ def test_デモの初期表示は製造業で_業務フロー_試算_レビュ�
     assert overview.loc[1, "年間削減時間"] == "120時間"
     # 業務フロー → 試算への反映 → レビュー → 作り直し
     at.button(key="flow_generate").click().run()
-    assert len(at.get("iframe")) == 1
+    assert len([h for h in at.get("html") if "bicflow" in h.proto.body]) == 1
     at.selectbox(key="review_pid").set_value("P2").run()
     at.button(key="review_run_P2").click().run()
     assert "△ 条件付き推奨" in all_text(at)

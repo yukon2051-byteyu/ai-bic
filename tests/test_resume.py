@@ -41,7 +41,7 @@ def test_デモの案件は再開しても_業務フロー_試算_レビュー�
     restored = at.session_state.project
     assert restored.as_is == project.as_is and restored.reviews["P1"].decisions == {0: "採用"}
     assert at.number_input(key="sim_P1_hourly_cost").value == 4000
-    assert len(at.get("iframe")) == 1  # 業務フローの図
+    assert len([h for h in at.get("html") if "bicflow" in h.proto.body]) == 1  # 業務フローの図
     at.button(key="review_revise_P1").click().run()  # デモはAIを使わないので、続きの操作ができる
     assert restored.proposal_history["P1"]
 

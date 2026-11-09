@@ -5,6 +5,7 @@
 後半：デモで結果画面まで進め、業務フローの表示・比較・試算への反映を確かめる（AppTest）
 """
 
+import re
 import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
@@ -154,7 +155,7 @@ def test_デモではAIを使わずにサンプルの業務フローを表示で
     at = result_screen(secrets)
     assert "サンプルの業務フローを表示する" in [b.label for b in at.button]
     at = flow_screen(secrets)
-    assert len(at.get("iframe")) == 1  # 図の表示部品（flow_canvas.py）
+    assert len([h for h in at.get("html") if "bicflow" in h.proto.body]) == 1  # 図の表示部品（flow_canvas.py）
     texts = [m.label for m in at.metric]
     assert "1件あたりの時間（現状）" in texts and "1件あたりの時間（改善後）" in texts
     assert at.session_state.project.ai_calls == {}  # デモはAIを使わない
@@ -163,7 +164,7 @@ def test_デモではAIを使わずにサンプルの業務フローを表示で
 def test_左右に並べて比較できる(secrets):  # noqa: F811
     at = flow_screen(secrets)
     at.radio(key="flow_view").set_value("左右に並べて比較").run()
-    assert len(at.get("iframe")) == 1  # 2つの図を1つの部品の中に、同じ縮尺で並べる
+    assert len([h for h in at.get("html") if "bicflow" in h.proto.body]) == 1  # 2つの図を1つの部品の中に、同じ縮尺で並べる
     at.selectbox(key="flow_pid").set_value("P3").run()
     assert not at.exception
 
@@ -194,10 +195,25 @@ def test_図の部品は_比較で2つの図と詳細を持ち_データで画�
     project.as_is = fl.update_step(project.as_is, "S1", name="</script><script>alert(1)</script>")
     panes = [flow_canvas.pane("現状", project.as_is, False), flow_canvas.pane("改善後", project.to_be["P1"], True)]
     html = flow_canvas.build_html(panes, 600)
-    assert html.count("</script>") == 3  # データ用・部品の読み込み・処理の3つだけ（工程名の「</script>」は無効化）
-    assert "<\\/script><script>alert(1)" in html
+    assert html.count("</script>") == 1  # 処理のスクリプト1つだけ（工程名の「</script>」は無効化）
+    assert "\\u003c/script>\\u003cscript>alert(1)" in html
+    js = html[html.index("<script>") + 8: html.rindex("</script>")]
+    assert not re.search(r"<[/\w!]", js)  # Streamlit の安全チェック（DOMPurify）にスクリプトを消されない
     assert "@viz-js/viz@3.29.0" in html  # 版を固定
     assert "textContent" in html and "innerHTML" not in html  # 画面に出す文字は HTML として解釈させない
+
+
+def test_図の部品の見た目の指定は部品の中だけに限り_アプリ全体に漏らさない():
+    """iframe を使わない（st.html でページに直接書く）ため、body や全要素への指定はアプリの画面を崩す。"""
+    project = demo_project()
+    html = flow_canvas.build_html([flow_canvas.pane("現状", project.as_is, False)], 600)
+    uid = re.search(r'<div id="(bicflow-[0-9a-f]{12})"', html).group(1)
+    css = html[html.index("<style>") + 7: html.index("</style>")]
+    rules = [r.strip() for r in re.findall(r"([^{}]+)\{", css) if not r.strip().startswith("@media")]
+    assert rules and all(sel.strip().startswith("#" + uid) for r in rules for sel in r.split(","))
+    assert "getElementById(\"" + uid + "\")" in html  # 要素は自分の入れ物の中だけで探す
+    assert "document.querySelector" not in html
+    assert flow_canvas.build_html([flow_canvas.pane("現状", project.as_is, False)], 600) == html  # 同じ内容なら同じ id
 
 
 def test_図の部品の高さは工程数に応じ_上限で止める():
