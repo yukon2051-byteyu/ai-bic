@@ -175,9 +175,19 @@ def review_context(project: Project, pid: str, rules: list[RuleFinding]) -> str:
     if to_be is None or not to_be.steps:
         lines.append("（未作成）")
     else:
+        # 時間は「1件あたり × 実施割合」で数える。割合と合計を渡さないと、AIがすべての工程を毎回行うものとして
+        # 足し算し、合計を誤った（本物のAIでの確認で見つかった問題）
+        unit = f"1件＝{project.case_unit}" if project.case_unit else "1件の意味は未設定"
+        lines.append(f"- 工程の時間はすべて1件あたり（{unit}）。合計は「時間×実施割合」を工程ごとに1回ずつ足した値")
+        if project.as_is is not None:
+            d = compare_flows(project.as_is, to_be)
+            lines.append(f"- 1件あたりの合計：現状 {d.as_is_minutes.minutes_per_case:g}分 → 改善後 {d.to_be_minutes.minutes_per_case:g}分"
+                         f"（時間が不明な工程：現状{len(d.as_is_minutes.unknown_step_ids)}個・改善後{len(d.to_be_minutes.unknown_step_ids)}個は含まない。"
+                         "改善後は廃止の工程を含まない）")
         for s in to_be.steps:
             minutes = f"{s.minutes_per_case:g}分" if s.minutes_per_case is not None else "時間不明"
-            lines.append(f"- {s.id} {s.name}［{s.change}］{s.change_note}（担当：{s.actor or '不明'}、{minutes}）")
+            rate = "" if s.occurrence_rate == 100 else f"×実施割合{s.occurrence_rate:g}%"
+            lines.append(f"- {s.id} {s.name}［{s.change}］{s.change_note}（担当：{s.actor or '不明'}、{minutes}{rate}）")
         lines += [f"- 統制のために残した工程：{k}" for k in project.kept_controls.get(pid, [])]
         lines += [f"- 初回の準備作業：{k}" for k in project.setup_tasks.get(pid, [])]
     lines += ["", "## 情報の充足度（プログラムの判定）"]

@@ -252,3 +252,13 @@ def test_作り直しのAIが元の課題から外れたら1回だけ呼び直�
     with pytest.raises(AIError):
         client.revise(INFO, project.hearing, project.diagnosis.analysis, 1, original, [finding()])
     assert len(sdk.calls) == 2
+
+
+
+def test_レビューの資料には実施割合と1件あたりの合計時間を入れる():
+    """本物のAIでの確認で、実施割合がないためにAIが全工程を毎回行うものとして合計を誤った問題への対応。"""
+    project, _ = demo()
+    context = rv.review_context(project, "P1", [])
+    assert "実施割合20%" in context  # S8 原因調査（20%の件だけ）
+    assert "1件＝営業所1か所分の売上ファイル" in context
+    assert "1件あたりの合計：現状" in context
