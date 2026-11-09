@@ -1,6 +1,1267 @@
 {
   "scenarios": [
     {
+      "id": "production_report",
+      "title": "月次生産実績集計（製造部）",
+      "business_info": {
+        "company_name": "東和精工株式会社（架空）",
+        "department": "製造部 生産管理課",
+        "task_name": "月次生産実績集計",
+        "overview": "工場の4台の設備から出力される日々の生産実績を、毎月Excelに転記して集計し、品質不良の件数と合わせて月次の生産実績報告書を作成している。",
+        "pain_points": "設備ごとに出力される形式が違い、転記と確認に時間がかかる。集計の誤りが会議で見つかり、修正に追われることがある。"
+      },
+      "attachments": [
+        {
+          "name": "設備別生産実績_10月.csv",
+          "text": "設備,日付,品番,生産数,不良数\nプレス1号機,10/1,A-100,1200,8\nプレス2号機,2026/10/01,A100,980,5\n組立ライン,10月1日,A-100,1150,3\n検査装置,10/01,A-100,1140,12\n備考：設備ごとに日付と品番の書き方が違う。10月は組立ラインの数量の転記漏れが1件あった。"
+        }
+      ],
+      "turns": [
+        {
+          "statuses": {
+            "H1": "未確認",
+            "H2": "充足",
+            "H3": "未確認",
+            "H4": "充足",
+            "H5": "充足",
+            "H6": "未確認"
+          },
+          "next_item_id": "H3",
+          "question_type": "新規",
+          "question": "集計作業は、毎月いつ、何人で、どれくらいの時間をかけていますか？",
+          "answer_example": "例：毎月3営業日目に、2人で半日ほど",
+          "demo_answer": "毎月初めの3日間、私と後輩の2人で作業しています。合計で20時間くらいかかります。"
+        },
+        {
+          "statuses": {
+            "H1": "未確認",
+            "H2": "充足",
+            "H3": "不十分",
+            "H4": "充足",
+            "H5": "充足",
+            "H6": "未確認"
+          },
+          "next_item_id": "H3",
+          "question_type": "確認",
+          "question": "そのうち、最も時間がかかっている作業はどれで、何時間くらいですか？",
+          "answer_example": "例：転記に8時間ほど",
+          "demo_answer": "設備ごとのCSVを開いて、品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです。"
+        },
+        {
+          "statuses": {
+            "H1": "未確認",
+            "H2": "充足",
+            "H3": "充足",
+            "H4": "充足",
+            "H5": "充足",
+            "H6": "未確認"
+          },
+          "next_item_id": "H1",
+          "question_type": "新規",
+          "question": "月次の生産実績報告書は、誰に提出し、何に使われていますか？",
+          "answer_example": "例：工場長に提出し、会議で使う",
+          "demo_answer": "工場長に提出し、月初の生産会議で計画と実績の差を確認するのに使われます。"
+        },
+        {
+          "statuses": {
+            "H1": "充足",
+            "H2": "充足",
+            "H3": "充足",
+            "H4": "充足",
+            "H5": "充足",
+            "H6": "未確認"
+          },
+          "next_item_id": "H6",
+          "question_type": "新規",
+          "question": "改善にあたって、予算や使えるツール、社内のルールなどの制約はありますか？",
+          "answer_example": "例：新しいソフトは買えないが、Excelは全員使える",
+          "demo_answer": "大きな予算はありませんが、Excelは全員使えます。設備のデータは社外に出せない決まりです。"
+        }
+      ],
+      "analysis": {
+        "business_summary": "製造部 生産管理課が、工場の4台の設備から出力される生産実績を毎月Excelに転記して集計し、品質不良の件数と合わせて月次の生産実績報告書を作成している業務です。月初の3日間に2人で、合計約20時間をかけています。報告書は工場長に提出され、生産会議で使われます。",
+        "issues": [
+          {
+            "issue_id": "I1",
+            "title": "設備ごとに形式の違うデータを、手作業で転記している",
+            "summary": "4台の設備のデータは日付や品番の書き方が違い、担当者が1つずつ見比べながら集計表に転記しています。",
+            "viewpoint_ids": [
+              "V2",
+              "V3"
+            ],
+            "evidence_type": "本人の申告",
+            "evidences": [
+              {
+                "source": "業務情報",
+                "turn_no": null,
+                "file_no": null,
+                "quote": "設備ごとに出力される形式が違い、転記と確認に時間がかかる",
+                "supports": "設備ごとに形式が違い、転記と確認に時間がかかっている"
+              },
+              {
+                "source": "添付ファイル",
+                "turn_no": null,
+                "file_no": 1,
+                "quote": "設備ごとに日付と品番の書き方が違う",
+                "supports": "見本ファイルでも、設備ごとに日付と品番の書き方が違う"
+              }
+            ],
+            "calculation": null,
+            "assumed_cause": "設備ごとに出力の設定が決められておらず、書き方がそろっていない可能性があります（推測）。",
+            "impact": "転記に時間がかかるうえ、書き方の違いを読み替える際に誤りが起きやすくなります。",
+            "severity": "高",
+            "severity_reason": "毎月の作業時間の大部分を占め、誤りの原因にもなっているためです。",
+            "followup_questions": [
+              "設備ごとに、データの出力の設定を変えられますか？"
+            ]
+          },
+          {
+            "issue_id": "I2",
+            "title": "集計作業の約6割が転記に使われている",
+            "summary": "集計作業の合計20時間のうち、転記に12時間ほどかかっています。",
+            "viewpoint_ids": [
+              "V1"
+            ],
+            "evidence_type": "計算結果",
+            "evidences": [
+              {
+                "source": "回答",
+                "turn_no": 1,
+                "file_no": null,
+                "quote": "合計で20時間くらいかかります",
+                "supports": "集計作業全体で月に約20時間かかる"
+              },
+              {
+                "source": "回答",
+                "turn_no": 2,
+                "file_no": null,
+                "quote": "品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです",
+                "supports": "転記に月約12時間かかる"
+              }
+            ],
+            "calculation": "12時間÷20時間×100＝60%",
+            "assumed_cause": "設備のデータを1件ずつ手で写しているためと考えられます（推測）。",
+            "impact": "転記を減らせれば、集計作業全体の時間を大きく減らせる可能性があります。",
+            "severity": "高",
+            "severity_reason": "作業時間の半分以上を占める工程のためです。",
+            "followup_questions": [
+              "転記のうち、書き方の読み替えにかかる時間はどれくらいですか？"
+            ]
+          },
+          {
+            "issue_id": "I3",
+            "title": "集計の誤りが会議で見つかり、手戻りが起きている",
+            "summary": "転記漏れなどの誤りが会議の場で見つかり、修正に追われることがあります。",
+            "viewpoint_ids": [
+              "V5"
+            ],
+            "evidence_type": "本人の申告",
+            "evidences": [
+              {
+                "source": "業務情報",
+                "turn_no": null,
+                "file_no": null,
+                "quote": "集計の誤りが会議で見つかり、修正に追われることがある",
+                "supports": "誤りが会議で見つかり、手戻りが起きている"
+              },
+              {
+                "source": "添付ファイル",
+                "turn_no": null,
+                "file_no": 1,
+                "quote": "10月は組立ラインの数量の転記漏れが1件あった",
+                "supports": "実際に転記漏れが起きている"
+              }
+            ],
+            "calculation": null,
+            "assumed_cause": "提出前に、設備のデータと集計結果を照合する手順がない可能性があります（推測）。",
+            "impact": "会議の場で数字を修正すると、計画と実績の差の確認が遅れます。",
+            "severity": "中",
+            "severity_reason": "毎回ではないものの、報告の信頼性に関わるためです。",
+            "followup_questions": [
+              "誤りは月に何件くらい見つかりますか？"
+            ]
+          },
+          {
+            "issue_id": "I4",
+            "title": "月初の3日間に、2人の作業が集中している",
+            "summary": "集計作業が毎月初めの3日間に集中し、2人で対応しています。",
+            "viewpoint_ids": [
+              "V6"
+            ],
+            "evidence_type": "本人の申告",
+            "evidences": [
+              {
+                "source": "回答",
+                "turn_no": 1,
+                "file_no": null,
+                "quote": "毎月初めの3日間、私と後輩の2人で作業しています",
+                "supports": "月初の3日間に2人で作業している"
+              }
+            ],
+            "calculation": null,
+            "assumed_cause": "月末に締めてから集計を始めるため、作業が月初に集中すると考えられます（推測）。",
+            "impact": "月初のほかの業務が後回しになり、急ぎの対応が難しくなります。",
+            "severity": "低",
+            "severity_reason": "業務が止まるほどではないものの、負担が偏っているためです。",
+            "followup_questions": [
+              "月の途中で、途中までの集計をすることはできますか？"
+            ]
+          }
+        ],
+        "no_issue_viewpoints": [
+          "V4",
+          "V7"
+        ]
+      },
+      "proposals": {
+        "summary": {
+          "headline": "最大の課題は、設備ごとに形式の違うデータを手作業で転記していることです。書き方の標準化とデータの取り込みで、転記の時間と誤りの両方を減らせる見込みです。",
+          "top_issue_id": "I1",
+          "first_action": "今週中に、4台の設備のデータの書き方の違いを一覧にし、Excelのデータの取得機能が使えるか情報システム担当に確認する。"
+        },
+        "proposals": [
+          {
+            "title": "設備データの書き方をそろえる変換表と、集計手順の標準化",
+            "category": "業務標準化",
+            "description": "設備ごとの日付・品番の書き方と、集計表の書き方の対応を変換表にまとめ、転記と照合の手順を手順書にする。",
+            "target_issue_ids": [
+              "I1",
+              "I3"
+            ],
+            "expected_effect": "読み替えの迷いと転記の誤りが減る想定です。",
+            "difficulty": "低",
+            "risks": [
+              "設備の設定が変わると、変換表が古くなる"
+            ],
+            "prerequisites": [
+              "4台の設備のデータの書き方を一覧にする"
+            ],
+            "reason": "費用をかけずに、誤りの原因に直接取り組めるためです。",
+            "why_not_simpler": null,
+            "before": "設備ごとに日付と品番の書き方が違い、担当者が読み替えながら転記している。",
+            "after": "変換表と手順書により、誰でも同じ手順で転記・照合できる想定。",
+            "first_steps": [
+              "4台の設備のデータの書き方を一覧にする",
+              "集計表への転記の手順を書き出す"
+            ]
+          },
+          {
+            "title": "Excelのデータ取り込み機能で、4設備のCSVを自動で取り込む",
+            "category": "既存ツールの活用",
+            "description": "Excelのデータの取得（Power Query）で、決まったフォルダに置いた4設備のCSVを取り込み、書き方をそろえて集計表を作る。",
+            "target_issue_ids": [
+              "I1",
+              "I2"
+            ],
+            "expected_effect": "転記の作業が大きく減る想定です（転記12時間のうち大部分）。",
+            "difficulty": "中",
+            "risks": [
+              "取り込みの設定を直せる人が限られる"
+            ],
+            "prerequisites": [
+              "利用中のExcelで、データの取得機能が使えるか（情報システム担当に確認）",
+              "設備のデータを社外に出さずに、社内のフォルダで扱えること"
+            ],
+            "reason": "Excelは全員使えるため、追加の費用なしで転記そのものを減らせるためです。",
+            "why_not_simpler": null,
+            "before": "設備ごとのCSVを開き、品番ごとの数量を手で集計表に転記している。",
+            "after": "CSVを決まったフォルダに置くと、取り込みと集計が自動で行われる想定。",
+            "first_steps": [
+              "情報システム担当に、データの取得機能が使えるか確認する",
+              "1台分のCSVで取り込みを試す"
+            ]
+          },
+          {
+            "title": "集計の締めを前倒しし、会議前日に工場長が確認する",
+            "category": "業務ルールの見直し",
+            "description": "月の途中までのデータを週ごとに集計しておき、月初は残りだけを集計する。会議の前日に工場長が集計結果を確認する。",
+            "target_issue_ids": [
+              "I3",
+              "I4"
+            ],
+            "expected_effect": "月初の作業の集中と、会議の場での手戻りが減る想定です。",
+            "difficulty": "低",
+            "risks": [
+              "週ごとの集計を忘れると、月初に作業が残る"
+            ],
+            "prerequisites": [
+              "工場長に、会議前日の確認の時間をもらえるか相談する"
+            ],
+            "reason": "ルールを変えるだけで、誤りを会議の前に見つけられるためです。",
+            "why_not_simpler": null,
+            "before": "月初の3日間に2人で集計し、誤りが会議の場で見つかることがある。",
+            "after": "週ごとに集計しておき、会議前日に工場長が確認することで、誤りを事前に見つける想定。",
+            "first_steps": [
+              "週ごとに集計する曜日を決める"
+            ]
+          }
+        ]
+      },
+      "simulation": {
+        "note": "1件＝設備1台分の月次データとして、300分×4件＝月20時間（ヒアリングの「合計で20時間くらい」）に合わせた架空の値です。人件費・削減率・費用も架空のサンプル値です。",
+        "base": {
+          "minutes_per_case": 300,
+          "cases_per_month": 4,
+          "hourly_cost": 3000
+        },
+        "proposals": [
+          {
+            "reduction_rate": 15,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 30000
+          },
+          {
+            "reduction_rate": 50,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 90000
+          },
+          {
+            "reduction_rate": 10,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 12000
+          }
+        ]
+      },
+      "flows": {
+        "case_unit": "設備1台分の月次データ",
+        "cases_per_month": 4,
+        "cases_basis": "ヒアリング",
+        "cases_quote": "工場の4台の設備から出力される日々の生産実績",
+        "as_is_steps": [
+          {
+            "ref": "S1",
+            "name": "設備のCSVを受け取る",
+            "kind": "作業",
+            "actor": "生産管理課（担当者）",
+            "description": "",
+            "system": "設備のCSV",
+            "manual": true,
+            "minutes_per_case": 10,
+            "time_basis": "AI推定",
+            "evidence_quote": "工場の4台の設備から出力される日々の生産実績",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S2",
+            "name": "品番ごとの数量を集計表に転記する",
+            "kind": "作業",
+            "actor": "生産管理課（担当者）",
+            "description": "月12時間を4台分に割った目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 180,
+            "time_basis": "ヒアリング",
+            "evidence_quote": "品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "設備ごとに書き方が違い、読み替えながら転記している",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S3",
+            "name": "日付と品番の書き方をそろえる",
+            "kind": "作業",
+            "actor": "生産管理課（担当者）",
+            "description": "",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 30,
+            "time_basis": "AI推定",
+            "evidence_quote": "設備ごとに日付と品番の書き方が違う",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "書き方の読み替えに時間がかかる",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S4",
+            "name": "合計を確認する",
+            "kind": "作業",
+            "actor": "生産管理課（担当者）",
+            "description": "",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 30,
+            "time_basis": "AI推定",
+            "evidence_quote": "転記と確認に時間がかかる",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S5",
+            "name": "誤りがあるか",
+            "kind": "判断",
+            "actor": "生産管理課（担当者）",
+            "description": "",
+            "system": "",
+            "manual": null,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": "集計の誤りが会議で見つかり",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S6",
+            "name": "誤りを調べて直す",
+            "kind": "作業",
+            "actor": "生産管理課（担当者）",
+            "description": "割合は目安",
+            "system": "",
+            "manual": true,
+            "minutes_per_case": 60,
+            "time_basis": "AI推定",
+            "evidence_quote": "修正に追われることがある",
+            "occurrence_rate": 25,
+            "wait_or_rework": "会議で見つかると手戻りになる",
+            "problem": "誤りが会議の場で見つかる",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S7",
+            "name": "月次の生産実績報告書を作成する",
+            "kind": "作業",
+            "actor": "生産管理課（担当者）",
+            "description": "月1回の作業を設備1台分に割った目安",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 45,
+            "time_basis": "AI推定",
+            "evidence_quote": "月次の生産実績報告書を作成している",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S8",
+            "name": "工場長が確認する",
+            "kind": "承認",
+            "actor": "工場長",
+            "description": "",
+            "system": "",
+            "manual": null,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": "工場長に提出し",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          }
+        ],
+        "as_is_edges": [
+          {
+            "source": "S1",
+            "target": "S2",
+            "label": ""
+          },
+          {
+            "source": "S2",
+            "target": "S3",
+            "label": ""
+          },
+          {
+            "source": "S3",
+            "target": "S4",
+            "label": ""
+          },
+          {
+            "source": "S4",
+            "target": "S5",
+            "label": ""
+          },
+          {
+            "source": "S5",
+            "target": "S6",
+            "label": "誤りあり"
+          },
+          {
+            "source": "S6",
+            "target": "S4",
+            "label": "直して再確認"
+          },
+          {
+            "source": "S5",
+            "target": "S7",
+            "label": "誤りなし"
+          },
+          {
+            "source": "S7",
+            "target": "S8",
+            "label": ""
+          }
+        ],
+        "questions": [
+          "設備のCSVは、どのような方法で受け取っていますか？",
+          "合計の確認は、何と何を突き合わせていますか？",
+          "誤りは月に何件くらい見つかりますか？"
+        ],
+        "to_be": [
+          {
+            "proposal_no": 1,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "設備のCSVを受け取る",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "設備のCSV",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "工場の4台の設備から出力される日々の生産実績",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S2",
+                "name": "品番ごとの数量を集計表に転記する",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "月12時間を4台分に割った目安",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 140,
+                "time_basis": "AI推定",
+                "evidence_quote": "品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "設備ごとに書き方が違い、読み替えながら転記している",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "変換表で読み替えの迷いが減る"
+              },
+              {
+                "ref": "S3",
+                "name": "日付と品番の書き方をそろえる",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "設備ごとに日付と品番の書き方が違う",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "書き方の読み替えに時間がかかる",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "変換表に沿ってそろえる"
+              },
+              {
+                "ref": "S4",
+                "name": "合計を確認する",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 30,
+                "time_basis": "AI推定",
+                "evidence_quote": "転記と確認に時間がかかる",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "誤りがあるか",
+                "kind": "判断",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "集計の誤りが会議で見つかり",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S6",
+                "name": "誤りを調べて直す",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "割合は目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 60,
+                "time_basis": "AI推定",
+                "evidence_quote": "修正に追われることがある",
+                "occurrence_rate": 15,
+                "wait_or_rework": "会議で見つかると手戻りになる",
+                "problem": "誤りが会議の場で見つかる",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "手順書に沿った照合で、誤りが減る想定（割合は目安）"
+              },
+              {
+                "ref": "S7",
+                "name": "月次の生産実績報告書を作成する",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "月1回の作業を設備1台分に割った目安",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 45,
+                "time_basis": "AI推定",
+                "evidence_quote": "月次の生産実績報告書を作成している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "工場長が確認する",
+                "kind": "承認",
+                "actor": "工場長",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "工場長に提出し",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": ""
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": ""
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": "誤りあり"
+              },
+              {
+                "source": "S6",
+                "target": "S4",
+                "label": "直して再確認"
+              },
+              {
+                "source": "S5",
+                "target": "S7",
+                "label": "誤りなし"
+              },
+              {
+                "source": "S7",
+                "target": "S8",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S4 合計の確認：手順書に沿って、必ず行う工程として残す",
+              "S8 工場長の確認：報告の承認として残す"
+            ],
+            "setup_tasks": [
+              "変換表と集計手順書の作成：約10時間の目安"
+            ]
+          },
+          {
+            "proposal_no": 2,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "設備のCSVを受け取る",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "設備のCSV",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "工場の4台の設備から出力される日々の生産実績",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "CSVを決まった社内のフォルダに置く"
+              },
+              {
+                "ref": "S2",
+                "name": "品番ごとの数量を集計表に転記する",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "月12時間を4台分に割った目安",
+                "system": "Excel（データの取得）",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "自動化",
+                "change_note": "データの取得機能でCSVを取り込み、集計表を自動で作る"
+              },
+              {
+                "ref": "S3",
+                "name": "日付と品番の書き方をそろえる",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 0,
+                "time_basis": "AI推定",
+                "evidence_quote": "設備ごとに日付と品番の書き方が違う",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "自動化",
+                "change_note": "取り込みの設定で書き方をそろえる"
+              },
+              {
+                "ref": "S4",
+                "name": "合計を確認する",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 30,
+                "time_basis": "AI推定",
+                "evidence_quote": "転記と確認に時間がかかる",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "誤りがあるか",
+                "kind": "判断",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "集計の誤りが会議で見つかり",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S6",
+                "name": "誤りを調べて直す",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "割合は目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 60,
+                "time_basis": "AI推定",
+                "evidence_quote": "修正に追われることがある",
+                "occurrence_rate": 10,
+                "wait_or_rework": "会議で見つかると手戻りになる",
+                "problem": "誤りが会議の場で見つかる",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "転記の誤りが減る想定（割合は目安）"
+              },
+              {
+                "ref": "S7",
+                "name": "月次の生産実績報告書を作成する",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "月1回の作業を設備1台分に割った目安",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 45,
+                "time_basis": "AI推定",
+                "evidence_quote": "月次の生産実績報告書を作成している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "工場長が確認する",
+                "kind": "承認",
+                "actor": "工場長",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "工場長に提出し",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S9",
+                "name": "取り込み件数と設備の合計を照合する",
+                "kind": "判断",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "自動取り込みの誤りを見つける"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": ""
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": "誤りあり"
+              },
+              {
+                "source": "S6",
+                "target": "S4",
+                "label": "直して再確認"
+              },
+              {
+                "source": "S5",
+                "target": "S7",
+                "label": "誤りなし"
+              },
+              {
+                "source": "S7",
+                "target": "S8",
+                "label": ""
+              },
+              {
+                "source": "S2",
+                "target": "S9",
+                "label": ""
+              },
+              {
+                "source": "S9",
+                "target": "S3",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S9 照合：自動で取り込んでも、件数と合計の一致を確認する工程を残す",
+              "S8 工場長の確認：報告の承認として残す"
+            ],
+            "setup_tasks": [
+              "データの取得（Power Query）の取り込み手順の作成と試験：約30時間の目安"
+            ]
+          },
+          {
+            "proposal_no": 3,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "設備のCSVを受け取る",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "設備のCSV",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": "工場の4台の設備から出力される日々の生産実績",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S2",
+                "name": "品番ごとの数量を集計表に転記する",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "月12時間を4台分に割った目安",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 180,
+                "time_basis": "ヒアリング",
+                "evidence_quote": "品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "設備ごとに書き方が違い、読み替えながら転記している",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "日付と品番の書き方をそろえる",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 30,
+                "time_basis": "AI推定",
+                "evidence_quote": "設備ごとに日付と品番の書き方が違う",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "書き方の読み替えに時間がかかる",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S4",
+                "name": "合計を確認する",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 30,
+                "time_basis": "AI推定",
+                "evidence_quote": "転記と確認に時間がかかる",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "週ごとに途中までの合計を確認しておく"
+              },
+              {
+                "ref": "S5",
+                "name": "誤りがあるか",
+                "kind": "判断",
+                "actor": "生産管理課（担当者）",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "集計の誤りが会議で見つかり",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S6",
+                "name": "誤りを調べて直す",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "割合は目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 60,
+                "time_basis": "AI推定",
+                "evidence_quote": "修正に追われることがある",
+                "occurrence_rate": 10,
+                "wait_or_rework": "会議で見つかると手戻りになる",
+                "problem": "誤りが会議の場で見つかる",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "誤りを会議の前に見つけられる想定（割合は目安）"
+              },
+              {
+                "ref": "S7",
+                "name": "月次の生産実績報告書を作成する",
+                "kind": "作業",
+                "actor": "生産管理課（担当者）",
+                "description": "月1回の作業を設備1台分に割った目安",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 45,
+                "time_basis": "AI推定",
+                "evidence_quote": "月次の生産実績報告書を作成している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "工場長が確認する",
+                "kind": "承認",
+                "actor": "工場長",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "工場長に提出し",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S9",
+                "name": "会議前日に工場長が集計結果を確認する",
+                "kind": "承認",
+                "actor": "工場長",
+                "description": "",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": 10,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "誤りを会議の前に見つける"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": ""
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": ""
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": "誤りあり"
+              },
+              {
+                "source": "S6",
+                "target": "S4",
+                "label": "直して再確認"
+              },
+              {
+                "source": "S5",
+                "target": "S7",
+                "label": "誤りなし"
+              },
+              {
+                "source": "S7",
+                "target": "S9",
+                "label": ""
+              },
+              {
+                "source": "S9",
+                "target": "S8",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "S8 工場長の確認：会議での最終確認として残す"
+            ],
+            "setup_tasks": [
+              "週ごとの集計の進め方と、締め日の変更の社内調整：約4時間の目安"
+            ]
+          }
+        ]
+      },
+      "reviews": [
+        {
+          "verdict": "推奨",
+          "summary": "費用をかけずに、書き方の違いという誤りの原因に直接取り組める案です。変換表の更新の決まりを作れば、次の検討に進めます。",
+          "findings": [
+            {
+              "viewpoint": "業務運用リスク",
+              "severity": "中",
+              "title": "設備の設定が変わると変換表が古くなる",
+              "detail": "変換表が古いと、かえって読み替えの誤りが起きます。",
+              "evidence": "設備ごとに日付と品番の書き方が違う",
+              "suggestion": "設備の設定を変えるときは、変換表も更新する決まりを作る"
+            },
+            {
+              "viewpoint": "費用対効果",
+              "severity": "低",
+              "title": "転記そのものの時間はあまり減らない",
+              "detail": "読み替えは楽になっても、手で写す作業は残ります。",
+              "evidence": "品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです",
+              "suggestion": "案2（データの取り込み）と組み合わせる"
+            }
+          ],
+          "strengths": [
+            "費用をかけずにすぐ始められる",
+            "案2の前提（書き方の整理）にもなる"
+          ],
+          "missing_info": [
+            "4台の設備のデータの書き方の違いの全体"
+          ],
+          "alternatives": [],
+          "next_checks": [
+            "4台の設備のデータの書き方を一覧にする"
+          ]
+        },
+        {
+          "verdict": "条件付き推奨",
+          "summary": "転記12時間の大部分を減らせる可能性がある効果の大きい案です。ただし、Excelのデータの取得機能が使えるかが未確認で、取り込みの設定を直せる人が限られるリスクがあります。",
+          "findings": [
+            {
+              "viewpoint": "技術的実現可能性",
+              "severity": "高",
+              "title": "データの取得機能が使えるか未確認",
+              "detail": "Excelの版や社内の設定によっては、この機能を使えません。",
+              "evidence": "利用中のExcelで、データの取得機能が使えるか",
+              "suggestion": "情報システム担当に、Excelの版とデータの取得機能の利用可否を確認する"
+            },
+            {
+              "viewpoint": "業務運用リスク",
+              "severity": "中",
+              "title": "取り込みの設定を直せる人が限られる",
+              "detail": "設備の出力が変わったとき、設定を直せないと集計が止まります。",
+              "evidence": "取り込みの設定を直せる人が限られる",
+              "suggestion": "設定の手順書を作り、担当者2人とも直せるようにする"
+            },
+            {
+              "viewpoint": "セキュリティ・統制",
+              "severity": "中",
+              "title": "自動取り込みの結果を確認する工程が必要",
+              "detail": "取り込みの誤りに気づく機会が減ります。",
+              "evidence": null,
+              "suggestion": "取り込み件数と設備の合計を照合する工程を残す"
+            }
+          ],
+          "strengths": [
+            "追加の費用なしで、転記そのものを減らせる",
+            "設備のデータを社外に出さずに実現できる"
+          ],
+          "missing_info": [
+            "Excelの版と、データの取得機能の利用可否"
+          ],
+          "alternatives": [
+            "案1の変換表で読み替えを楽にし、取り込みは機能が使えると分かってから行う"
+          ],
+          "next_checks": [
+            "情報システム担当に、データの取得機能が使えるか確認する"
+          ]
+        },
+        {
+          "verdict": "推奨",
+          "summary": "ルールを変えるだけで、月初の作業の集中と会議での手戻りを減らせる案です。工場長の確認の時間を確保できれば進められます。",
+          "findings": [
+            {
+              "viewpoint": "業務運用リスク",
+              "severity": "中",
+              "title": "週ごとの集計が続かないおそれ",
+              "detail": "週ごとの集計を忘れると、月初に作業が残ります。",
+              "evidence": "毎月初めの3日間、私と後輩の2人で作業しています",
+              "suggestion": "週ごとの集計の曜日と担当を決め、予定表に入れる"
+            },
+            {
+              "viewpoint": "課題との整合性",
+              "severity": "低",
+              "title": "転記の手間そのものは減らない",
+              "detail": "作業の時期は分散しても、作業の量は変わりません。",
+              "evidence": null,
+              "suggestion": "案1・案2と組み合わせる"
+            }
+          ],
+          "strengths": [
+            "費用がかからない",
+            "誤りを会議の前に見つけられる"
+          ],
+          "missing_info": [
+            "工場長が会議前日に確認できるか"
+          ],
+          "alternatives": [],
+          "next_checks": [
+            "工場長に、会議前日の確認の時間をもらえるか相談する"
+          ]
+        }
+      ]
+    },
+    {
       "id": "sales_report",
       "title": "月次売上集計（営業管理部）",
       "business_info": {

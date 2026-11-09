@@ -32,10 +32,19 @@ def db(tmp_path, monkeypatch):
 APP_PATH = str(config.BASE_DIR / "app.py")  # 相対パスはテストファイルの場所が基準になるため絶対パスにする
 
 
-def new_app(secrets) -> AppTest:
+SALES = "月次売上集計（営業管理部）"
+
+
+def new_app(secrets, scenario: str | None = SALES) -> AppTest:
+    """アプリを起動する。デモは、既存のテストが前提にしている月次売上集計を選んでおく。
+
+    デモの初期表示は製造業（月次生産実績集計）。初期表示のまま使うテストは scenario=None を渡す。
+    """
     at = AppTest.from_file(APP_PATH, default_timeout=60)  # 結果画面の処理が増えたため（PCの負荷で30秒を超えることがあった）
     at.run()
     assert not at.exception
+    if scenario:
+        at.selectbox(key="demo_scenario").set_value(scenario).run()
     return at
 
 
@@ -478,3 +487,24 @@ def test_トップの注意事項は_個人情報_AIへの送信_保存しない
     assert "個人情報や社外秘の情報は入力しないでください" in text
     assert "入力内容はAI（Anthropic社のClaude）に送信され" in text
     assert "診断結果は保存されません" in text
+
+
+
+# ---------------------------------------------------------------
+# 製造業デモ（指示書 8章：月次生産実績集計。デモの初期表示）
+# ---------------------------------------------------------------
+def test_デモの初期表示は製造業で_業務フロー_試算_レビューまでAPIなしで試せる(secrets):
+    at = new_app(secrets, scenario=None)
+    assert at.selectbox(key="demo_scenario").value == "月次生産実績集計（製造部）"
+    at = result_screen(secrets, at)
+    assert at.session_state.business_info.department == "製造部 生産管理課"
+    # 試算：デモ値（300分×4件＝月20時間）で、案2（データの取り込み）は転記の時間が大きく減る
+    overview = next(df.value for df in at.dataframe if "改善案" in df.value.columns)
+    assert overview.loc[1, "年間削減時間"] == "120時間"
+    # 業務フロー → 試算への反映 → レビュー → 作り直し
+    at.button(key="flow_generate").click().run()
+    assert len(at.get("iframe")) == 1
+    at.selectbox(key="review_pid").set_value("P2").run()
+    at.button(key="review_run_P2").click().run()
+    assert "△ 条件付き推奨" in all_text(at)
+    assert at.session_state.project.ai_calls == {}  # APIは呼んでいない
