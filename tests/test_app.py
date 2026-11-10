@@ -180,12 +180,18 @@ def test_ヒアリングの途中で_ここまでの情報で診断できる(sec
     at.button(key="submit_info").click().run()
     at.button(key="submit_answer").click().run()  # 1問だけ回答
 
-    at.button(key="finish").click().run()
+    finish = at.button(key="finish")
+    assert finish.label == "ヒアリングを終了して資料添付へ"
+    assert "資料の添付は任意です。未確認の項目は結果画面に表示します。" in [c.value for c in at.caption]
+    finish.click().run()
     assert at.session_state.stage == "attach"
     at.button(key="diagnose").click().run()
 
     assert at.session_state.stage == "result"
-    assert "情報が不足しています" in all_text(at)  # 不足項目を明示（R6）
+    # デモの結果は全問回答が前提の固定の内容。途中で終えたことと、何と照合したかを明示する（AI-BIC 3.0）
+    text = all_text(at)
+    assert "全問回答した場合のサンプル結果" in text and "途中（1問回答）" in text
+    assert any(e.label.startswith("今回の入力（途中終了時点：1問回答") for e in at.expander)
 
 
 def test_資料の添付の段階で中止するとトップに戻る(secrets):
@@ -576,8 +582,12 @@ def test_試算が古くなったら再計算が必要と表示し_確認すれ�
 # ---------------------------------------------------------------
 # 結果画面の冒頭と改善案の比較（AI-BIC 3.0 第1段階）
 # ---------------------------------------------------------------
-def production_result(secrets, finish_after: int | None = None) -> AppTest:
-    """製造部デモの結果画面。finish_after を渡すと、その数だけ答えてヒアリングを途中で終える。"""
+def production_result(secrets, finish_after: int | None = None, extra: str = "answer") -> AppTest:
+    """製造部デモの結果画面。
+
+    finish_after：その数だけ答えてヒアリングを途中で終える。
+    extra：基本の4問のあとの追加確認（2問）を answer＝答える／skip＝このまま分析する／unknown＝「分からない」と答える。
+    """
     at = new_app(secrets, scenario=None)
     at.button(key="start_demo").click().run()
     at.button(key="submit_info").click().run()
@@ -589,23 +599,29 @@ def production_result(secrets, finish_after: int | None = None) -> AppTest:
         at.button(key="submit_answer").click().run()
         answered += 1
     if at.session_state.stage == "readiness":
-        at.button(key="extra_skip").click().run()
+        if extra == "skip":
+            at.button(key="extra_skip").click().run()
+        else:
+            at.button(key="extra_start").click().run()
+            while at.session_state.stage == "hearing":
+                at.button(key="submit_unknown" if extra == "unknown" else "submit_answer").click().run()
     at.button(key="diagnose").click().run()
     assert not at.exception
     return at
 
 
-def test_重要な不足がなければ_主ボタンは改善案を比較する(secrets):
+def test_追加確認まで答えて重要な不足がなければ_主ボタンは改善案を比較する(secrets):
     at = production_result(secrets)
     assert at.button(key="go_compare").proto.type == "primary"
     assert "不足情報を確認する" not in [b.label for b in at.button if b.proto.type == "primary"]
 
 
-def test_途中で終えて重要な不足があれば_主ボタンは不足情報を確認する(secrets):
-    at = production_result(secrets, finish_after=1)
+def test_追加確認をせずに重要な不足があれば_主ボタンは不足情報を確認する(secrets):
+    at = production_result(secrets, extra="skip")
     assert at.button(key="go_gaps").proto.type == "primary"
     assert at.button(key="go_compare").proto.type == "secondary"
-    assert "不足情報の確認" in all_text(at)
+    text = all_text(at)
+    assert "不足情報の確認" in text and "データの取得（Power Query）" in text
 
 
 def test_比較で選んだ案は_業務フロー_試算_レビューに引き継がれる(secrets):
@@ -634,3 +650,58 @@ def test_業務フローを見るでは_選んだ案の改善後を現状と並�
 def test_6ステップの進み具合は_作業状況を見るの中にまとめる(secrets):
     at = production_result(secrets)
     assert "作業状況を見る" in [e.label for e in at.expander]
+
+
+# ---------------------------------------------------------------
+# ヒアリングとデモの整合（AI-BIC 3.0 第2段階）
+# ---------------------------------------------------------------
+def test_製造部デモの追加確認は_判断できることを添えて_回答済みの内容を聞き直さない(secrets):
+    at = new_app(secrets, scenario=None)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    for _ in range(4):
+        at.button(key="submit_answer").click().run()
+    assert at.session_state.stage == "readiness"  # 使えるExcelの機能とCSVの形式が分からない
+    at.button(key="extra_start").click().run()
+    text = all_text(at)
+    assert "Power Query" in text and "この回答で判断できること　案2（CSVの自動取り込み）を採れるか" in text
+    at.button(key="submit_answer").click().run()
+    assert "変換表を一度作れば使い続けられるか" in all_text(at)
+    questions = [t.question for t in at.session_state.hearing_state.turns]
+    assert len(questions) == len(set(questions)) == 6  # 基本4問＋追加2問（最大3問）。同じ質問はしない
+
+
+def test_追加確認で分からないと答えた項目は_未確認の前提として結果に引き継ぐ(secrets):
+    at = production_result(secrets, extra="unknown")
+    text = all_text(at)
+    assert "「分からない」と回答されたため、未確認の前提として" in text
+    assert at.button(key="go_gaps").proto.type == "primary"
+
+
+def test_デモを途中で終えても_結果と引用の確認状態はサンプル回答の基準でそろう(secrets):
+    """途中までの入力と照合すると、同じ引用が「確認済み」と「根拠不足」に分かれていた（AI-BIC 3.0）。"""
+    at = production_result(secrets, finish_after=1)
+    s = at.session_state
+    text = all_text(at)
+    assert "全問回答した場合のサンプル結果" in text and "途中（1問回答）" in text
+    assert s.diagnosis.downgraded == {}  # サンプル回答と照合するため、格下げは起きない
+    assert "2問目のサンプル回答" in text  # 引用の出どころも、サンプル回答と明示する
+    assert "2問目の回答" not in text
+    # 途中までの入力は、判定に使わず別に持つ
+    assert sum(t.answer is not None for t in s.project.partial_hearing.turns) == 1
+    assert len(s.project.hearing.turns) == 6
+    assert at.button(key="go_compare").proto.type == "primary"  # サンプルは全問回答のため、重要な不足はない
+
+
+def test_全問回答のときは_サンプル結果の表示を出さない(secrets):
+    at = production_result(secrets)
+    assert "全問回答した場合のサンプル結果" not in all_text(at)
+    assert at.session_state.project.partial_hearing is None
+
+
+def test_途中で終えたデモの案件は_保存して再開してもサンプル結果の表示が残る(secrets):
+    from ai_bic.project import load_project, to_json_bytes
+
+    at = production_result(secrets, finish_after=2)
+    restored = load_project(to_json_bytes(at.session_state.project))
+    assert sum(t.answer is not None for t in restored.partial_hearing.turns) == 2

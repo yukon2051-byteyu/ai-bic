@@ -12,6 +12,8 @@ AIを呼ばず、config/demo_scenarios.json の固定データを返す。
 import json
 
 from ai_bic.config import CONFIG_DIR, MAX_FIRST_STEPS
+from ai_bic.hearing import add_answer, request_extra_question, request_next_question, start_extra, start_hearing
+from ai_bic.item_rules import is_unknown_answer
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
@@ -27,6 +29,7 @@ from ai_bic.models import (
     ReviewResult,
     RevisedProposal,
 )
+from ai_bic.readiness import should_offer_extra
 
 
 def load_scenarios() -> list[dict]:
@@ -44,6 +47,20 @@ class DemoClient:
     def ask_next_question(
         self, info: BusinessInfo, state: HearingState, framework: Framework, final: bool = False
     ) -> QuestionResult:
+        """シナリオの質問と充足状況を返す。「分からない」と答えた項目は、シナリオの値によらず「不十分」のままにする。
+
+        固定の充足状況だけを返すと、「分からない」と答えた項目まで「充足」になり、未確認の前提として
+        結果に引き継げなかった（本物のAIには、質問の指示文で同じ扱いを求めている）。
+        """
+        result = self._ask(state, framework, final)
+        unknown = {t.item_id for t in state.turns if t.answer and is_unknown_answer(t.answer)}
+        for status in result.item_status:
+            if status.item_id in unknown and status.status == "充足":
+                status.status = "不十分"
+                status.lacking = "ヒアリングで「分からない」と回答された"
+        return result
+
+    def _ask(self, state: HearingState, framework: Framework, final: bool) -> QuestionResult:
         if state.extra_started:
             return self._extra_question(state, framework, final)
         turns = self.scenario["turns"]
@@ -77,9 +94,13 @@ class DemoClient:
                 answer_example=t["answer_example"],
             )
 
-        # 用意した質問をすべて終えたら「全項目充足」で終了する
+        # 用意した質問をすべて終えたら終了する。充足状況はシナリオの final_statuses（書いていなければ「全項目充足」）。
+        # 最後の判定（final）と同じにしないと、質問を使い切らずに終えたシナリオで追加確認を提案できない
         return QuestionResult(
-            item_status=_statuses({}, framework, default="充足"),
+            item_status=_statuses(
+                self.scenario.get("final_statuses", {}), framework, default="充足",
+                lacking=self.scenario.get("final_lacking", {}),
+            ),
             is_sufficient=True,
             next_item_id=None,
             question_type=None,
@@ -96,7 +117,7 @@ class DemoClient:
             return QuestionResult(
                 item_status=_statuses(t["statuses"], framework, lacking=t.get("lacking", {})),
                 is_sufficient=False, next_item_id=t["next_item_id"], question_type=t["question_type"],
-                question=t["question"], answer_example=t["answer_example"],
+                question=t["question"], answer_example=t["answer_example"], decides=t.get("decides"),
             )
         after = extra[done - 1].get("statuses_after", {}) if done else self.scenario.get("final_statuses", {})
         return QuestionResult(
@@ -156,6 +177,31 @@ def demo_answer(scenario: dict, turn_no: int) -> str:
     """回答欄にあらかじめ入れておく、シナリオの回答（決定事項E2）。"""
     turns = scenario["turns"] + scenario.get("extra_turns", [])  # 追加確認の回答は、基本の質問の後に続く
     return turns[turn_no - 1]["demo_answer"] if 1 <= turn_no <= len(turns) else ""
+
+
+def answered_all_basic(scenario: dict, state: HearingState) -> bool:
+    """用意した基本の質問に、すべて答えたか（途中で終えていないか）。"""
+    answered = sum(1 for t in state.turns if not t.extra and t.answer is not None)
+    return answered >= len(scenario["turns"])
+
+
+def sample_hearing(scenario: dict, framework: Framework) -> tuple[BusinessInfo, HearingState]:
+    """全問（基本と追加確認）にサンプルの回答で答えた場合のヒアリング（AI-BIC 3.0）。
+
+    デモでヒアリングを途中で終えても、結果は全問回答を前提にした固定の内容のため、
+    その根拠はこのサンプル回答と照合する（途中までの入力と照合すると、同じ引用が「確認済み」と
+    「根拠不足」に分かれてしまう）。AIは呼ばない。
+    """
+    client = DemoClient(scenario)
+    info = BusinessInfo(**scenario["business_info"])
+    state = start_hearing(framework)
+    while (turn := request_next_question(client, info, state, framework)) is not None:
+        add_answer(state, demo_answer(scenario, turn.turn_no))
+    if should_offer_extra(state, framework):
+        start_extra(state, framework)
+        while (turn := request_extra_question(client, info, state, framework)) is not None:
+            add_answer(state, demo_answer(scenario, turn.turn_no))
+    return info, state
 
 
 def demo_attachments(scenario: dict) -> list[Attachment]:

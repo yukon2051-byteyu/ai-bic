@@ -221,6 +221,7 @@ def request_extra_question(
         question=result.question,
         answer_example=result.answer_example,
         extra=True,
+        decides=(result.decides or "").strip() or None,
     )
     state.turns.append(turn)
     return turn

@@ -505,6 +505,15 @@ def decision_card(ov, shown_gaps: int) -> str:
     )
 
 
+def sample_banner(answered: int, total: int) -> str:
+    """デモを途中で終えたときに、結果の冒頭に出す説明（AI-BIC 3.0）。判定の基準が混ざらないよう、何と照合したかを示す。"""
+    return (
+        '<div class="bic-note bic-notice"><span class="bic-notice-label">全問回答した場合のサンプル結果</span>　'
+        f"ヒアリングを途中（{answered}問回答）で終えたため、サンプル回答（全{total}問）で答えた場合の結果です。"
+        "根拠もサンプル回答と照合し、今回の回答は「今回の入力」に分けて表示しています。</div>"
+    )
+
+
 def gap_list(gaps) -> str:
     """不足情報の一覧（重要なものから）。質問・確認が必要な理由・影響する課題や改善案を示す。"""
     cards = []
@@ -631,10 +640,13 @@ def footnote(text: str) -> str:
 # ---------------------------------------------------------------
 # 画面とレポート（report.py）で共通の文言
 # ---------------------------------------------------------------
-def evidence_source(ev: Evidence, attachment_names: list[str]) -> str:
-    """根拠の出どころの表示（例：「2問目の回答」「添付ファイル『記録.csv』」）。"""
+def evidence_source(ev: Evidence, attachment_names: list[str], sample: bool = False) -> str:
+    """根拠の出どころの表示（例：「2問目の回答」「添付ファイル『記録.csv』」）。
+
+    sample：デモを途中で終え、全問回答のサンプルと照合した結果（「サンプル回答」と明示する）。
+    """
     if ev.source == "回答":
-        return f"{ev.turn_no}問目の回答"
+        return f"{ev.turn_no}問目のサンプル回答" if sample else f"{ev.turn_no}問目の回答"
     if ev.source == "添付ファイル":
         valid = ev.file_no is not None and 1 <= ev.file_no <= len(attachment_names)
         return f"添付ファイル『{attachment_names[ev.file_no - 1]}』" if valid else "添付ファイル"

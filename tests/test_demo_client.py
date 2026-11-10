@@ -176,3 +176,34 @@ def test_売上集計のデモでは_根拠のない本人の申告の課題だ�
 
 def test_デモの回答は範囲外の回なら空():
     assert demo_answer(SCENARIOS[0], 99) == ""
+
+
+# --- AI-BIC 3.0：途中で終えたデモのサンプル回答と、「分からない」の扱い ---
+def test_サンプル回答は_基本と追加確認のすべてに答え_必要な情報がそろう():
+    from ai_bic.config import load_framework
+    from ai_bic.demo_client import sample_hearing
+
+    scenario = next(s for s in load_scenarios() if s["id"] == "production_report")
+    info, state = sample_hearing(scenario, load_framework("general"))
+    assert info.task_name == scenario["business_info"]["task_name"]
+    assert [t.extra for t in state.turns] == [False] * 4 + [True] * 2
+    assert all(t.answer for t in state.turns)
+    assert all(s.status == "充足" for s in state.item_status.values())
+    assert state.turns[4].decides == "案2（CSVの自動取り込み）を採れるか"
+
+
+def test_デモでも_分からないと答えた項目は充足にしない():
+    from ai_bic.config import load_framework
+    from ai_bic.hearing import add_answer, request_next_question, start_hearing
+
+    fw = load_framework("general")
+    scenario = next(s for s in load_scenarios() if s["id"] == "production_report")
+    client, info = DemoClient(scenario), None
+    state = start_hearing(fw)
+    for answer in ["合計20時間です", "転記に12時間です", "分かりません。"]:  # 3問目（業務の目的）を「分からない」
+        request_next_question(client, info, state, fw)
+        add_answer(state, answer)
+    assert state.turns[2].item_id == "H1"
+    result = client.ask_next_question(info, state, fw)
+    h1 = next(s for s in result.item_status if s.item_id == "H1")
+    assert h1.status == "不十分" and "分からない" in h1.lacking  # シナリオでは「充足」だが、そうしない

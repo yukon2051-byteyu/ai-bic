@@ -21,7 +21,14 @@ from ai_bic.project import file_name as project_file_name
 from ai_bic.views import flows, result_top, review, simulator
 from ai_bic.views import progress as progress_view
 from ai_bic.attachments import load_attachments
-from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
+from ai_bic.demo_client import (
+    DemoClient,
+    answered_all_basic,
+    demo_answer,
+    demo_attachments,
+    load_scenarios,
+    sample_hearing,
+)
 from ai_bic.errors import AIError, is_retryable, user_message
 from ai_bic.hearing import (
     add_answer,
@@ -146,6 +153,12 @@ def diagnose() -> None:
     """課題分析と改善提案を行い、結果画面に進む。添付ファイルは課題分析にだけ使う。"""
     s = st.session_state
     s.error_kind = None
+    # デモでヒアリングを途中で終えた場合：結果は全問回答を前提にした固定の内容のため、
+    # 根拠もサンプル回答（全問）と照合する。途中までの入力は、判定に使わず別に持つ（AI-BIC 3.0）
+    partial = None
+    if s.mode == "demo" and not answered_all_basic(s.scenario, s.hearing_state):
+        partial = s.hearing_state
+        s.business_info, s.hearing_state = sample_hearing(s.scenario, FRAMEWORK)
     try:
         with st.spinner("AIが課題を分析し、改善案を考えています…（1分ほどかかることがあります）"):
             s.diagnosis = run_diagnosis(
@@ -160,6 +173,7 @@ def diagnose() -> None:
         s.mode, s.business_info, s.hearing_state, s.diagnosis,
         demo_scenario_id=s.scenario["id"] if s.mode == "demo" else None,
     )
+    s.project.partial_hearing = partial
     s.stage = "result"
 
 
@@ -326,7 +340,11 @@ def render_hearing() -> None:
         html(ui.label("Step 02", "より正確な分析のための追加確認"))
         st.progress(extra / config.MAX_EXTRA_QUESTIONS, text=f"追加確認 {extra} / 最大 {config.MAX_EXTRA_QUESTIONS}")
         if state.turns and state.turns[-1].extra and state.turns[-1].answer is None:
-            st.caption(f"確認する理由：{readiness.reason_for(state, FRAMEWORK, state.turns[-1].item_id)}")
+            last = state.turns[-1]
+            if last.decides:
+                html(ui.note(f"この回答で判断できること　{last.decides}"))
+            st.caption(f"確認する理由：{readiness.reason_for(state, FRAMEWORK, last.item_id)}"
+                       "　／　分からない場合は「分からない」で構いません（未確認の前提として結果に示します）")
     else:
         asked = len(state.turns)
         html(ui.label("Step 02", "ヒアリング"))
@@ -374,11 +392,11 @@ def render_hearing() -> None:
 
     col_finish, col_cancel = st.columns(2)
     with col_finish:
-        label = "追加確認を終えて分析に進む" if state.extra_started else "ここまでの情報で診断する"
-        if st.button(label, key="finish", help="残りの質問をせずに、資料の添付に進みます"):
+        if st.button("ヒアリングを終了して資料添付へ", key="finish", help="残りの質問をせずに、資料の添付に進みます"):
             finish_by_user(state)
             s.stage = "attach"
             st.rerun()
+        st.caption("資料の添付は任意です。未確認の項目は結果画面に表示します。")
     with col_cancel:
         if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
             reset()
@@ -504,8 +522,11 @@ def render_result() -> None:
 
     # 診断レポート（B05）。その場で作って渡すだけで、サーバーには保存しない
     created_at = datetime.now(config.JST)
+    # デモを途中で終えた場合は、全問回答のサンプルによる結果（AI-BIC 3.0）。何と照合したかを、画面とレポートで示す
+    partial = s.project.partial_hearing
+    answered = sum(1 for t in partial.turns if t.answer is not None) if partial else None
     report_data = report.build_report(
-        info, s.hearing_state, result, FRAMEWORK, created_at, demo=s.mode == "demo"
+        info, s.hearing_state, result, FRAMEWORK, created_at, demo=s.mode == "demo", sample_of=answered
     )
     report_name = report.file_name(created_at)
 
@@ -514,6 +535,8 @@ def render_result() -> None:
         simulator.ensure_inputs(s.project)
 
     # --- 1. 結論と次の操作（最大の課題・最初にやること・次の判断に必要な情報 → 主ボタン。AI-BIC 3.0） ---
+    if partial:
+        html(ui.sample_banner(answered, len(s.hearing_state.turns)))
     ov = overview.build(result, s.hearing_state, FRAMEWORK)
     result_top.render_decision(ov, has_proposals=result.proposals is not None)
     if s.get("loaded"):
@@ -552,6 +575,10 @@ def render_result() -> None:
     if result.attachment_names:
         meta.append("診断に使った資料：" + "、".join(result.attachment_names))
     html(ui.footnote("　／　".join(meta)))
+    if partial:
+        with st.expander(f"今回の入力（途中終了時点：{answered}問回答。結果の判定には使っていません）"):
+            html("".join(ui.qa(turn) for turn in partial.turns if turn.answer is not None)
+                 or ui.footnote("回答した質問はありません。"))
     if result.missing_item_ids:
         html(ui.note("未確認事項：次の項目は情報が不足しています。結果は参考としてご覧ください。"))
         for item_id in result.missing_item_ids:
@@ -561,7 +588,7 @@ def render_result() -> None:
     html(ui.label("Issues", f"抽出された課題（{len(analysis.issues)}件）"))
     for no, issue in enumerate(analysis.issues, start=1):
         viewpoints = "観点：" + "・".join(VIEWPOINT_NAMES.get(v, v) for v in issue.viewpoint_ids)
-        sources = [ui.evidence_source(ev, result.attachment_names) for ev in issue.evidences]
+        sources = [ui.evidence_source(ev, result.attachment_names, sample=partial is not None) for ev in issue.evidences]
         downgraded = result.downgraded.get(issue.issue_id)
         html(ui.issue_card(no, issue, viewpoints, sources, downgraded))
     if analysis.no_issue_viewpoints:

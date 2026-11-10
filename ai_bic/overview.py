@@ -12,6 +12,7 @@
 from dataclasses import dataclass, field
 
 from ai_bic.models import DiagnosisResult, Framework, HearingState, Issue, Proposal, ProposalRelation
+from ai_bic.item_rules import is_unknown_answer
 from ai_bic.readiness import evaluate
 
 # 課題の根拠の区分 → 冒頭に出す確認状態。「本人の申告」「計算結果」は、引用を入力と照合できたものだけが残る
@@ -67,10 +68,13 @@ def gaps(result: DiagnosisResult, hearing: HearingState, framework: Framework) -
         item = names[item_id]
         status = hearing.item_status.get(item_id)
         lacking = f"（足りないこと：{status.lacking}）" if status and status.lacking else ""
+        # 「分からない」は有効な回答。聞き直さず、未確認の前提として扱っていることを示す
+        unknown = any(t.item_id == item_id and t.answer and is_unknown_answer(t.answer) for t in hearing.turns)
+        reason = (f"ヒアリングで「分からない」と回答されたため、未確認の前提として{'・'.join(features)}を作っています"
+                  if unknown else f"{'・'.join(features)}に必要な情報が、ヒアリングで確認できていません")
         found.append(Gap(
             key=f"item:{item_id}", question=f"{item.name}（{item.description}）を教えてください{lacking}",
-            reason=f"{'・'.join(features)}に必要な情報が、ヒアリングで確認できていません",
-            affects=features, important=True))
+            reason=reason, affects=features, important=True))
 
     # 2. 根拠を確認できなかった課題（要確認）。重要度「高」と最大の課題は重要とする
     issues = sorted(result.analysis.issues, key=lambda i: ("高", "中", "低").index(i.severity))

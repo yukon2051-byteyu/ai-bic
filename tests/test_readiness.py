@@ -184,3 +184,13 @@ def test_不足したまま聞ける項目がなくなったら_そろったと�
     add_answer(state, "表計算ソフトは全員使えます")
     assert request_extra_question(client, INFO, state, FW) is None
     assert state.extra_finished_reason == EXTRA_NO_ITEMS  # 「必要な情報がそろいました」ではない
+
+
+def test_追加の質問には_この回答で何が判断できるかを添える():
+    state = state_with({**ALL, "H6": "不十分"})
+    start_extra(state, FW)
+    question = make_question({**ALL, "H6": "不十分"}, next_item_id="H6", question="Power Queryは使えますか")
+    question.decides = "  自動取り込みの案を採れるか "
+    turn = request_extra_question(FakeClient(questions=[question]), INFO, state, FW)
+    assert turn.decides == "自動取り込みの案を採れるか"
+    assert "decides" in build_question_input(INFO, state, FW)  # AIに書くよう求める

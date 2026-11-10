@@ -93,6 +93,8 @@ class QuestionResult(BaseModel):
     question_type: Literal["新規", "確認"] | None
     question: str | None
     answer_example: str | None
+    # 追加確認の質問だけ：この回答で何が判断できるか（例：データの自動取り込みの案を採れるか）。基本の質問では None
+    decides: str | None = None
 
 
 # ---------------------------------------------------------------
@@ -107,6 +109,7 @@ class HearingTurn(BaseModel):
     answer_example: str | None = None  # 画面で回答欄の近くに表示する
     answer: str | None = None  # 回答前は None
     extra: bool = False  # 基本の質問のあとの「追加確認」の質問か（AI-BIC 2.0）
+    decides: str | None = None  # 追加確認：この回答で何が判断できるか（質問の近くに表示する）
 
 
 class HearingState(BaseModel):

@@ -223,3 +223,13 @@ def test_情報が足りないまま分析した場合は_仮定条件もレポ�
     assert "仮定条件" in summary and "改善の制約条件が未確認のため" in summary
     info, state, result = run_demo("sales_report")  # すべて充足
     assert "仮定条件" not in sheet_text(open_report(info, state, result)["サマリー"])
+
+
+def test_途中で終えたデモのサンプル結果は_レポートでもそう分かる():
+    """結果は全問回答のサンプルと照合したもの。今回の回答は判定に使っていないことを残す（AI-BIC 3.0）。"""
+    info, state, result = run_demo("production_report")
+    wb = load_workbook(BytesIO(build_report(info, state, result, load_framework("general"),
+                                            datetime(2026, 11, 11, tzinfo=JST), demo=True, sample_of=1)))
+    summary = sheet_text(wb["サマリー"])
+    assert "全問回答した場合のサンプル結果（ヒアリングは1問で終了" in summary
+    assert "問目のサンプル回答" in sheet_text(wb["課題"])

@@ -94,8 +94,10 @@ class Project(BaseModel):
     created_at: datetime
     updated_at: datetime
     business_info: BusinessInfo
-    hearing: HearingState
+    hearing: HearingState  # 診断の根拠にしたヒアリング（デモを途中で終えた場合は、全問回答のサンプル）
     diagnosis: DiagnosisResult
+    # デモでヒアリングを途中で終えた場合の、利用者が実際に答えたところまでの記録（判定には使わない）。それ以外は None
+    partial_hearing: HearingState | None = None
     as_is: Flow | None = None
     to_be: dict[str, Flow] = Field(default_factory=dict)  # 改善案ID（P1…）→ 改善後のフロー
     simulations: dict[str, SimulationInputs] = Field(default_factory=dict)  # 改善案ID → 試算の入力値

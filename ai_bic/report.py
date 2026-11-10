@@ -44,11 +44,15 @@ def build_report(
     framework: Framework,
     created_at: datetime,
     demo: bool = False,
+    sample_of: int | None = None,
 ) -> bytes:
-    """診断結果をExcelファイル（.xlsx）の中身にして返す。"""
+    """診断結果をExcelファイル（.xlsx）の中身にして返す。
+
+    sample_of：デモを途中で終えたときの、実際に答えた質問の数（結果は全問回答のサンプル。AI-BIC 3.0）
+    """
     wb = Workbook()
-    _summary_sheet(wb.active, info, state, result, framework, created_at, demo)
-    _issues_sheet(wb.create_sheet("課題"), result, framework)
+    _summary_sheet(wb.active, info, state, result, framework, created_at, demo, sample_of)
+    _issues_sheet(wb.create_sheet("課題"), result, framework, sample=sample_of is not None)
     _proposals_sheet(wb.create_sheet("改善案"), result)
 
     buffer = BytesIO()
@@ -59,7 +63,7 @@ def build_report(
 # ---------------------------------------------------------------
 # シートごとの内容
 # ---------------------------------------------------------------
-def _summary_sheet(ws, info, state, result, framework, created_at, demo) -> None:
+def _summary_sheet(ws, info, state, result, framework, created_at, demo, sample_of=None) -> None:
     ws.title = "サマリー"
     analysis, proposals = result.analysis, result.proposals
     issues_by_id = {i.issue_id: i for i in analysis.issues}
@@ -67,6 +71,11 @@ def _summary_sheet(ws, info, state, result, framework, created_at, demo) -> None
     rows: list[tuple[str, str]] = [
         ("作成日時", f"{created_at:%Y-%m-%d %H:%M}"),
         ("診断の種類", "デモ（固定の架空データ）" if demo else "AI診断"),
+    ]
+    if sample_of is not None:
+        rows.append(("結果の種類", f"全問回答した場合のサンプル結果（ヒアリングは{sample_of}問で終了。"
+                                  "根拠はサンプル回答と照合し、今回の回答は判定に使っていません）"))
+    rows += [
         ("部署", info.department),
         ("業務名", info.task_name),
         ("業務の概要", analysis.business_summary),
@@ -105,7 +114,7 @@ def _summary_sheet(ws, info, state, result, framework, created_at, demo) -> None
     _format(ws, [22, 90])
 
 
-def _issues_sheet(ws, result: DiagnosisResult, framework: Framework) -> None:
+def _issues_sheet(ws, result: DiagnosisResult, framework: Framework, sample: bool = False) -> None:
     viewpoints = {v.id: v.name for v in framework.viewpoints}
     headers = [
         "No", "課題", "重要度", "根拠の区分", "観点", "内容", "判断根拠（ご本人の発言・添付資料）と、そこから言えること",
@@ -114,7 +123,7 @@ def _issues_sheet(ws, result: DiagnosisResult, framework: Framework) -> None:
     rows = []
     for no, issue in enumerate(result.analysis.issues, start=1):
         quotes = [
-            f"「{ev.quote}」（{evidence_source(ev, result.attachment_names)}）\n　→ 言えること：{ev.supports}"
+            f"「{ev.quote}」（{evidence_source(ev, result.attachment_names, sample)}）\n　→ 言えること：{ev.supports}"
             for ev in issue.evidences
         ]
         rows.append([
