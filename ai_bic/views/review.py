@@ -17,6 +17,7 @@ from ai_bic import review as rv
 from ai_bic import ui
 from ai_bic.errors import AIError, is_retryable, user_message
 from ai_bic.project import Project
+from ai_bic.views import result_top, trial
 
 VERDICT_MARK = {"推奨": "✓ 推奨", "条件付き推奨": "△ 条件付き推奨", "再検討": "✕ 再検討"}
 VERDICT_TEXT = {
@@ -198,6 +199,11 @@ def _render_history(project: Project, pid: str) -> None:
         st.caption("関連する結果の状態：" + "／".join(f"{n}：{s}" for n, s in states))
 
 
+def _go_trial(project: Project) -> None:
+    trial.start(project)
+    result_top.go("trial")
+
+
 def _render_decide(project: Project, pid: str, title: str) -> None:
     """STEP 6：改善案の確定。レビューが古い・未実施の場合は、その旨を表示する。
 
@@ -208,6 +214,8 @@ def _render_decide(project: Project, pid: str, title: str) -> None:
         decision = project.decision
         when = f"（{decision.decided_at:%Y-%m-%d %H:%M}）" if decision else ""
         st.success(f"{title} を確定しました{when}。")
+        # 確定のあとは、この案を小さく試す（AI-BIC 3.0）。押すと計画を作り、試行の見出しへ移動する
+        st.button("この案を小さく試す", key=f"review_trial_{pid}", type="primary", on_click=_go_trial, args=(project,))
         if changed := facts.decision_changes(project):
             st.warning(f"確定したあとに{'・'.join(changed)}が変わりました。再確認が必要です。"
                        f"確定した時点の内容（案名：{decision.proposal.title}）は記録に残しています。")

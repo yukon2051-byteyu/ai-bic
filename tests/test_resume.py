@@ -65,3 +65,66 @@ def test_読み込んだAI診断の案件では_AIを使う操作ができない
 def test_読み込めないファイルは理由を伝える(data, message):
     with pytest.raises(pj.ProjectFileError, match=message):
         pj.load_project(data)
+
+
+def test_製造部デモで_案2の確定_試行_実測_再試行の判断_保存と再開_Excel出力まで通して操作できる(secrets):  # noqa: F811
+    """指示書 6章 5。デモはAIを呼ばない。"""
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    from tests.test_app import production_result
+
+    at = production_result(secrets)
+    at.radio(key="compare_plan").set_value("P2").run()
+    at.button(key="review_decide_P2").click().run()
+    at.button(key="review_trial_P2").click().run()  # 確定のあとに「この案を小さく試す」
+    s = at.session_state
+    assert s.project.trial.pid == "P2" and s.scroll_count >= 1
+    assert "判定保留" in all_text(at)  # 実測がまだ
+    at.button(key="trial_demo").click().run()  # 1台分のCSVで試したサンプル（デモ用の数値）
+    text = all_text(at)
+    assert "デモ用の数値です" in text and "判定の目安　修正して再試行" in text
+    table = next(m.value for m in at.markdown if "<table class=\"bic-trial\">" in m.value)
+    assert "25 − 60 = -35分" in table and "✕ 未達" in table and "未測定" not in table
+    at.radio(key="trial_decision").set_value("修正して再試行")
+    at.text_area(key="trial_reason").input("時間と数量は合格したが、日付の書き方の例外が残ったため")
+    at.button(key="trial_decide").click().run()
+    assert s.project.trial.decision == "修正して再試行"
+    assert "判断：修正して再試行" in all_text(at)
+    assert s.project.ai_calls == {}
+
+    # 保存して再開しても、計画・実測・判断が残る
+    again = resumed(secrets, s.project, s.scenario)
+    assert again.session_state.project.trial == s.project.trial
+    assert "判断：修正して再試行" in all_text(again)
+    # Excel の診断レポートに「試行・判定」シートがある
+    report = next(b for b in again.get("download_button") if b.key == "download_report_top")
+    assert report is not None
+    from datetime import datetime
+
+    from ai_bic.config import JST, load_framework
+    from ai_bic.report import build_report
+
+    p = again.session_state.project
+    data = build_report(p.business_info, p.hearing, p.diagnosis, load_framework("general"),
+                        datetime(2026, 11, 11, tzinfo=JST), demo=True, project=p)
+    assert "試行・判定" in load_workbook(BytesIO(data)).sheetnames
+
+
+def test_試行の測定結果は画面で入力して保存でき_必須が未入力なら判断ボタンが押せない(secrets):  # noqa: F811
+    from tests.test_app import production_result
+
+    at = production_result(secrets)
+    at.radio(key="compare_plan").set_value("P1").run()
+    at.button(key="review_decide_P1").click().run()
+    at.button(key="review_trial_P1").click().run()
+    assert at.button(key="trial_decide").disabled
+    at.number_input(key="trial_m0_actual").set_value(200.0)
+    at.number_input(key="trial_m1_actual").set_value(0.0)
+    at.radio(key="trial_m2_check_result").set_value("成功")
+    at.button(key="trial_metrics_save").click().run()
+    metrics = at.session_state.project.trial.metrics
+    assert metrics[0].actual == 200 and metrics[0].estimate == 255 and metrics[0].target == 255
+    assert "判定の目安　展開する" in all_text(at)
+    assert not at.button(key="trial_decide").disabled

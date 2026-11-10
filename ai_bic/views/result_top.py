@@ -21,7 +21,8 @@ from ai_bic.views import flows, simulator
 from ai_bic.views.simulator import PLAN_KEY as SIM_PLAN_KEY
 
 # 移動先（見出しの前に置く目印の id）
-SECTIONS = {"gaps": "sec-gaps", "compare": "sec-compare", "flows": "sec-flows", "sim": "sec-sim", "review": "sec-review"}
+SECTIONS = {"gaps": "sec-gaps", "compare": "sec-compare", "flows": "sec-flows", "sim": "sec-sim", "review": "sec-review",
+            "trial": "sec-trial"}
 COMPARE_KEY = "compare_plan"  # 比較で選んでいる案（P1 など）
 
 

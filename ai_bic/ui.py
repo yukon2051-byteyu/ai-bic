@@ -318,6 +318,22 @@ a.bic-brand:hover {{ opacity: .7; }}
 .bic-gap {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px; padding: .7rem .9rem; margin: .4rem 0; }}
 .bic-gap .q {{ font-weight: 700; color: var(--accent); margin: .3rem 0 .2rem; line-height: 1.6; }}
 
+/* 試行の測定結果の表（試算値・目標値・実測値を別の列に）。狭い画面では表の中だけ横に動かす */
+.bic-trial-wrap {{ overflow-x: auto; margin: .4rem 0; }}
+.bic-trial {{ width: 100%; min-width: 640px; border-collapse: collapse; background: var(--card); font-size: .86rem; line-height: 1.55;
+  border: 1px solid var(--line-blue); }}
+.bic-trial th {{ text-align: left; font-size: .74rem; color: var(--sub); font-weight: 600; background: var(--page);
+  padding: .45rem .6rem; border-bottom: 1px solid var(--line-blue); }}
+.bic-trial td {{ padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink); }}
+@media (max-width: 720px) {{
+  .bic-trial {{ min-width: 0; border: none; background: none; }}
+  .bic-trial thead {{ display: none; }}
+  .bic-trial, .bic-trial tbody, .bic-trial tr {{ display: block; width: 100%; }}
+  .bic-trial tr {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px; margin-bottom: 8px; padding: .3rem 0; }}
+  .bic-trial td {{ display: flex; gap: .6rem; border-bottom: none; padding: .2rem .7rem; }}
+  .bic-trial td:not(:first-child)::before {{ content: attr(data-label); flex: 0 0 8.5em; font-size: .74rem; color: var(--sub); }}
+}}
+
 /* 結果画面の中の移動先（固定のヘッダーに隠れないよう、少し上で止める） */
 [id^="sec-"] {{ scroll-margin-top: 72px; }}
 

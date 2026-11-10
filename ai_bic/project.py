@@ -15,7 +15,7 @@
 
 import json
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -119,6 +119,47 @@ class DecisionRecord(BaseModel):
     decided_at: datetime
 
 
+class TrialMetric(BaseModel):
+    """試行で測る項目。試算値・目標値・実測値は別の値として持つ（混ぜない。AI-BIC 3.0）。
+
+    数値：時間などの数値。改善前の値・試算値・目標値・実測値。direction で「以下なら合格／以上なら合格」
+    確認：例外処理の成功・失敗など。合格条件の文と、確認した結果（成功・失敗）
+    """
+
+    name: str
+    kind: Literal["数値", "確認"] = "数値"
+    unit: str = ""
+    required: bool = True  # 必須の測定（未入力なら判定保留）
+    baseline: float | None = None  # 改善前の値
+    estimate: float | None = None  # 試算値（効果試算から。参考）
+    target: float | None = None  # 目標値（合格条件）
+    direction: Literal["以下", "以上"] = "以下"
+    actual: float | None = None  # 実測値（未測定なら None）
+    check_target: str = ""  # 確認の合格条件
+    check_result: Literal["成功", "失敗"] | None = None  # 確認の結果（未確認なら None）
+    note: str = ""
+
+
+TrialDecision = Literal["展開する", "修正して再試行", "見送る"]
+
+
+class TrialPlan(BaseModel):
+    """確定した案を小さく試す計画と、その結果・判断（AI-BIC 3.0）。追加のAI呼び出しはしない。"""
+
+    pid: str
+    scope: str = ""  # 試行範囲（例：1台分のCSVで試す）
+    owner: str = ""  # 担当
+    due: date | None = None  # 期限
+    risks: list[str] = Field(default_factory=list)  # 想定リスク（確定した案から引き継ぐ）
+    assumptions: list[str] = Field(default_factory=list)  # 試算の前提（確定した時点の試算から引き継ぐ）
+    metrics: list[TrialMetric] = Field(default_factory=list)
+    sample: bool = False  # デモ用の数値（画面とExcelで明示する）
+    decision: TrialDecision | None = None
+    reason: str = ""
+    decided_at: datetime | None = None
+    created_at: datetime
+
+
 class Project(BaseModel):
     schema_version: int = SCHEMA_VERSION
     app: Literal["AI-BIC"] = APP_NAME
@@ -153,6 +194,7 @@ class Project(BaseModel):
     gap_answers: dict[str, GapAnswer] = Field(default_factory=dict)  # 不足情報の key → 回答
     # 確認した数値で試算の元の値が変わったが、利用者が手入力した値を残した項目（改善案ID → 項目名 → 確認した値）
     basis_changes: dict[str, dict[str, float]] = Field(default_factory=dict)
+    trial: TrialPlan | None = None  # 確定した案の試行と効果測定（版2から）
     stamps: dict[str, Stamp] = Field(default_factory=dict)  # 結果のキー（例：simulation:P1）→ 版の記録
 
     @model_validator(mode="after")
@@ -167,6 +209,8 @@ class Project(BaseModel):
             raise ValueError("確定した改善案が存在しません")
         if self.decision is not None and self.decision.pid != self.selected_proposal:
             raise ValueError("確定した改善案の記録が一致しません")
+        if self.trial is not None and self.trial.pid not in ids:
+            raise ValueError("試行の対象の改善案が存在しません")
         if self.mode == "demo" and not self.demo_scenario_id:
             raise ValueError("デモの案件にシナリオの記録がありません")
         return self

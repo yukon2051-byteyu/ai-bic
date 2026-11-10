@@ -20,6 +20,7 @@ from ai_bic.project import ProjectFileError, load_project, new_project, to_json_
 from ai_bic.project import file_name as project_file_name
 from ai_bic.views import flows, result_top, review, simulator
 from ai_bic.views import progress as progress_view
+from ai_bic.views import trial as trial_view
 from ai_bic.attachments import load_attachments
 from ai_bic.demo_client import (
     DemoClient,
@@ -526,7 +527,8 @@ def render_result() -> None:
     partial = s.project.partial_hearing
     answered = sum(1 for t in partial.turns if t.answer is not None) if partial else None
     report_data = report.build_report(
-        info, s.hearing_state, result, FRAMEWORK, created_at, demo=s.mode == "demo", sample_of=answered
+        info, s.hearing_state, result, FRAMEWORK, created_at, demo=s.mode == "demo", sample_of=answered,
+        project=s.project,
     )
     report_name = report.file_name(created_at)
 
@@ -604,6 +606,9 @@ def render_result() -> None:
         # STEP 5〜6：改善案チャレンジレビュー → 改善案の確定（AI-BIC 2.0 機能D）
         result_top.anchor("review")
         review.render(s.project, get_client)
+        # 確定した案を小さく試し、測った結果から次の判断をする（AI-BIC 3.0。AIは使わない）
+        result_top.anchor("trial")
+        trial_view.render(s.project)
 
     html(ui.footnote(ui.DISCLAIMER))
     render_report_download(report_data, report_name, key="download_report_bottom")

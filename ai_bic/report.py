@@ -20,7 +20,12 @@ from openpyxl.worksheet.worksheet import Worksheet
 from ai_bic import simulation as sim
 from ai_bic.flow import Flow, compare_flows
 from ai_bic.models import BusinessInfo, DiagnosisResult, Framework, HearingState
+from ai_bic.facts import decision_changes
+from ai_bic.overview import relation_tags
 from ai_bic.project import Project, proposal_ids
+from ai_bic.trial import assumptions_of as trial_assumptions
+from ai_bic.trial import evaluate as evaluate_metric
+from ai_bic.trial import guide as trial_guide
 from ai_bic.readiness import assumptions
 from ai_bic.ui import DISCLAIMER, EVIDENCE_TEXT, evidence_source, missing_item_text
 
@@ -45,15 +50,19 @@ def build_report(
     created_at: datetime,
     demo: bool = False,
     sample_of: int | None = None,
+    project: Project | None = None,
 ) -> bytes:
     """診断結果をExcelファイル（.xlsx）の中身にして返す。
 
     sample_of：デモを途中で終えたときの、実際に答えた質問の数（結果は全問回答のサンプル。AI-BIC 3.0）
+    project：案件データ。渡すと「試行・判定」シートを加える（AI-BIC 3.0）
     """
     wb = Workbook()
     _summary_sheet(wb.active, info, state, result, framework, created_at, demo, sample_of)
     _issues_sheet(wb.create_sheet("課題"), result, framework, sample=sample_of is not None)
     _proposals_sheet(wb.create_sheet("改善案"), result)
+    if project is not None:
+        _trial_sheet(wb.create_sheet("試行・判定"), project)
 
     buffer = BytesIO()
     wb.save(buffer)
@@ -147,10 +156,12 @@ def _proposals_sheet(ws, result: DiagnosisResult) -> None:
     headers = [
         "No", "改善案", "種類", "導入難易度", "対応する課題", "内容", "BEFORE（今）", "AFTER（改善後・想定）",
         "期待できる効果（想定）", "最初の一歩（今週から始められること）", "推奨理由",
-        "より簡単な方法では不十分な理由", "想定リスク", "実施前に確認すべき事項",
+        "より簡単な方法では不十分な理由", "想定リスク", "実施前に確認すべき事項", "主に減らすもの", "ほかの案との関係",
     ]
     rows = []
-    for no, p in enumerate(result.proposals.proposals if result.proposals else [], start=1):
+    proposals = result.proposals.proposals if result.proposals else []
+    tags = relation_tags(result.proposals.relations, len(proposals)) if result.proposals else {}
+    for no, p in enumerate(proposals, start=1):
         rows.append([
             no,
             p.title + ("\n（最初に取り組む案）" if no == 1 else ""),
@@ -166,10 +177,85 @@ def _proposals_sheet(ws, result: DiagnosisResult) -> None:
             p.why_not_simpler or "",
             _bullets(p.risks),
             _bullets(p.prerequisites),
+            p.reduces or "",
+            _bullets([f"{tag.text}：{tag.reason}" for tag in tags.get(no, [])]),
         ])
     if not rows:
         rows.append(["", "課題が確認できなかったため、改善案は作成していません。"] + [""] * (len(headers) - 2))
-    _table(ws, headers, rows, [5, 28, 14, 8, 10, 40, 40, 40, 40, 40, 35, 30, 30, 30])
+    _table(ws, headers, rows, [5, 28, 14, 8, 10, 40, 40, 40, 40, 40, 35, 30, 30, 30, 24, 40])
+
+
+# ---------------------------------------------------------------
+# 試行・判定（AI-BIC 3.0）：採用理由・試算・合格条件・実測・判断を1枚で追えるようにする
+# ---------------------------------------------------------------
+TRIAL_HEADERS = ["測定項目", "種類", "必須", "改善前", "試算値（参考）", "目標値（合格条件）", "実測値", "差", "状態", "メモ"]
+
+
+def _trial_sheet(ws, project: Project) -> None:
+    ws.title = "試行・判定"
+    _put(ws, 1, 1, "試行・判定").font = Font(name=FONT_NAME, bold=True, size=14)
+    pid = project.selected_proposal
+    if pid is None:
+        _put(ws, 3, 1, "改善案は、まだ確定していません。")
+        _format(ws, [22, 90])
+        return
+    no = proposal_ids(project).index(pid) + 1
+    d = project.decision
+    proposal = d.proposal if d else project.diagnosis.proposals.proposals[no - 1]
+    inputs = d.simulation if d else project.simulations.get(pid)
+    rows: list[tuple[str, str]] = [
+        ("確定した案", f"案{no}：{proposal.title}" + (f"（{d.decided_at:%Y-%m-%d %H:%M} に確定）" if d else "")),
+        ("採用理由（推奨理由）", proposal.reason),
+    ]
+    review = project.reviews.get(pid)
+    if review:
+        rows.append(("レビューの判定", review.verdict))
+    if changed := decision_changes(project):
+        rows.append(("確定後の変更", f"確定したあとに{'・'.join(changed)}が変わりました。再確認が必要です（ここは確定した時点の内容）"))
+    if inputs:
+        r = sim.simulate(inputs)
+        rows.append(("試算（確定した時点）", _bullets(trial_assumptions(inputs) + [
+            f"年間削減時間：{_text(r.annual_saved_hours, '時間')}", f"年間削減効果額：{_text(r.annual_saved_yen, '円')}",
+            f"投資回収期間：{sim.payback_text(r) if r.payback_status != '未入力' else '—'}"])))
+    plan = project.trial
+    if plan is None or plan.pid != pid:
+        rows.append(("試行", "まだ計画していません。"))
+    else:
+        g = trial_guide(plan)
+        rows += [
+            ("試行範囲", plan.scope or "（未入力）"), ("担当", plan.owner or "（未入力）"),
+            ("期限", f"{plan.due:%Y-%m-%d}" if plan.due else "（未入力）"), ("想定リスク", _bullets(plan.risks) or "なし"),
+            ("判定の目安", f"{g.label}（{g.reason}）"),
+            ("判断", plan.decision or "未記録"), ("判断の理由", plan.reason or ""),
+            ("判断した日時", f"{plan.decided_at:%Y-%m-%d %H:%M}" if plan.decided_at else ""),
+        ]
+        if plan.sample:
+            rows.append(("ご注意", "測定の数値はデモ用の架空のサンプルです。"))
+    for r_no, (label, value) in enumerate(rows, start=3):
+        _put(ws, r_no, 1, label).font = BOLD
+        _put(ws, r_no, 2, value)
+    if plan is not None and plan.pid == pid:
+        start = len(rows) + 5
+        _put(ws, start - 1, 1, "測定結果（試算値・目標値・実測値は別の値）").font = BOLD
+        for c, header in enumerate(TRIAL_HEADERS, start=1):
+            cell = _put(ws, start, c, header)
+            cell.font, cell.fill = BOLD, HEADER_FILL
+        for i, m in enumerate(plan.metrics, start=1):
+            res = evaluate_metric(m)
+            if m.kind == "数値":
+                values = [_num(m.baseline), _num(m.estimate),
+                          f"{sim.fmt(m.target)}{m.unit}{m.direction}" if m.target is not None else "未設定",
+                          _num(m.actual) if m.actual is not None else "未測定", res.diff_text]
+            else:
+                values = ["", "", m.check_target or "未設定", m.check_result or "未測定", ""]
+            row = [m.name, m.kind, "必須" if m.required else "参考", *values, res.status, m.note]
+            for c, value in enumerate(row, start=1):
+                _put(ws, start + i, c, value)
+    _format(ws, [22, 60, 8, 10, 12, 16, 10, 22, 10, 30])
+
+
+def _text(value: float | None, unit: str) -> str:
+    return "—" if value is None else f"{sim.fmt(value)}{unit}"
 
 
 # ---------------------------------------------------------------
