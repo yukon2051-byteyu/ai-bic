@@ -36,7 +36,8 @@ def test_最大の課題には確認状態を付け_確認済みと推測を見�
 
 def test_必要な情報がそろい_要確認の課題もなければ_重要な不足はない():
     ov = overview.build(diagnosis([make_issue(followup_questions=[])]), hearing(ALL), FW)
-    assert ov.gaps == [] and not ov.has_important_gaps
+    assert [g.key for g in ov.gaps] == ["fact:numbers"]  # 試算の元になる数値の確認（参考）だけ
+    assert not ov.has_important_gaps
 
 
 def test_機能に必須の項目が足りなければ重要な不足情報になり_影響する機能と足りないことを示す():
@@ -54,7 +55,7 @@ def test_要確認の課題は_重要度高なら重要で_対象の改善案を
               make_issue(issue_id="I3", evidence_type="要確認", severity="低", followup_questions=[])]
     proposals = [make_proposal(target_issue_ids=["I1"]), make_proposal(target_issue_ids=["I2", "I3"])]
     ov = overview.build(diagnosis(issues, proposals), hearing(ALL), FW)
-    first, second = ov.gaps
+    first, second, _numbers = ov.gaps
     assert first.important and first.question == "誤りは月に何件ですか"
     assert first.affects == ["課題「誤りの手戻り」", "案2"]
     assert not second.important and "実際に起きていますか" in second.question
@@ -64,8 +65,8 @@ def test_確認済みの重要な課題の追加確認は参考で_重要な不�
     issues = [make_issue(issue_id="I1", followup_questions=["設定を変えられますか"]),
               make_issue(issue_id="I2", evidence_type="要確認", severity="高", followup_questions=["件数は？"])]
     ov = overview.build(diagnosis(issues), hearing(ALL), FW)
-    assert [g.key for g in ov.gaps] == ["issue:I2", "followup:I1"]
-    assert [g.important for g in ov.gaps] == [True, False]
+    assert [g.key for g in ov.gaps] == ["issue:I2", "followup:I1", "fact:numbers"]
+    assert [g.important for g in ov.gaps] == [True, False, False]
 
 
 # --- 比較表と関係 ---
@@ -101,3 +102,36 @@ def test_存在しない案_自分自身_理由なし_同じ2案の2つ目の関
 def test_関係がない案件には_関係の印を付けない():
     tags = overview.relation_tags([], 3)
     assert tags == {1: [], 2: [], 3: []}
+
+
+def test_回答した不足情報は_重要でも主ボタンの判断に数えず_最後に回す():
+    from datetime import datetime
+
+    from ai_bic.project import GapAnswer
+
+    issues = [make_issue(issue_id="I1", evidence_type="要確認", severity="高", followup_questions=["件数は？"])]
+    answer = GapAnswer(question="件数は？", answer="月3件です", source="本人の申告", at=datetime(2026, 11, 11))
+    ov = overview.build(diagnosis(issues), hearing(ALL), FW, answers={"issue:I1": answer})
+    assert not ov.has_important_gaps
+    assert ov.gaps[-1].key == "issue:I1" and ov.gaps[-1].answered == "本人の申告：月3件です"
+    assert "issue:I1" not in [g.key for g in ov.open_gaps]
+
+
+def test_計算結果の課題があれば_数値の確認がその課題にも影響すると示す():
+    ov = overview.build(diagnosis([make_issue(evidence_type="計算結果", title="転記が6割")]), hearing(ALL), FW,
+                        numbers_answered="本人の申告：割合 60%")
+    numbers = next(g for g in ov.gaps if g.key == "fact:numbers")
+    assert numbers.affects == ["効果試算（全案）", "課題「転記が6割」"] and numbers.answered
+
+
+def test_足りないことが分かっていれば_それをそのまま聞き_答えた機能の仮定条件は出さない():
+    from datetime import datetime
+
+    from ai_bic.project import GapAnswer
+
+    ov = overview.build(diagnosis([make_issue(followup_questions=[])]), hearing({**ALL, "H3": "不十分"}), FW)
+    assert ov.gaps[0].question == "分単位の時間を教えてください（作業時間・頻度）"
+    state = hearing({**ALL, "H3": "不十分"})
+    assert len(overview.open_assumptions(state)) == 1
+    answer = GapAnswer(question="q", answer="1回90分", source="本人の申告", at=datetime(2026, 11, 11))
+    assert overview.open_assumptions(state, {"item:H3": answer}) == []

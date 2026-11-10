@@ -11,6 +11,7 @@ AIを呼ぶのは利用者がボタンを押したときだけ（自動で繰り
 
 import streamlit as st
 
+from ai_bic import facts
 from ai_bic import project as pj
 from ai_bic import review as rv
 from ai_bic import ui
@@ -48,7 +49,11 @@ def render(project: Project, get_client) -> None:
     else:
         reasons = pj.outdated_reasons(project, "review", pid)
         changed = [r for r in reasons if r.endswith("変更されました")]
-        if changed:
+        if "前提が変更されました" in changed:
+            # 不足情報の確認で、この案に関係する情報が分かった（AI-BIC 3.0）
+            st.warning("前提が変わりました。再レビューが必要です（結果画面の「不足情報の確認」で分かった情報を反映するため）。")
+            _review_button(project, pid, get_client, "改善案をレビューし直す")
+        elif changed:
             st.warning(f"このレビューは、{'・'.join(changed)}。今の内容でレビューし直してください。")
             _review_button(project, pid, get_client, "改善案をレビューし直す")
         elif reasons:
@@ -194,10 +199,21 @@ def _render_history(project: Project, pid: str) -> None:
 
 
 def _render_decide(project: Project, pid: str, title: str) -> None:
-    """STEP 6：改善案の確定。レビューが古い・未実施の場合は、その旨を表示する。"""
+    """STEP 6：改善案の確定。レビューが古い・未実施の場合は、その旨を表示する。
+
+    確定した時点の内容は残す。そのあと改善案・前提・試算が変わったら、再確認が必要と示す（AI-BIC 3.0）。
+    """
     st.markdown("**改善案の確定**")
     if project.selected_proposal == pid:
-        st.success(f"{title} を確定しました。")
+        decision = project.decision
+        when = f"（{decision.decided_at:%Y-%m-%d %H:%M}）" if decision else ""
+        st.success(f"{title} を確定しました{when}。")
+        if changed := facts.decision_changes(project):
+            st.warning(f"確定したあとに{'・'.join(changed)}が変わりました。再確認が必要です。"
+                       f"確定した時点の内容（案名：{decision.proposal.title}）は記録に残しています。")
+            if st.button("今の内容で確定し直す", key=f"review_redecide_{pid}"):
+                facts.decide(project, pid)
+                st.rerun()
         return
     status = pj.status(project, "review", pid)
     record = project.reviews.get(pid)
@@ -206,5 +222,5 @@ def _render_decide(project: Project, pid: str, title: str) -> None:
     elif record and record.verdict == "再検討":
         st.caption("レビューの判定が「再検討」です。見直してから確定することをおすすめします。")
     if st.button("この改善案で確定する", key=f"review_decide_{pid}"):
-        project.selected_proposal = pid
+        facts.decide(project, pid)
         st.rerun()

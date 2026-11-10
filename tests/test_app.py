@@ -50,6 +50,7 @@ def new_app(secrets, scenario: str | None = SALES) -> AppTest:
 
 def all_text(at) -> str:
     parts = [m.value for m in at.markdown] + [e.value for e in at.error] + [c.value for c in at.caption]
+    parts += [x.value for x in at.warning] + [x.value for x in at.info] + [x.value for x in at.success]
     return "\n".join(str(p) for p in parts)
 
 
@@ -705,3 +706,96 @@ def test_途中で終えたデモの案件は_保存して再開してもサン�
     at = production_result(secrets, finish_after=2)
     restored = load_project(to_json_bytes(at.session_state.project))
     assert sum(t.answer is not None for t in restored.partial_hearing.turns) == 2
+
+
+# ---------------------------------------------------------------
+# 不足情報への回答と、関係する結果の更新（AI-BIC 3.0 第3段階）
+# ---------------------------------------------------------------
+def answer_gap(at: AppTest, key: str, text: str, source: str = "本人の申告") -> AppTest:
+    fk = key.replace(":", "_")
+    at.text_area(key=f"gap_answer_{fk}").input(text)
+    at.radio(key=f"gap_source_{fk}").set_value(source)
+    at.button(key=f"gap_submit_{fk}").click().run()
+    assert not at.exception
+    return at
+
+
+def enter_numbers(at: AppTest, source: str = "本人の申告", **values) -> AppTest:
+    for name, value in values.items():
+        at.number_input(key=f"fact_{name}").set_value(value)
+    at.radio(key="fact_source").set_value(source)
+    at.button(key="gap_submit_numbers").click().run()
+    assert not at.exception
+    return at
+
+
+def test_不足情報にその場で答えると_要確認から回答済みになり_重要な不足がなくなれば主ボタンが変わる(secrets):
+    at = production_result(secrets, extra="skip")
+    assert at.button(key="go_gaps").proto.type == "primary"
+    answer_gap(at, "item:H6", "利用中のExcelでPower Queryが使えます（情報システム担当に確認）")
+    s = at.session_state
+    assert s.project.gap_answers["item:H6"].source == "本人の申告"
+    assert "回答を保存しました（本人の申告）" in all_text(at)
+    answer_gap(at, "item:H2", "形式は毎月同じです", source="添付資料")
+    assert at.button(key="go_compare").proto.type == "primary"  # 重要な不足がなくなった
+    assert "✓ 回答済み（添付資料）" in all_text(at)
+
+
+def test_月20時間と転記12時間を確認すると60パーセントと式を表示する(secrets):
+    at = enter_numbers(production_result(secrets), total_hours=20.0, part_hours=12.0)
+    assert "12 ÷ 20 × 100 = 60%" in all_text(at)
+
+
+def test_内訳が合計を超えると割合を出さず_入力の確認を求める(secrets):
+    at = enter_numbers(production_result(secrets), total_hours=20.0, part_hours=25.0)
+    text = all_text(at)
+    assert "内訳（25）が合計（20）を上回っています" in text and "%" not in text.split("最も時間がかかる作業の割合")[1][:20]
+
+
+def test_確認した数値で試算は計算し直し_手入力した値は残して元の値が変わったと示す(secrets):
+    at = production_result(secrets)
+    at.radio(key="compare_plan").set_value("P2").run()
+    at.button(key="go_sim").click().run()
+    at.number_input(key="sim_P2_minutes_per_case").set_value(200.0).run()  # 案2だけ手入力
+    enter_numbers(at, total_hours=24.0, cases_per_month=4.0)
+    sims = at.session_state.project.simulations
+    assert sims["P1"].minutes_per_case == 360 and sims["P1"].source_of("minutes_per_case") == "本人の申告"
+    assert sims["P2"].minutes_per_case == 200  # 手入力の値は残す
+    assert "元の値が変わりました" in all_text(at)
+    assert at.number_input(key="sim_P2_minutes_per_case").value == 200
+    at.button(key="sim_restore_P2_minutes_per_case").click().run()
+    assert at.session_state.project.simulations["P2"].minutes_per_case == 360
+    assert at.number_input(key="sim_P2_minutes_per_case").value == 360
+
+
+def test_回答で前提が変わると_対象案の過去のレビューは再レビューが必要と表示する(secrets):
+    at = production_result(secrets, extra="skip")
+    at.radio(key="compare_plan").set_value("P2").run()
+    at.button(key="go_review").click().run()
+    at.button(key="review_run_P2").click().run()
+    answer_gap(at, "item:H6", "社外にデータを出せません")
+    assert "前提が変わりました。再レビューが必要です" in all_text(at)
+
+
+def test_確定した案は_確定後に前提が変わると再確認が必要と表示し_確定時点の内容を残す(secrets):
+    at = production_result(secrets, extra="skip")
+    at.radio(key="compare_plan").set_value("P2").run()
+    at.button(key="review_decide_P2").click().run()
+    project = at.session_state.project
+    assert project.decision.pid == "P2"
+    answer_gap(at, "item:H6", "社外にデータを出せません")
+    assert "確定したあとに前提が変わりました。再確認が必要です" in all_text(at)
+    at.button(key="review_redecide_P2").click().run()
+    assert "再確認が必要です" not in all_text(at)
+
+
+def test_回答を反映して改善案を見直せる_デモはAIを使わない(secrets):
+    at = production_result(secrets, extra="skip")
+    answer_gap(at, "item:H6", "社外にデータを出せません")
+    at.selectbox(key="rethink_pid").set_value("P2").run()
+    assert "影響範囲：見直すと、この案の改善後フロー・試算・レビューが「要更新」になります" in all_text(at)
+    at.button(key="rethink_run").click().run()
+    project = at.session_state.project
+    assert len(project.proposal_history["P2"]) == 1  # 見直す前の改善案は残る
+    assert "社外にデータを出せません" in " ".join(project.diagnosis.proposals.proposals[1].prerequisites)
+    assert project.ai_calls == {}

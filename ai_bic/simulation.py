@@ -18,7 +18,8 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from ai_bic import config
 from ai_bic.models import AnalysisResult
 
-ValueSource = Literal["ユーザー入力", "ヒアリング", "AI推定", "デモ値"]
+# 本人の申告・添付資料：結果画面の「不足情報の確認」で利用者が確かめた値（AI-BIC 3.0）。申告と資料を区別する
+ValueSource = Literal["ユーザー入力", "ヒアリング", "AI推定", "デモ値", "本人の申告", "添付資料"]
 ScenarioName = Literal["悲観", "標準", "楽観"]
 PaybackStatus = Literal["計算済み", "初期投資なし", "回収見込みなし", "未入力"]
 

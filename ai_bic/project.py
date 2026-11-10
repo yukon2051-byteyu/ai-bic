@@ -34,19 +34,20 @@ from ai_bic.models import (
 )
 from ai_bic.simulation import Scenario, SimulationInputs, ValueSource
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 2：不足情報の回答・確認した数値・確定した案の記録を追加（AI-BIC 3.0）
 APP_NAME = "AI-BIC"
 
 # 結果の種類 → 作るときに使う元の結果。案件全体で1つのもの（as_is）と、改善案ごとのものがある
-PER_PROPOSAL = ("proposal", "to_be", "simulation", "review")
+PER_PROPOSAL = ("proposal", "premise", "to_be", "simulation", "review")
 DEPENDS: dict[str, tuple[str, ...]] = {
     "proposal": (),
+    "premise": (),  # 前提：不足情報の確認で、その案に関係する情報が分かったとき（AI-BIC 3.0）
     "as_is": (),
     "to_be": ("proposal", "as_is"),
     "simulation": ("proposal", "as_is", "to_be"),
-    "review": ("proposal", "to_be", "simulation"),
+    "review": ("proposal", "premise", "to_be", "simulation"),
 }
-NAMES = {"proposal": "改善案", "as_is": "現状の業務フロー", "to_be": "改善後の業務フロー", "simulation": "効果試算", "review": "レビュー"}
+NAMES = {"proposal": "改善案", "premise": "前提", "as_is": "現状の業務フロー", "to_be": "改善後の業務フロー", "simulation": "効果試算", "review": "レビュー"}
 OUTDATED_STATUS = {
     "to_be": "再作成が必要",
     "simulation": "再計算が必要",
@@ -85,6 +86,39 @@ class ReviewRecord(BaseModel):
     created_at: datetime
 
 
+Source = Literal["本人の申告", "添付資料"]  # 不足情報の確認で得た情報の出どころ（申告と資料を区別する）
+
+
+class FactEntry(BaseModel):
+    """不足情報の確認で得た数値（例：月の作業時間の合計）。出どころごとに最新の1つを持つ。"""
+
+    value: float
+    source: Source
+    note: str = ""  # 資料の名前など
+    at: datetime
+
+
+class GapAnswer(BaseModel):
+    """不足情報への文章の回答（overview.Gap の key ごと）。"""
+
+    question: str
+    answer: str
+    source: Source
+    note: str = ""
+    affects: list[str] = Field(default_factory=list)  # 回答したときに影響すると示したもの
+    at: datetime
+
+
+class DecisionRecord(BaseModel):
+    """確定した改善案の記録。確定した時点の内容を残し、あとで前提が変わったら再確認を求める（AI-BIC 3.0）。"""
+
+    pid: str
+    proposal: Proposal  # 確定した時点の改善案
+    simulation: SimulationInputs | None = None  # 確定した時点の試算の入力値
+    versions: dict[str, int] = Field(default_factory=dict)  # 確定した時点の版（proposal・premise・simulation）
+    decided_at: datetime
+
+
 class Project(BaseModel):
     schema_version: int = SCHEMA_VERSION
     app: Literal["AI-BIC"] = APP_NAME
@@ -114,18 +148,25 @@ class Project(BaseModel):
     proposal_history: dict[str, list[Proposal]] = Field(default_factory=dict)  # 改善案ID → 作り直す前の改善案（古い順）
     revision_notes: dict[str, list[str]] = Field(default_factory=dict)  # 改善案ID → 最後の作り直しで変えたこと
     selected_proposal: str | None = None  # 確定した改善案（STEP 6）
+    decision: DecisionRecord | None = None  # 確定した時点の内容（版2から。版1のファイルでは None）
+    facts: dict[str, list[FactEntry]] = Field(default_factory=dict)  # 確認した数値の名前 → 出どころごとの値
+    gap_answers: dict[str, GapAnswer] = Field(default_factory=dict)  # 不足情報の key → 回答
+    # 確認した数値で試算の元の値が変わったが、利用者が手入力した値を残した項目（改善案ID → 項目名 → 確認した値）
+    basis_changes: dict[str, dict[str, float]] = Field(default_factory=dict)
     stamps: dict[str, Stamp] = Field(default_factory=dict)  # 結果のキー（例：simulation:P1）→ 版の記録
 
     @model_validator(mode="after")
     def _known_proposals(self) -> "Project":
         ids = set(proposal_ids(self))
         for name in ("to_be", "simulations", "scenarios", "kept_controls", "setup_tasks", "reviews",
-                     "proposal_history", "revision_notes"):
+                     "proposal_history", "revision_notes", "basis_changes"):
             unknown = set(getattr(self, name)) - ids
             if unknown:
                 raise ValueError(f"存在しない改善案のデータがあります（{name}：{'、'.join(sorted(unknown))}）")
         if self.selected_proposal is not None and self.selected_proposal not in ids:
             raise ValueError("確定した改善案が存在しません")
+        if self.decision is not None and self.decision.pid != self.selected_proposal:
+            raise ValueError("確定した改善案の記録が一致しません")
         if self.mode == "demo" and not self.demo_scenario_id:
             raise ValueError("デモの案件にシナリオの記録がありません")
         return self
@@ -221,7 +262,12 @@ class ProjectFileError(Exception):
 
 
 # 古い版のファイルを1つ新しい版の形に変換する関数（版番号 → 関数）。版を上げるときに追加する
-MIGRATIONS: dict[int, callable] = {}
+def _v1_to_v2(raw: dict) -> dict:
+    """版1 → 版2：新しい項目（確認した数値・不足情報の回答・確定した時点の記録）は空で読み込む。"""
+    return raw
+
+
+MIGRATIONS: dict[int, callable] = {1: _v1_to_v2}
 
 
 def to_json_bytes(project: Project) -> bytes:

@@ -16,6 +16,7 @@ from ai_bic import config
 from ai_bic import project as pj
 from ai_bic import simulation as sim
 from ai_bic.errors import AIError
+from ai_bic.facts import affected_pids
 from ai_bic.flow import compare_flows
 from ai_bic.models import Proposal, ReviewFinding, ReviewResult, RevisedProposal
 from ai_bic.output_check import _quote_found
@@ -115,6 +116,8 @@ def evidence_texts(project: Project, pid: str, context: str) -> list[str]:
     info = project.business_info
     texts = [info.company_name or "", info.department, info.task_name, info.overview, info.pain_points]
     texts += [turn.answer or "" for turn in project.hearing.turns]
+    # 結果画面の「不足情報の確認」で利用者が答えた内容も、利用者の入力として認める（AI-BIC 3.0）
+    texts += [a.answer for a in project.gap_answers.values()]
     texts.append(project.diagnosis.analysis.model_dump_json())
     texts.append(context)
     return texts
@@ -226,6 +229,21 @@ def generate_review(client, project: Project, pid: str) -> ReviewRecord:
 # ---------------------------------------------------------------
 # 5. 改善案の作り直し（採用した指摘だけを反映）
 # ---------------------------------------------------------------
+def answer_findings(project: Project, pid: str) -> list[ReviewFinding]:
+    """不足情報の確認で分かったことのうち、この改善案に関係するもの（作り直しに渡す。AI-BIC 3.0）。
+
+    レビューの指摘と同じ形にして、既存の作り直し（revise）で使う。根拠は利用者の回答そのもの。
+    """
+    found = []
+    for a in project.gap_answers.values():
+        if pid in affected_pids(project, a.affects):
+            found.append(ReviewFinding(
+                viewpoint="課題との整合性", severity="中", title=f"追加で確認した情報：{a.question}",
+                detail=f"結果画面で利用者が確認した情報（{a.source}）：{a.answer}", evidence=a.answer,
+                suggestion=f"確認した情報（{a.source}）「{a.answer}」を前提にして、改善案の内容・前提条件・最初の一歩を見直す"))
+    return found
+
+
 def adopted_findings(project: Project, pid: str) -> list[ReviewFinding]:
     record = project.reviews.get(pid)
     if record is None:
@@ -252,11 +270,15 @@ def check_revision(revised: RevisedProposal, original: Proposal, analysis) -> li
     return problems
 
 
-def revise(client, project: Project, pid: str) -> None:
-    """採用した指摘を反映して改善案を作り直す。改善後フロー・試算・レビューは「要更新」になる。"""
-    adopted = adopted_findings(project, pid)
+def revise(client, project: Project, pid: str, with_answers: bool = False) -> None:
+    """採用した指摘を反映して改善案を作り直す。改善後フロー・試算・レビューは「要更新」になる。
+
+    with_answers：不足情報の確認で分かったことも反映する（結果画面の「回答を反映して改善案を見直す」。AI-BIC 3.0）。
+    失敗したときは何も変えない（回答と直前の診断結果は残り、もう一度試せる）。
+    """
+    adopted = adopted_findings(project, pid) + (answer_findings(project, pid) if with_answers else [])
     if not adopted:
-        raise ValueError("採用した指摘がありません")
+        raise ValueError("反映する指摘や回答がありません")
     if project.mode == "ai" and calls_left(project, "revise") <= 0:
         raise AIError("limit", "revise")
     original = _proposal(project, pid)

@@ -485,11 +485,12 @@ def decision_card(ov, shown_gaps: int) -> str:
                f'<div class="t-sub">{mark} {esc(ov.top_confirmation)}　／　重要度 {esc(ov.top_issue.severity)}</div>')
     else:
         top = '<div class="t-main">（課題を特定できませんでした）</div>'
-    gaps = ov.gaps[:shown_gaps]
+    open_gaps = ov.open_gaps  # 回答済みのものは出さない
+    gaps = open_gaps[:shown_gaps]
     if gaps:
         items = "".join(
             f'<li><span class="m">{"！" if g.important else "・"}</span>{esc(g.question)}</li>' for g in gaps)
-        rest = len(ov.gaps) - len(gaps)
+        rest = len(open_gaps) - len(gaps)
         sub = ("！は重要な未確認の情報です" if any(g.important for g in gaps) else "分かると判断の精度が上がる情報です")
         need = f'<ul class="gaps">{items}</ul><div class="t-sub">？ 未確認　{sub}{f"（ほか{rest}件）" if rest else ""}</div>'
     else:
@@ -514,19 +515,24 @@ def sample_banner(answered: int, total: int) -> str:
     )
 
 
+def gap_card(g) -> str:
+    """不足情報のカード。質問・確認が必要な理由・影響する課題や改善案と、確認の状態（記号と文字）を示す。"""
+    badge = ('<span class="bic-badge gold">！ 重要</span>' if g.important
+             else '<span class="bic-badge gray">参考</span>')
+    state = (f'<span class="bic-badge rel">✓ 回答済み（{esc(g.answered.split("：")[0])}）</span>' if g.answered
+             else '<span class="bic-badge gray">？ 要確認</span>')
+    answered = f'<dt>回答</dt><dd>{esc(g.answered)}</dd>' if g.answered else ""
+    return (
+        f'<div class="bic-gap">{badge}{state}'
+        f'<div class="q">{esc(g.question)}</div>'
+        f'<dl class="bic-dl"><dt>確認が必要な理由</dt><dd>{esc(g.reason)}</dd>'
+        f'<dt>影響するもの</dt><dd>{esc("、".join(g.affects))}</dd>{answered}</dl></div>'
+    )
+
+
 def gap_list(gaps) -> str:
-    """不足情報の一覧（重要なものから）。質問・確認が必要な理由・影響する課題や改善案を示す。"""
-    cards = []
-    for g in gaps:
-        badge = ('<span class="bic-badge gold">！ 重要</span>' if g.important
-                 else '<span class="bic-badge gray">参考</span>')
-        cards.append(
-            f'<div class="bic-gap">{badge}<span class="bic-badge gray">？ 未確認</span>'
-            f'<div class="q">{esc(g.question)}</div>'
-            f'<dl class="bic-dl"><dt>確認が必要な理由</dt><dd>{esc(g.reason)}</dd>'
-            f'<dt>影響するもの</dt><dd>{esc("、".join(g.affects))}</dd></dl></div>'
-        )
-    return "".join(cards)
+    """不足情報の一覧（重要なものから）。"""
+    return "".join(gap_card(g) for g in gaps)
 
 
 def compare_table(rows) -> str:

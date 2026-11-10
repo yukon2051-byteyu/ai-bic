@@ -16,7 +16,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from ai_bic import config, report, ui
+from ai_bic import config, facts, report, ui
 from ai_bic import project as pj
 from ai_bic import simulation as sim
 from ai_bic.demo_client import load_scenarios
@@ -25,7 +25,8 @@ from ai_bic.project import Project
 
 STEP = {"minutes_per_case": 1.0, "cases_per_month": 1.0, "hourly_cost": 100.0, "reduction_rate": 5.0,
         "initial_cost": 10_000.0, "monthly_running_cost": 1_000.0, "other_initial_cost": 10_000.0}
-SOURCE_MARK = {"ユーザー入力": "✎ ユーザー入力", "ヒアリング": "◎ ヒアリング", "AI推定": "◇ AI推定", "デモ値": "□ デモ値"}
+SOURCE_MARK = {"ユーザー入力": "✎ ユーザー入力", "ヒアリング": "◎ ヒアリング", "AI推定": "◇ AI推定", "デモ値": "□ デモ値",
+               "本人の申告": "◎ 本人の申告（確認済み）", "添付資料": "◎ 添付資料（確認済み）"}
 GRAY, NAVY = "#9AA0A6", ui.ACCENT  # 現状（比べる基準）は灰色、改善後は差し色
 
 
@@ -98,6 +99,20 @@ def _on_input(project: Project, pid: str, name: str, widget_key: str) -> None:
     if name == "reduction_rate":  # 削減率は入力欄とスライダーの両方で変えられるため、もう一方にも反映する
         other = _key(pid, "rate_slider") if widget_key == _key(pid, name) else _key(pid, name)
         st.session_state[other] = float(value) if value is not None else (0.0 if other.endswith("slider") else None)
+
+
+def _restore(project: Project, pid: str, field: str) -> None:
+    """手入力の値をやめて、不足情報の確認で確かめた値に戻す。"""
+    facts.restore_basis(project, pid, field)
+    sync_widgets(project, [(pid, field)])
+
+
+def sync_widgets(project: Project, changed: list[tuple[str, str]]) -> None:
+    """試算の値をプログラムで変えたあと、入力欄の表示も合わせる（コールバックの中で呼ぶ）。"""
+    for pid, field in changed:
+        key = _key(pid, field)
+        if key in st.session_state:
+            st.session_state[key] = getattr(project.simulations[pid], field)
 
 
 def _on_scenarios(project: Project, pid: str) -> None:
@@ -203,6 +218,11 @@ def _render_one(project: Project, pid: str) -> None:
         if st.button("試算の値を確認した（このままでよい）", key=f"sim_ack_{pid}"):
             pj.mark_updated(project, "simulation", pid)
             st.rerun()
+    # 不足情報の確認で元の値が変わったが、利用者が手入力した値を残している項目（AI-BIC 3.0）
+    for field, value in project.basis_changes.get(pid, {}).items():
+        st.info(f"元の値が変わりました：{sim.label(field)}は、不足情報の確認で {sim.fmt(value)} になりました。"
+                f"この試算では、手入力の値（{_value(getattr(base, field), '')}）を残しています。")
+        st.button("確認した値に戻す", key=f"sim_restore_{pid}_{field}", on_click=_restore, args=(project, pid, field))
     # 1. 結論。入力欄の変更はコールバックで案件に反映済みなので、入力欄より先に計算・表示してよい
     result = sim.simulate(base)
     c1, c2, c3 = st.columns(3)
@@ -244,7 +264,7 @@ def _render_one(project: Project, pid: str) -> None:
             for name in sim.NUMBER_FIELDS
         ]
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
-        st.caption("◎ ヒアリング＝お聞きした内容の数値／✎ ユーザー入力／◇ AI推定＝AIの推定（参考値）／□ デモ値＝架空のサンプル")
+        st.caption("◎ ヒアリング＝お聞きした内容の数値／✎ ユーザー入力／◇ AI推定＝AIの推定（参考値）／□ デモ値＝架空のサンプル／◎ 本人の申告・添付資料＝不足情報の確認で確かめた値")
 
 
 # 入力欄の並び（1行4つ × 2行。8つ目は削減率のスライダー）

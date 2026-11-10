@@ -14,7 +14,7 @@ from datetime import datetime
 
 import streamlit as st
 
-from ai_bic import config, guard, overview, readiness, report, ui
+from ai_bic import config, facts, guard, overview, readiness, report, ui
 from ai_bic.ai_client import ClaudeClient
 from ai_bic.project import ProjectFileError, load_project, new_project, to_json_bytes
 from ai_bic.project import file_name as project_file_name
@@ -537,7 +537,7 @@ def render_result() -> None:
     # --- 1. 結論と次の操作（最大の課題・最初にやること・次の判断に必要な情報 → 主ボタン。AI-BIC 3.0） ---
     if partial:
         html(ui.sample_banner(answered, len(s.hearing_state.turns)))
-    ov = overview.build(result, s.hearing_state, FRAMEWORK)
+    ov = overview.build(result, s.hearing_state, FRAMEWORK, s.project.gap_answers, facts.numbers_summary(s.project))
     result_top.render_decision(ov, has_proposals=result.proposals is not None)
     if s.get("loaded"):
         html(ui.note("読み込んだAI診断の案件です。費用を管理するため、AIを使う操作はできません。"))
@@ -556,7 +556,7 @@ def render_result() -> None:
 
     # --- 不足情報（重要なものから） ---
     if ov.gaps:
-        result_top.render_gaps(ov, readiness.assumptions(s.hearing_state))
+        result_top.render_gaps(s.project, ov, overview.open_assumptions(s.hearing_state, s.project.gap_answers), get_client)
 
     # --- 2. 改善案の比較 → 選んだ案の詳細と、業務フロー・試算・レビューへの移動 ---
     if result.proposals is None:
