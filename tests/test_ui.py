@@ -5,7 +5,8 @@ AIの回答や利用者の入力をHTMLに埋め込むため、<script> など�
 """
 
 from ai_bic import ui
-from ai_bic.models import DiagnosisSummary, Evidence, HearingTurn, Issue
+from ai_bic.overview import CONFIRMATION, CompareRow, Gap, Overview, RelationTag
+from ai_bic.models import ProposalRelation, Evidence, HearingTurn, Issue
 from tests.fakes import make_proposal
 
 ATTACK = '<script>alert("x")</script><img src=x onerror=alert(1)>'
@@ -42,12 +43,16 @@ def test_課題カードに埋め込まれた攻撃の文字列は動かない()
     assert "&lt;script&gt;" in card
 
 
-def test_改善案カードと質問とサマリーも攻撃の文字列を無効化する():
+def test_改善案カードと質問と冒頭と比較表も攻撃の文字列を無効化する():
     proposal = make_proposal(title=ATTACK, before=ATTACK, after=ATTACK, first_steps=[ATTACK])
     turn = HearingTurn(turn_no=1, item_id="H5", question=ATTACK, answer=ATTACK)
-    summary = DiagnosisSummary(headline=ATTACK, top_issue_id="I1", first_action=ATTACK)
     top = make_issue(title=ATTACK)
-    for html in [ui.proposal_card(1, proposal), ui.qa(turn), ui.summary_card(summary, top, [top], 1)]:
+    ov = Overview(top_issue=top, top_confirmation=CONFIRMATION["本人の申告"], first_action=ATTACK,
+                  gaps=[Gap("item:H3", ATTACK, ATTACK, [ATTACK], True)])
+    rows = [CompareRow(1, ATTACK, ATTACK, ATTACK, ATTACK, False, ATTACK, 0, [RelationTag("先にやる", 2, ATTACK)])]
+    relation = ProposalRelation(kind="順序", first=1, second=2, reason=ATTACK)
+    for html in [ui.proposal_card(1, proposal), ui.qa(turn), ui.decision_card(ov, 2), ui.gap_list(ov.gaps),
+                 ui.compare_table(rows), ui.relation_list([relation])]:
         assert "<script>" not in html
         assert "<img" not in html
 
@@ -78,34 +83,35 @@ def test_改善案カードには導入前後と最初の一歩が出る():
     assert "現在の様式を集めて違いを一覧にする" in card
 
 
-def test_サマリーは最重要課題を太字の枠で示し_件数を数える():
-    summary = DiagnosisSummary(headline="最大の課題は属人化です", top_issue_id="I1", first_action="手順を書き出す")
-    issues = [
-        make_issue(issue_id="I1", title="担当者1人に依存", severity="高"),
-        make_issue(issue_id="I2", severity="中", evidence_type="要確認"),
-        make_issue(issue_id="I3", severity="高", evidence_type="推測"),
-    ]
-    card = ui.summary_card(summary, issues[0], issues, 3)
-
-    assert '<div class="t-main">担当者1人に依存</div>' in card
-    assert "重要度 高" in card
-    assert '<div class="t-main">手順を書き出す</div>' in card
-    assert '<span class="n">3</span><span>抽出した課題</span>' in card
-    assert '<span class="n hot">2</span><span>重要度「高」</span>' in card  # 「高」があれば強調
-    assert '<span class="n">1</span><span>要確認</span>' in card
+def test_冒頭は最大の課題_最初にやること_次の判断に必要な情報の順で_確認状態を記号と文字で示す():
+    ov = Overview(top_issue=make_issue(title="担当者1人に依存", severity="高"),
+                  top_confirmation=CONFIRMATION["本人の申告"], first_action="手順を書き出す",
+                  gaps=[Gap("item:H3", "作業時間を教えてください", "試算に必要", ["改善効果の試算"], True),
+                        Gap("issue:I2", "誤りは月に何件ですか", "根拠がない", ["案1"], False),
+                        Gap("followup:I1", "3つ目", "参考", ["案2"], False)])
+    card = ui.decision_card(ov, 2)
+    assert card.index("最大の課題") < card.index("最初にやること") < card.index("次の判断に必要な情報")
+    assert "✓ 確認済み（ご本人の発言・資料）" in card and "△ AIの提案" in card
+    assert "作業時間を教えてください" in card and "誤りは月に何件ですか" in card
+    assert "3つ目" not in card and "（ほか1件）" in card  # 最初の画面に収めるため、残りは件数で示す
+    assert "！は重要な未確認の情報です" in card
 
 
-def test_重要度高がなければ件数を強調しない():
-    summary = DiagnosisSummary(headline="要点", top_issue_id="I1", first_action="一手")
-    issues = [make_issue(severity="中")]
-    card = ui.summary_card(summary, issues[0], issues, 1)
-    assert '<span class="n">0</span><span>重要度「高」</span>' in card
+def test_不足情報がなければ_冒頭でそう伝える():
+    ov = Overview(top_issue=None, top_confirmation="", first_action="一手")
+    card = ui.decision_card(ov, 2)
+    assert "課題を特定できませんでした" in card and "大きな不足はありません" in card
 
 
-def test_最重要課題が見つからなくても表示が崩れない():
-    summary = DiagnosisSummary(headline="要点", top_issue_id="I9", first_action="一手")
-    card = ui.summary_card(summary, None, [], 0)
-    assert "課題を特定できませんでした" in card
+def test_比較表は改善案_主に減らすもの_着手前に確認することの順で_狭い画面用の項目名を持つ():
+    rows = [CompareRow(1, "変換表と手順", "正式名", "業務標準化", "読み替えの誤り", False, "書き方を一覧にする", 2,
+                       [RelationTag("先にやる", 2, "準備になる")]),
+            CompareRow(2, "自動取り込み", "正式名2", "既存ツールの活用", "課題A、課題B", True, "特になし", 0, [])]
+    table = ui.compare_table(rows)
+    assert table.index("<th>改善案</th>") < table.index("<th>主に減らすもの</th>") < table.index("<th>着手前に確認すること</th>")
+    assert 'data-label="主に減らすもの"' in table and 'data-label="着手前に確認すること"' in table
+    assert "案2の前に先にやる" in table and 'title="準備になる"' in table
+    assert "（ほか2件）" in table and "（対象の課題から）" in table
 
 
 def test_重要度高の課題だけ_カードを金色で強調する():

@@ -13,7 +13,7 @@ AIの回答や利用者の入力をHTMLに埋め込むため、すべて esc() �
 import html
 
 from ai_bic import config
-from ai_bic.models import DiagnosisSummary, Evidence, HearingItem, HearingTurn, Issue, ItemStatus, Proposal
+from ai_bic.models import Evidence, HearingItem, HearingTurn, Issue, ItemStatus, Proposal
 
 ACCENT = "#1B2B4B"  # 深い紺（差し色）
 
@@ -183,28 +183,28 @@ header[data-testid="stHeader"] {{ display: none; }}
 
 /* 試算の改善案の切り替え（ラジオボタンをタブの形にする）：「案1」と短い名前の2段。
    選択中＝濃紺の面に白い文字、下端に金色の細い線（金色は選択中の印）。未選択＝白い面に濃紺の文字、青灰色の枠 */
-.st-key-sim_plans [data-testid="stElementContainer"] {{ width: 100%; }}
-.st-key-sim_plans [role="radiogroup"] {{ display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+[class*="st-key-plans_"] [data-testid="stElementContainer"] {{ width: 100%; }}
+[class*="st-key-plans_"] [role="radiogroup"] {{ display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
   gap: 6px; width: 100%; }}
-.st-key-sim_plans [role="radiogroup"] > div {{ position: relative; display: flex; flex-direction: column; justify-content: center;
+[class*="st-key-plans_"] [role="radiogroup"] > div {{ position: relative; display: flex; flex-direction: column; justify-content: center;
   margin: 0; padding: .5rem .8rem .55rem; min-width: 0; background: var(--card); border: 1px solid var(--line-blue);
   border-radius: 4px 4px 0 0; cursor: pointer; }}
-.st-key-sim_plans [role="radiogroup"] > div:hover {{ border-color: var(--accent); }}
-.st-key-sim_plans [data-testid="stRadioOption"] {{ margin: 0; padding: 0; width: 100%; cursor: pointer; }}
+[class*="st-key-plans_"] [role="radiogroup"] > div:hover {{ border-color: var(--accent); }}
+[class*="st-key-plans_"] [data-testid="stRadioOption"] {{ margin: 0; padding: 0; width: 100%; cursor: pointer; }}
 /* 短い名前の部分を押しても選べるよう、選択肢の押せる範囲をタブ全体に広げる */
-.st-key-sim_plans [data-testid="stRadioOption"]::before {{ content: ""; position: absolute; inset: 0; z-index: 1; }}
-.st-key-sim_plans [data-testid="stRadioOption"] > div > div:first-child {{ display: none; }}  /* 丸い選択印は使わない */
-.st-key-sim_plans [data-testid="stRadioOption"] p {{ font-size: .75rem; letter-spacing: .08em; color: var(--sub); margin: 0; }}
-.st-key-sim_plans [data-testid="stRadioCaption"] {{ padding: 0; margin: .1rem 0 0; }}
-.st-key-sim_plans [data-testid="stCaptionContainer"] {{ opacity: 1; }}  /* 補足文として薄くしない（案の名前なので） */
-.st-key-sim_plans [data-testid="stRadioCaption"] p {{ font-size: .9rem; font-weight: 600; color: var(--accent); margin: 0;
+[class*="st-key-plans_"] [data-testid="stRadioOption"]::before {{ content: ""; position: absolute; inset: 0; z-index: 1; }}
+[class*="st-key-plans_"] [data-testid="stRadioOption"] > div > div:first-child {{ display: none; }}  /* 丸い選択印は使わない */
+[class*="st-key-plans_"] [data-testid="stRadioOption"] p {{ font-size: .75rem; letter-spacing: .08em; color: var(--sub); margin: 0; }}
+[class*="st-key-plans_"] [data-testid="stRadioCaption"] {{ padding: 0; margin: .1rem 0 0; }}
+[class*="st-key-plans_"] [data-testid="stCaptionContainer"] {{ opacity: 1; }}  /* 補足文として薄くしない（案の名前なので） */
+[class*="st-key-plans_"] [data-testid="stRadioCaption"] p {{ font-size: .9rem; font-weight: 600; color: var(--accent); margin: 0;
   line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }}
-.st-key-sim_plans [role="radiogroup"] > div[data-selected="true"] {{ background: var(--accent); border-color: var(--accent); }}
-.st-key-sim_plans [role="radiogroup"] > div[data-selected="true"]::after {{ content: ""; position: absolute; left: 0; right: 0;
+[class*="st-key-plans_"] [role="radiogroup"] > div[data-selected="true"] {{ background: var(--accent); border-color: var(--accent); }}
+[class*="st-key-plans_"] [role="radiogroup"] > div[data-selected="true"]::after {{ content: ""; position: absolute; left: 0; right: 0;
   bottom: 0; height: 3px; background: var(--gold); }}
-.st-key-sim_plans [role="radiogroup"] > div[data-selected="true"] p {{ color: #fff; }}
-.st-key-sim_plans [role="radiogroup"] > div[data-selected="true"] [data-testid="stRadioOption"] p {{ color: var(--on-navy-sub); }}
-.st-key-sim_plans [role="radiogroup"] > div:has(input:focus-visible) {{ outline: 2px solid var(--gold-deep); outline-offset: 2px; }}
+[class*="st-key-plans_"] [role="radiogroup"] > div[data-selected="true"] p {{ color: #fff; }}
+[class*="st-key-plans_"] [role="radiogroup"] > div[data-selected="true"] [data-testid="stRadioOption"] p {{ color: var(--on-navy-sub); }}
+[class*="st-key-plans_"] [role="radiogroup"] > div:has(input:focus-visible) {{ outline: 2px solid var(--gold-deep); outline-offset: 2px; }}
 .bic-plan-title {{ font-size: 1.05rem; font-weight: 700; color: var(--accent); margin: .6rem 0 .2rem; line-height: 1.5; }}
 
 /* 注記 */
@@ -272,6 +272,54 @@ a.bic-brand:hover {{ opacity: .7; }}
   .bic-summary .tiles {{ grid-template-columns: 1fr; }}
   .bic-summary .stats {{ grid-template-columns: 1fr 1fr; gap: .8rem 0; }}
 }}
+
+/* 結果画面の冒頭（AI-BIC 3.0）：最大の課題・最初にやること・次の判断に必要な情報の3つ。
+   最初の画面に、この3つと主ボタンが収まるよう、診断サマリーより詰める */
+.bic-decision {{ padding: 1.1rem 1.4rem 1.2rem; margin-bottom: 12px; }}
+.bic-decision .tiles {{ grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: .5rem; }}
+.bic-decision .tile {{ padding: .7rem .9rem .8rem; }}
+.bic-decision .t-main {{ font-size: .95rem; line-height: 1.6; margin: .25rem 0; }}
+.bic-decision .gaps {{ list-style: none; margin: .3rem 0; padding: 0; font-size: .88rem; line-height: 1.55; }}
+.bic-decision .gaps li {{ display: flex; gap: .35rem; margin: .15rem 0; }}
+.bic-decision .gaps .m {{ color: var(--gold); font-weight: 700; flex: none; }}
+@media (max-width: 720px) {{
+  .bic-decision {{ padding: .85rem .95rem .9rem; }}
+  .bic-decision .tiles {{ grid-template-columns: 1fr; gap: 8px; }}
+  .bic-decision .tile {{ padding: .55rem .75rem .6rem; }}
+  .bic-decision .t-main {{ font-size: .9rem; line-height: 1.55; }}
+}}
+
+/* 改善案の比較表。狭い画面では、行を同じ項目順のカードにする（項目名は data-label から出す） */
+.bic-compare {{ width: 100%; border-collapse: separate; border-spacing: 0; background: var(--card);
+  border: 1px solid var(--line-blue); border-radius: 6px; font-size: .9rem; line-height: 1.6; margin: .3rem 0 .4rem; }}
+.bic-compare th {{ text-align: left; font-size: .76rem; letter-spacing: .08em; color: var(--sub); font-weight: 600;
+  padding: .55rem .8rem; border-bottom: 1px solid var(--line-blue); background: var(--page); }}
+.bic-compare td {{ vertical-align: top; padding: .65rem .8rem; border-bottom: 1px solid var(--line); color: var(--ink); }}
+.bic-compare tr:last-child td {{ border-bottom: none; }}
+.bic-compare td:first-child {{ width: 34%; }}
+.bic-compare .no {{ font-size: .75rem; letter-spacing: .08em; color: var(--sub); }}
+.bic-compare .nm {{ font-weight: 700; color: var(--accent); }}
+.bic-compare .cat {{ font-size: .76rem; color: var(--sub); margin-bottom: .2rem; }}
+.bic-compare small {{ color: var(--sub); }}
+.bic-badge.rel {{ border-color: var(--notice-line); color: var(--accent); background: var(--notice-bg); margin: .15rem .3rem 0 0; }}
+@media (max-width: 720px) {{
+  .bic-compare, .bic-compare tbody, .bic-compare tr, .bic-compare td {{ display: block; width: 100% !important; }}
+  .bic-compare {{ border: none; background: none; }}
+  .bic-compare thead {{ display: none; }}
+  .bic-compare tr {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px; margin-bottom: 8px; }}
+  .bic-compare td {{ border-bottom: 1px solid var(--line); padding: .5rem .8rem; }}
+  .bic-compare td:not(:first-child)::before {{ content: attr(data-label); display: block; font-size: .72rem;
+    letter-spacing: .06em; color: var(--sub); }}
+}}
+.bic-relations {{ margin: .2rem 0 .6rem; padding-left: 1.2rem; font-size: .86rem; line-height: 1.7; color: var(--ink); }}
+.bic-relations b {{ color: var(--accent); }}
+
+/* 不足情報のカード（重要なものから） */
+.bic-gap {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px; padding: .7rem .9rem; margin: .4rem 0; }}
+.bic-gap .q {{ font-weight: 700; color: var(--accent); margin: .3rem 0 .2rem; line-height: 1.6; }}
+
+/* 結果画面の中の移動先（固定のヘッダーに隠れないよう、少し上で止める） */
+[id^="sec-"] {{ scroll-margin-top: 72px; }}
 
 /* 課題・改善案のカード
    読む順番：太字（タイトル・要点）→ 根拠や改善後の姿 → 小さく薄い補足（表形式） */
@@ -354,6 +402,11 @@ def esc(text) -> str:
     return html.escape(str(text or "")).replace("$", "&#36;")
 
 
+def md_text(text: str) -> str:
+    """Markdown として表示される場所（選択肢の説明文など）に、記号をそのまま文字として出す。"""
+    return "".join("\\" + c if c in "\\`*_{}[]()#+-.!|~<>$" else c for c in str(text))
+
+
 def label(en: str, ja: str, tight: bool = False) -> str:
     """英字の小さなラベル＋日本語の見出し。tight=True は余白を詰めた版（トップページ用）。"""
     extra = " tight" if tight else ""
@@ -418,36 +471,82 @@ def qa(turn: HearingTurn) -> str:
     return f'<div class="bic-qa"><div class="q"><b>Q{turn.turn_no}</b><span>{esc(turn.question)}</span></div>{answer}</div>'
 
 
-def summary_card(
-    summary: DiagnosisSummary, top_issue: Issue | None, issues: list[Issue], proposal_count: int
-) -> str:
-    """診断サマリー。要点 → 最重要課題と最初の一手 → 件数 の3段で、重要な点から目に入るようにする。"""
-    if top_issue:
-        top_main = esc(top_issue.title)
-        top_sub = f"重要度 {esc(top_issue.severity)}　／　{esc(top_issue.evidence_type)}"
+CONFIRM_MARK = {"確認済み": "✓", "推測": "△", "要確認": "？"}  # 色だけで区別しないよう記号も付ける
+
+
+def decision_card(ov, shown_gaps: int) -> str:
+    """結果画面の冒頭：「最大の課題」「最初にやること」「次の判断に必要な情報」をこの順で出す（AI-BIC 3.0）。
+
+    ov は overview.Overview。確認済みの情報と、推測・要確認・未確認の情報を、記号と文字で見分けられるようにする。
+    """
+    if ov.top_issue:
+        mark = CONFIRM_MARK[ov.top_confirmation.split("（")[0]]
+        top = (f'<div class="t-main">{esc(ov.top_issue.title)}</div>'
+               f'<div class="t-sub">{mark} {esc(ov.top_confirmation)}　／　重要度 {esc(ov.top_issue.severity)}</div>')
     else:
-        top_main, top_sub = "（課題を特定できませんでした）", ""
-    high = sum(1 for i in issues if i.severity == "高")
-    check = sum(1 for i in issues if i.evidence_type == "要確認")
-    stats = [
-        (len(issues), "抽出した課題", False),
-        (high, "重要度「高」", high > 0),  # 重要度「高」があれば金色で目立たせる
-        (proposal_count, "改善案", False),
-        (check, "要確認", False),
-    ]
-    stats_html = "".join(
-        f'<div><span class="n{" hot" if hot else ""}">{n}</span><span>{esc(name)}</span></div>'
-        for n, name, hot in stats
-    )
+        top = '<div class="t-main">（課題を特定できませんでした）</div>'
+    gaps = ov.gaps[:shown_gaps]
+    if gaps:
+        items = "".join(
+            f'<li><span class="m">{"！" if g.important else "・"}</span>{esc(g.question)}</li>' for g in gaps)
+        rest = len(ov.gaps) - len(gaps)
+        sub = ("！は重要な未確認の情報です" if any(g.important for g in gaps) else "分かると判断の精度が上がる情報です")
+        need = f'<ul class="gaps">{items}</ul><div class="t-sub">？ 未確認　{sub}{f"（ほか{rest}件）" if rest else ""}</div>'
+    else:
+        need = ('<div class="t-main">大きな不足はありません</div>'
+                '<div class="t-sub">改善案を比較して、取り組む案を選んでください</div>')
     return (
-        '<div class="bic-summary"><div class="eyebrow">DIAGNOSIS SUMMARY</div>'
-        f'<p class="lead">{esc(summary.headline)}</p><div class="tiles">'
-        f'<div class="tile"><div class="t-label">最重要課題</div><div class="t-main">{top_main}</div>'
-        f'<div class="t-sub">{top_sub}</div></div>'
-        f'<div class="tile"><div class="t-label">最初の一手</div><div class="t-main">{esc(summary.first_action)}</div>'
-        '<div class="t-sub">今週から始められること</div></div></div>'
-        f'<div class="stats">{stats_html}</div></div>'
+        '<div class="bic-summary bic-decision"><div class="eyebrow">DIAGNOSIS</div><div class="tiles">'
+        f'<div class="tile"><div class="t-label">最大の課題</div>{top}</div>'
+        f'<div class="tile"><div class="t-label">最初にやること</div><div class="t-main">{esc(ov.first_action)}</div>'
+        '<div class="t-sub">△ AIの提案（今週から始められること）</div></div>'
+        f'<div class="tile"><div class="t-label">次の判断に必要な情報</div>{need}</div>'
+        "</div></div>"
     )
+
+
+def gap_list(gaps) -> str:
+    """不足情報の一覧（重要なものから）。質問・確認が必要な理由・影響する課題や改善案を示す。"""
+    cards = []
+    for g in gaps:
+        badge = ('<span class="bic-badge gold">！ 重要</span>' if g.important
+                 else '<span class="bic-badge gray">参考</span>')
+        cards.append(
+            f'<div class="bic-gap">{badge}<span class="bic-badge gray">？ 未確認</span>'
+            f'<div class="q">{esc(g.question)}</div>'
+            f'<dl class="bic-dl"><dt>確認が必要な理由</dt><dd>{esc(g.reason)}</dd>'
+            f'<dt>影響するもの</dt><dd>{esc("、".join(g.affects))}</dd></dl></div>'
+        )
+    return "".join(cards)
+
+
+def compare_table(rows) -> str:
+    """改善案の比較表（rows は overview.CompareRow）。狭い画面では、同じ項目順のカードとして表示する（CSS）。"""
+    body = []
+    for r in rows:
+        chips = "".join(f'<span class="bic-badge rel" title="{esc(t.reason)}">{esc(t.text)}</span>' for t in r.relations)
+        reduces = esc(r.reduces) + ('<small>（対象の課題から）</small>' if r.reduces_from_issues else "")
+        checks = esc(r.check_before) + (f"<small>（ほか{r.more_checks}件）</small>" if r.more_checks else "")
+        body.append(
+            f'<tr><td data-label="改善案"><div class="no">案{r.no}</div><div class="nm">{esc(r.name)}</div>'
+            f'<div class="cat">{esc(r.category)}</div>{chips}</td>'
+            f'<td data-label="主に減らすもの">{reduces}</td>'
+            f'<td data-label="着手前に確認すること">{checks}</td></tr>'
+        )
+    return ('<table class="bic-compare"><thead><tr><th>改善案</th><th>主に減らすもの</th><th>着手前に確認すること</th>'
+            f'</tr></thead><tbody>{"".join(body)}</tbody></table>')
+
+
+def relation_list(relations) -> str:
+    """案どうしの関係と理由（relations は overview.valid_relations の結果）。"""
+    items = []
+    for r in relations:
+        if r.kind == "順序":
+            head = f"案{r.first}を先にやる → 案{r.second}を次に試す"
+        else:
+            head = f"案{r.first}と案{r.second}は併用できる"
+        items.append(f"<li><b>{esc(head)}</b>　{esc(r.reason)}</li>")
+    return f'<ul class="bic-relations">{"".join(items)}</ul>' if items else ""
 
 
 def issue_card(no: int, issue: Issue, viewpoints: str, sources: list[str], downgraded: str | None) -> str:

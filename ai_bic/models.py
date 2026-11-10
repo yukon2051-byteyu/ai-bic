@@ -170,6 +170,9 @@ class Proposal(BaseModel):
     # 案を切り替えるタブに出す短い名前（何をする案か分かる12文字程度）。正式な名前は title。
     # 古い保存データやAIが書かなかったときは None（画面では title を省略せずに折り返して出す）
     short_title: str | None = None
+    # 比較表の「主に減らすもの」（例：転記の時間と誤り）。古い保存データやAIが書かなかったときは None
+    # （画面では、対象の課題の名前で代わりに示す）
+    reduces: str | None = None
     category: ProposalCategory
     description: str
     target_issue_ids: list[str]
@@ -192,11 +195,27 @@ class DiagnosisSummary(BaseModel):
     first_action: str  # 最初に取り組むべきこと（1文）
 
 
+class ProposalRelation(BaseModel):
+    """改善案どうしの関係（比較表に「先にやる」「次に試す」「併用できる」と理由を出す）。
+
+    順序：first の案を先にやると、second の案の準備になる（first＝先にやる、second＝次に試す）
+    併用：first と second の案を同時に進められる
+    案の番号は 1 から。存在しない番号などの不正な関係は、画面に出さない（overview.valid_relations）。
+    """
+
+    kind: Literal["順序", "併用"]
+    first: int
+    second: int
+    reason: str  # 入力や改善案の内容に基づく理由（1文）
+
+
 class ProposalResult(BaseModel):
     """改善提案のAIが返す内容。"""
 
     summary: DiagnosisSummary
     proposals: list[Proposal]
+    # 関係がなければ空（すべての案件に同じ関係を付けない）。古い保存データにはない
+    relations: list[ProposalRelation] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------

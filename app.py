@@ -14,11 +14,11 @@ from datetime import datetime
 
 import streamlit as st
 
-from ai_bic import config, guard, readiness, report, ui
+from ai_bic import config, guard, overview, readiness, report, ui
 from ai_bic.ai_client import ClaudeClient
 from ai_bic.project import ProjectFileError, load_project, new_project, to_json_bytes
 from ai_bic.project import file_name as project_file_name
-from ai_bic.views import flows, review, simulator
+from ai_bic.views import flows, result_top, review, simulator
 from ai_bic.views import progress as progress_view
 from ai_bic.attachments import load_attachments
 from ai_bic.demo_client import DemoClient, demo_answer, demo_attachments, load_scenarios
@@ -501,7 +501,6 @@ def render_result() -> None:
     result = s.diagnosis
     analysis = result.analysis
     info = s.business_info
-    issues_by_id = {i.issue_id: i for i in analysis.issues}
 
     # 診断レポート（B05）。その場で作って渡すだけで、サーバーには保存しない
     created_at = datetime.now(config.JST)
@@ -510,34 +509,40 @@ def render_result() -> None:
     )
     report_name = report.file_name(created_at)
 
-    # --- 進み具合（STEP 1〜6 の状態と次にすること。AI-BIC 2.0 指示書 7.3） ---
-    # 試算の初期値は下の試算の画面で入るため、先に入れてから判定する（入れる前だと「未着手」と誤って表示した）
+    # 試算の初期値は下の試算の画面で入るため、先に入れてから状態を判定する（入れる前だと「未着手」と誤って表示した）
     if result.proposals is not None:
         simulator.ensure_inputs(s.project)
-    progress_view.render(s.project)
 
-    # --- 診断サマリー（最初の数秒で価値が伝わるように） ---
-    html(ui.label("Summary", "診断サマリー"))
-    if result.proposals:
-        top = issues_by_id.get(result.proposals.summary.top_issue_id)
-        html(
-            ui.summary_card(
-                result.proposals.summary, top, analysis.issues, len(result.proposals.proposals)
-            )
-        )
-    else:
-        html(ui.note("お聞きした範囲では、明確な課題は確認できませんでした。"))
-    render_report_download(report_data, report_name, key="download_report_top")
+    # --- 1. 結論と次の操作（最大の課題・最初にやること・次の判断に必要な情報 → 主ボタン。AI-BIC 3.0） ---
+    ov = overview.build(result, s.hearing_state, FRAMEWORK)
+    result_top.render_decision(ov, has_proposals=result.proposals is not None)
+    if s.get("loaded"):
+        html(ui.note("読み込んだAI診断の案件です。費用を管理するため、AIを使う操作はできません。"))
+    # 6ステップの進み具合と案ごとの状態は、上部の4ステップと競わないよう、開いたときだけ表示する
+    with st.expander("作業状況を見る"):
+        progress_view.render(s.project)
+    c1, c2 = st.columns(2)
+    with c1:
+        render_report_download(report_data, report_name, key="download_report_top")
     # 案件の保存（AI-BIC 2.0 9.1）。サーバーには保存しないため、利用者がファイルで持ち帰って再開する
-    st.download_button(
+    c2.download_button(
         "案件を保存（JSON）", data=to_json_bytes(s.project), file_name=project_file_name(s.project),
         mime="application/json", key="download_project",
         help="TOP画面の「保存した案件を読み込んで再開する」で、続きから作業できます。入力した内容が含まれるため、取り扱いに注意してください。",
     )
-    if s.get("loaded"):
-        html(ui.note("読み込んだAI診断の案件です。費用を管理するため、AIを使う操作はできません。"))
 
-    # --- 業務の概要 ---
+    # --- 不足情報（重要なものから） ---
+    if ov.gaps:
+        result_top.render_gaps(ov, readiness.assumptions(s.hearing_state))
+
+    # --- 2. 改善案の比較 → 選んだ案の詳細と、業務フロー・試算・レビューへの移動 ---
+    if result.proposals is None:
+        html(ui.label("Proposals", "改善案"))
+        html(ui.note("課題が確認できなかったため、改善案は作成していません。"))
+    else:
+        result_top.render_compare(s.project)
+
+    # --- 3. 詳細な根拠：業務の概要・課題 → 業務フロー・試算・レビュー ---
     html(ui.label("Overview", "業務の概要"))
     html(f'<span class="bic-tag">{ui.esc(info.department)}</span><span class="bic-tag">{ui.esc(info.task_name)}</span>')
     st.write(analysis.business_summary)
@@ -551,9 +556,6 @@ def render_result() -> None:
         html(ui.note("未確認事項：次の項目は情報が不足しています。結果は参考としてご覧ください。"))
         for item_id in result.missing_item_ids:
             html(ui.footnote(ui.missing_item_text(ITEMS[item_id], s.hearing_state.item_status.get(item_id))))
-    # 情報が足りないまま分析した機能の仮定条件（AI-BIC 2.0：readiness.py の判定による）
-    for assumption in readiness.assumptions(s.hearing_state):
-        html(ui.footnote(f"仮定条件：{assumption}"))
 
     # --- 課題（F03） ---
     html(ui.label("Issues", f"抽出された課題（{len(analysis.issues)}件）"))
@@ -566,17 +568,14 @@ def render_result() -> None:
         names = "、".join(VIEWPOINT_NAMES.get(v, v) for v in analysis.no_issue_viewpoints)
         html(ui.footnote(f"問題が確認できなかった観点：{names}"))
 
-    # --- 改善案（F04） ---
-    html(ui.label("Proposals", "改善案"))
-    if result.proposals is None:
-        html(ui.note("課題が確認できなかったため、改善案は作成していません。"))
-    else:
-        for no, p in enumerate(result.proposals.proposals, start=1):
-            html(ui.proposal_card(no, p))
+    if result.proposals is not None:
         # STEP 2〜4：業務フロー（現状と改善後）→ 改善効果の試算（指示書 6章の順）
+        result_top.anchor("flows")
         flows.render(s.project, get_client)
+        result_top.anchor("sim")
         simulator.render(s.project)
         # STEP 5〜6：改善案チャレンジレビュー → 改善案の確定（AI-BIC 2.0 機能D）
+        result_top.anchor("review")
         review.render(s.project, get_client)
 
     html(ui.footnote(ui.DISCLAIMER))
@@ -584,6 +583,7 @@ def render_result() -> None:
     if st.button("新しい診断を始める", type="primary", key="new"):
         reset()
         st.rerun()
+    result_top.render_scroll()  # ボタンで頼まれた見出しまで画面を動かす（ページの最後に置く）
 
 
 # ---------------------------------------------------------------

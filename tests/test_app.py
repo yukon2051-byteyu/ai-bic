@@ -85,15 +85,19 @@ def test_デモモードで最後まで診断できる(secrets):
     text = all_text(at)
     assert "集計作業が担当者1人に依存している" in text
     assert "根拠となる発言を入力内容の中に確認できなかった" in text  # I5 の格下げ表示
-    assert "表計算ソフトの集計機能による自動集計" in text
     # 添付ファイルからの根拠が、ファイル名つきで表示される（F09）
     assert "添付ファイル『集計差異の記録.csv』" in text
     assert "診断に使った資料" in text
-    # 訴求力のための項目（診断サマリー・導入前後の比較・最初の一歩）
-    assert "最大の課題は、集計方法を担当者1人しか知らないことです" in text
-    assert "最重要課題" in text and "最初の一手" in text
+    # 冒頭の3項目（最大の課題・最初にやること・次の判断に必要な情報）と、比較表
+    assert "最大の課題" in text and "最初にやること" in text and "次の判断に必要な情報" in text
+    assert "主に減らすもの" in text and "着手前に確認すること" in text
+    # 選んだ案の詳細（導入前後の比較・最初の一歩）
+    at.radio(key="compare_plan").set_value("P2").run()
+    text = all_text(at)
     assert "BEFORE" in text and "AFTER" in text
     assert "5つの営業所の現在の様式を集め、項目の違いを一覧表にする" in text
+    at.radio(key="compare_plan").set_value("P3").run()
+    assert "表計算ソフトの集計機能による自動集計" in all_text(at)
 
     # 新しい診断を始めるとトップに戻り、内容は消える
     at.button(key="new").click().run()
@@ -128,6 +132,7 @@ def test_プルダウンで別のシナリオを選んで最後まで診断で�
     at.button(key="diagnose").click().run()
 
     assert at.session_state.stage == "result"
+    at.radio(key="compare_plan").set_value("P3").run()  # 比較の下には、選んだ案の詳細だけを出す
     assert expected_text in all_text(at)
     assert "添付ファイル『" in all_text(at)  # どのシナリオも添付ファイルを根拠に使っている
 
@@ -566,3 +571,66 @@ def test_試算が古くなったら再計算が必要と表示し_確認すれ�
     assert any("再計算が必要" in w.value for w in at.warning)
     at.button(key="sim_ack_P1").click().run()
     assert not any(w.value.startswith("再計算が必要") for w in at.warning)
+
+
+# ---------------------------------------------------------------
+# 結果画面の冒頭と改善案の比較（AI-BIC 3.0 第1段階）
+# ---------------------------------------------------------------
+def production_result(secrets, finish_after: int | None = None) -> AppTest:
+    """製造部デモの結果画面。finish_after を渡すと、その数だけ答えてヒアリングを途中で終える。"""
+    at = new_app(secrets, scenario=None)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    answered = 0
+    while at.session_state.stage == "hearing":
+        if finish_after is not None and answered >= finish_after:
+            at.button(key="finish").click().run()
+            break
+        at.button(key="submit_answer").click().run()
+        answered += 1
+    if at.session_state.stage == "readiness":
+        at.button(key="extra_skip").click().run()
+    at.button(key="diagnose").click().run()
+    assert not at.exception
+    return at
+
+
+def test_重要な不足がなければ_主ボタンは改善案を比較する(secrets):
+    at = production_result(secrets)
+    assert at.button(key="go_compare").proto.type == "primary"
+    assert "不足情報を確認する" not in [b.label for b in at.button if b.proto.type == "primary"]
+
+
+def test_途中で終えて重要な不足があれば_主ボタンは不足情報を確認する(secrets):
+    at = production_result(secrets, finish_after=1)
+    assert at.button(key="go_gaps").proto.type == "primary"
+    assert at.button(key="go_compare").proto.type == "secondary"
+    assert "不足情報の確認" in all_text(at)
+
+
+def test_比較で選んだ案は_業務フロー_試算_レビューに引き継がれる(secrets):
+    at = production_result(secrets)
+    assert "案1を先にやる → 案2を次に試す" in all_text(at)  # 製造部デモの案どうしの関係
+    assert "案2と案3は併用できる" in all_text(at)
+    at.radio(key="compare_plan").set_value("P2").run()
+    for key in ("go_flows", "go_sim", "go_review"):
+        at.button(key=key).click().run()
+        assert not at.exception
+        s = at.session_state
+        assert (s.compare_plan, s.sim_plan, s.flow_pid, s.review_pid) == ("P2", "P2", "P2", "P2"), key
+    assert at.radio(key="sim_plan").value == "P2"  # 試算の画面でも、選び直さずに案2が選ばれている
+    assert at.selectbox(key="review_pid").value == "P2"
+
+
+def test_業務フローを見るでは_選んだ案の改善後を現状と並べて表示する(secrets):
+    at = production_result(secrets)
+    at.button(key="flow_generate").click().run()
+    at.radio(key="compare_plan").set_value("P3").run()
+    at.button(key="go_flows").click().run()
+    assert at.radio(key="flow_view").value == "左右に並べて比較"
+    assert at.selectbox(key="flow_pid").value == "P3"
+
+
+def test_6ステップの進み具合は_作業状況を見るの中にまとめる(secrets):
+    at = production_result(secrets)
+    assert "作業状況を見る" in [e.label for e in at.expander]

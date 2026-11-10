@@ -20,6 +20,7 @@ from ai_bic import config, report, ui
 from ai_bic import project as pj
 from ai_bic import simulation as sim
 from ai_bic.demo_client import load_scenarios
+from ai_bic.overview import tab_name
 from ai_bic.project import Project
 
 STEP = {"minutes_per_case": 1.0, "cases_per_month": 1.0, "hourly_cost": 100.0, "reduction_rate": 5.0,
@@ -137,10 +138,10 @@ def render(project: Project) -> None:
     by_pid = dict(zip(pids, proposals))
     if st.session_state.get(PLAN_KEY) not in pids:
         st.session_state[PLAN_KEY] = pids[0]
-    with st.container(key="sim_plans"):
+    with st.container(key="plans_sim"):
         pid = st.radio("改善案", pids, key=PLAN_KEY, horizontal=True, label_visibility="collapsed",
                        format_func=lambda x: f"案{numbers[x]}",
-                       captions=[_md(tab_name(by_pid[x])) for x in pids])
+                       captions=[ui.md_text(tab_name(by_pid[x])) for x in pids])
     html(f'<div class="bic-plan-title">案{numbers[pid]}：{ui.esc(by_pid[pid].title)}</div>')
     _render_one(project, pid)
 
@@ -157,15 +158,6 @@ def render(project: Project) -> None:
 
 PLAN_KEY = "sim_plan"  # 試算で選んでいる改善案（P1 など）
 
-
-def tab_name(p) -> str:
-    """案を切り替えるタブに出す名前。短い名前がなければ正式な名前を省略せずに使う（画面では折り返す）。"""
-    return (p.short_title or "").strip() or p.title
-
-
-def _md(text: str) -> str:
-    """選択肢の説明文は Markdown として表示されるため、記号をそのまま文字として出す。"""
-    return "".join("\\" + c if c in "\\`*_{}[]()#+-.!|~<>$" else c for c in text)
 
 
 def _render_overview(project: Project, pids: list[str], proposals) -> None:
