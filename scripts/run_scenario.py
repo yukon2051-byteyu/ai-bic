@@ -29,6 +29,7 @@ from ai_bic.ai_client import ClaudeClient  # noqa: E402
 from ai_bic.demo_client import demo_attachments, load_scenarios  # noqa: E402
 from ai_bic.errors import AIError  # noqa: E402
 from ai_bic.hearing import add_answer, request_next_question, run_diagnosis, start_hearing  # noqa: E402
+from ai_bic.overview import valid_relations  # noqa: E402
 from ai_bic.flow import time_per_case  # noqa: E402
 from ai_bic.flow_ai import generate_flows  # noqa: E402
 from ai_bic.models import BusinessInfo, DiagnosisResult, HearingState  # noqa: E402
@@ -184,9 +185,18 @@ def main() -> int:
         print(f"\n■ 診断サマリー（最重要課題：{s.top_issue_id}）\n  要点：{s.headline}\n  最初の一手：{s.first_action}")
         for n, p in enumerate(result.proposals.proposals, start=1):
             print(f"\n案{n} [{p.category}・難易度{p.difficulty}] {p.title} → {', '.join(p.target_issue_ids)}")
+            print(f"  短い名前：{p.short_title or '（なし）'}／主に減らすもの：{p.reduces or '（なし）'}")
+            print(f"  着手前に確認すること：{' ／ '.join(p.prerequisites) or '（なし）'}")
             print(f"  BEFORE：{p.before}\n  AFTER ：{p.after}")
             for step in p.first_steps:
                 print(f"  □ {step}")
+        # 案どうしの関係（AI-BIC 3.0）。プログラムが不正と判断した関係は画面に出さない
+        count = len(result.proposals.proposals)
+        kept = valid_relations(result.proposals.relations, count)
+        print(f"\n■ 案どうしの関係（AIの出力{len(result.proposals.relations)}件、画面に出すもの{len(kept)}件）")
+        for r in result.proposals.relations:
+            mark = "" if r in kept else "【出さない】"
+            print(f"  {mark}{r.kind}：案{r.first}→案{r.second}　{r.reason}")
 
     project = None
     if args.flows and result and result.proposals:

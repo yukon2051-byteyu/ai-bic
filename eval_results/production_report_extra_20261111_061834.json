@@ -1,0 +1,155 @@
+{
+  "scenario_id": "production_report",
+  "turns": [],
+  "offered": false,
+  "readiness_before": [
+    {
+      "機能": "業務フロー",
+      "判定": "一部不足",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "不足",
+      "不足（必須）": [
+        "H3"
+      ]
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "十分",
+      "不足（必須）": []
+    }
+  ],
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H3",
+        "question": "この集計作業は、1回あたりどのくらい時間がかかり、何人で行っていますか。",
+        "answer_example": "例：毎月3営業日目に、2人で半日ほど。そのうち転記が最も時間がかかり、1時間ほど",
+        "answer": "毎月初めの3日間、私と後輩の2人で作業しています。合計で20時間くらいかかります。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H3",
+        "question": "20時間のうち、最も時間がかかっている作業はどれで、何時間くらいですか。",
+        "answer_example": "例：設備ごとの出力データを転記する作業で、12時間くらい",
+        "answer": "設備ごとのCSVを開いて、品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H4",
+        "question": "Excel以外に、集計や報告書作成で使っているツールはありますか。",
+        "answer_example": "例：基幹システムから設備データを出力している、紙の記録も一部使っている",
+        "answer": "すみません、その点は分かりません。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 4,
+        "item_id": "H6",
+        "question": "この業務の改善に使える予算や、使ってよいツール、社内のルールに制約はありますか。",
+        "answer_example": "例：予算は特に決まりがない。新しいツールは情報システム課の承認が必要。",
+        "answer": "大きな予算はありませんが、Excelは全員使えます。設備のデータは社外に出せない決まりです。",
+        "extra": false,
+        "decides": null
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "充足",
+        "known_facts": "月次の生産実績報告書を作成している。",
+        "lacking": ""
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "4台の設備から出力される日々の生産実績と品質不良の件数を受け取り、Excelに転記・集計して月次の生産実績報告書を作成する。",
+        "lacking": ""
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "不十分",
+        "known_facts": "毎月初めの3日間、2人で合計20時間くらい。最も時間がかかるのは設備ごとのCSVから品番ごとの数量を集計表に転記する作業で12時間ほど。",
+        "lacking": "質問回数の上限に達しているため、追加で確認できない"
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "不十分",
+        "known_facts": "Excelを使っている。",
+        "lacking": "Excel以外に使っているツールがあるかどうか（利用者は分からないと回答）"
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "設備ごとに出力形式が違い、転記と確認に時間がかかる。集計の誤りが会議で見つかり、修正に追われることがある。",
+        "lacking": ""
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "充足",
+        "known_facts": "大きな予算はない。Excelは全員使える。設備のデータは社外に出せない決まり。",
+        "lacking": ""
+      }
+    },
+    "finished_reason": "これ以上お聞きできる項目がないため終了しました",
+    "judged_answers": 4,
+    "extra_started": false,
+    "extra_targets": [],
+    "extra_finished_reason": null
+  },
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4033,
+      "output_tokens": 516,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00066
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4377,
+      "output_tokens": 512,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00069
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4525,
+      "output_tokens": 523,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00071
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4624,
+      "output_tokens": 601,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00076
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4796,
+      "output_tokens": 513,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00074
+    }
+  ],
+  "total_dollars": 0.00356
+}

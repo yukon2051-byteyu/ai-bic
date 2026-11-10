@@ -1,0 +1,181 @@
+{
+  "scenario_id": "production_report",
+  "turns": [],
+  "offered": true,
+  "readiness_before": [
+    {
+      "機能": "業務フロー",
+      "判定": "一部不足",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "不足",
+      "不足（必須）": [
+        "H6"
+      ]
+    }
+  ],
+  "readiness_after": [
+    {
+      "機能": "業務フロー",
+      "判定": "一部不足",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "一部不足",
+      "不足（必須）": []
+    }
+  ],
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H3",
+        "question": "月次の集計作業には、1回あたりどのくらいの時間がかかり、何人で担当していますか。",
+        "answer_example": "例：毎月3営業日目に、2人で合計半日ほど",
+        "answer": "毎月初めの3日間、私と後輩の2人で作業しています。合計で20時間くらいかかります。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H3",
+        "question": "月初の3日間の作業のうち、最も時間がかかっている作業はどれで、何時間くらいですか。",
+        "answer_example": "例：設備ごとの転記に約12時間、確認に約6時間ほど",
+        "answer": "設備ごとのCSVを開いて、品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H4",
+        "question": "Excel以外に、メールや基幹システム、紙などで業務に使っているものはありますか。",
+        "answer_example": "例：設備データは基幹システムから出力し、報告書は紙で回覧している",
+        "answer": "すみません、その点は分かりません。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 4,
+        "item_id": "H6",
+        "question": "改善に使える予算や、使ってよいツール、社内のルールなどに制約はありますか。",
+        "answer_example": "例：新しいツールの購入は年間10万円までなら可能。特に制約はない。",
+        "answer": "大きな予算はありませんが、Excelは全員使えます。設備のデータは社外に出せない決まりです。",
+        "extra": true,
+        "decides": "改善案の実施条件（費用・導入できるツール）を判断できる"
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "不十分",
+        "known_facts": "生産実績集計を毎月Excelで行い、月次の生産実績報告書を作成している。",
+        "lacking": "報告書を誰に渡すか、何に使われるか"
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "受け取るもの：4台の設備から出力される日々の生産実績。主な作業：Excelへの転記・集計、品質不良件数との突合。作るもの：月次の生産実績報告書。",
+        "lacking": ""
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "充足",
+        "known_facts": "毎月初めの3日間、本人と後輩の2人で作業し、合計で20時間くらい。最も時間がかかるのは設備ごとのCSVを品番ごとの数量を集計表に転記する作業で、12時間ほど。",
+        "lacking": ""
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "不十分",
+        "known_facts": "Excelを使用している。",
+        "lacking": "Excel以外に使っているツール（メール、基幹システム、紙など）の有無"
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "設備ごとに出力形式が違い、転記と確認に時間がかかる。集計の誤りが会議で見つかり、修正に追われることがある。",
+        "lacking": ""
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "充足",
+        "known_facts": "大きな予算はない。Excelは全員使える。設備のデータは社外に出せない決まりがある。",
+        "lacking": ""
+      }
+    },
+    "finished_reason": "利用者の操作により、ここまでの情報で診断しました",
+    "judged_answers": 4,
+    "extra_started": true,
+    "extra_targets": [],
+    "extra_finished_reason": "追加確認で、分析に必要な情報がそろいました"
+  },
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4033,
+      "output_tokens": 609,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00071
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4510,
+      "output_tokens": 586,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00074
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4620,
+      "output_tokens": 608,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00077
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4774,
+      "output_tokens": 549,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00075
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4873,
+      "output_tokens": 635,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.0008
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4971,
+      "output_tokens": 1089,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00104
+    }
+  ],
+  "total_dollars": 0.00481
+}

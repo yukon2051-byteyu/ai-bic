@@ -87,7 +87,8 @@ def main() -> int:
                 reason = reason_for(state, framework, turn.item_id)
                 answer = respondent.answer(turn.item_id)
                 add_answer(state, answer)
-                print(f"追加Q [{turn.item_id}] {turn.question}\n  理由：{reason}\n  A：{answer}\n")
+                print(f"追加Q [{turn.item_id}] {turn.question}\n  理由：{reason}\n"
+                      f"  この回答で判断できること：{turn.decides or '（なし）'}\n  A：{answer}\n")
             # 上限で終わると最後の回答はまだ判定していない。アプリと同じく、診断の前に判定し直す
             judge_last_answers(client, info, state, framework)
             print(f"→ {state.extra_finished_reason}\n\n■ 追加確認後の充足度（最後の回答も判定したあと）")
