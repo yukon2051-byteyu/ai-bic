@@ -480,7 +480,58 @@ def test_基本の質問は質問n_5で進み具合を表示する(secrets):
     at = new_app(secrets)
     at.button(key="start_demo").click().run()
     at.button(key="submit_info").click().run()
-    assert "質問 1 / 5" in [p.proto.text for p in at.get("progress")][0]
+    assert "質問 1 / 最大5問（必要な情報がそろえば早く終わります）" in all_text(at)
+
+
+# ---------------------------------------------------------------
+# ヒアリング画面の構成（AI-BIC 3.1）
+# ---------------------------------------------------------------
+def hearing_screen(secrets, answers: int = 0) -> AppTest:
+    at = new_app(secrets, scenario=None)
+    at.button(key="start_demo").click().run()
+    at.button(key="submit_info").click().run()
+    for _ in range(answers):
+        at.button(key="submit_answer").click().run()
+    assert not at.exception
+    return at
+
+
+def test_現在の質問はカードにまとめ_回答例は1回だけ_ボタンは回答して次へと分からない(secrets):
+    at = hearing_screen(secrets)
+    question = at.session_state.hearing_state.turns[0]
+    assert f'<div class="bic-question">{question.question}</div>' in all_text(at)
+    area = at.text_area(key="answer_1")
+    assert area.label == "回答" and not area.placeholder  # 入力欄の中に回答例を重ねない
+    examples = [c.value for c in at.caption if c.value.startswith("回答例")]
+    assert examples == [f"回答例　{question.answer_example}"]
+    assert at.button(key="submit_answer").label == "回答して次へ"
+    assert at.button(key="submit_unknown").label == "分からない"
+    assert "これまでの回答" not in [e.label for e in at.expander]  # 履歴が0件なら出さない
+
+
+def test_これまでの回答は件数つきで_最初は閉じて表示する(secrets):
+    at = hearing_screen(secrets, answers=2)
+    history = next(e for e in at.expander if e.label.startswith("これまでの回答"))
+    assert history.label == "これまでの回答（2件）" and not history.proto.expanded
+    assert at.text_area(key="answer_3")  # 3問目の回答欄
+    assert at.session_state.scroll_count == 2  # 次の質問に進むたびに、質問カードの先頭へ画面を動かす
+
+
+def test_同じ回答を2回送っても_1回分しか記録しない(secrets):
+    at = hearing_screen(secrets, answers=1)
+    turns = at.session_state.hearing_state.turns
+    assert [t.answer is not None for t in turns] == [True, False]
+    # 送ったあとは「次の質問を準備しています」の間ボタンを出さず、再表示後は次の質問のボタンになる
+    at.button(key="submit_answer").click().run()
+    assert sum(t.answer is not None for t in at.session_state.hearing_state.turns) == 2
+
+
+def test_最後の追加確認では主ボタンが回答して資料添付へになる(secrets):
+    at = repair_until_readiness(secrets)
+    at.button(key="extra_start").click().run()
+    state = at.session_state.hearing_state
+    expected = "回答して資料添付へ" if len([t for t in state.turns if t.extra]) >= 3 else "回答して次へ"
+    assert at.button(key="submit_answer").label == expected
 
 
 def test_必要な情報が足りなければ_理由とともに追加確認を提案する(secrets):
@@ -500,7 +551,7 @@ def test_追加確認を選ぶと_追加の質問に答えて分析に進める(
     at = repair_until_readiness(secrets)
     at.button(key="extra_start").click().run()
     assert at.session_state.stage == "hearing"
-    assert "追加確認 1 / 最大 3" in [p.proto.text for p in at.get("progress")][0]
+    assert "追加確認 1 / 最大3問" in all_text(at)
     assert any("確認する理由" in c.value for c in at.caption)
     at.button(key="submit_answer").click().run()  # デモの回答（制約条件）
     # 必要な情報がそろったので、上限の3問を待たずに資料の添付へ進む

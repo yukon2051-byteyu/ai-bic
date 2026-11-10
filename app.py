@@ -51,6 +51,7 @@ VIEWPOINT_NAMES = {v.id: v.name for v in FRAMEWORK.viewpoints}
 
 NOTICE = "個人情報や社外秘の情報は入力しないでください。企業名は空欄または架空の名前をおすすめします。"
 UNKNOWN_ANSWER = "分かりません。"  # 「分からない」ボタンの回答（item_rules.is_unknown_answer で、それ以上聞かない項目になる）
+HEARING_CARD = ".st-key-hearing_card"  # ヒアリングの現在の質問カード（画面を動かす先）
 STEPS = [
     ("input", "01 業務情報"),
     ("hearing", "02 ヒアリング"),
@@ -122,7 +123,7 @@ def get_client():
     )
 
 
-def advance() -> None:
+def advance(spinner: str = "次の質問を準備しています…") -> None:
     """ヒアリングを1歩進める（次の質問を作る）。
 
     基本の質問が終わったら、3機能に必要な情報がそろっているかを判定し（readiness.py）、
@@ -133,7 +134,7 @@ def advance() -> None:
     s.error_kind = None
     state = s.hearing_state
     try:
-        with st.spinner("AIが次の質問を考えています…"):
+        with st.spinner(spinner):
             client = get_client()
             if state.extra_started:
                 turn = request_extra_question(client, s.business_info, state, FRAMEWORK)
@@ -333,64 +334,34 @@ def render_input() -> None:
 # 画面03：AIヒアリング（F02・F07）
 # ---------------------------------------------------------------
 def render_hearing() -> None:
+    """ヒアリング画面（AI-BIC 3.1）：現在の質問を1枚のカードにまとめ、これまでの回答は折りたたむ。
+
+    カードの中：質問番号・進み具合 → 質問文 → 回答欄 → 回答例 → 操作ボタン。
+    回答を送ったら、ボタンを消して「次の質問を準備しています」と表示してからAIを呼ぶ（二重送信を防ぐ）。
+    失敗しても回答は記録に残り、再試行できる。
+    """
     s = st.session_state
     state = s.hearing_state
-
-    if state.extra_started:
-        extra = readiness.extra_count(state)
-        html(ui.label("Step 02", "より正確な分析のための追加確認"))
-        st.progress(extra / config.MAX_EXTRA_QUESTIONS, text=f"追加確認 {extra} / 最大 {config.MAX_EXTRA_QUESTIONS}")
-        if state.turns and state.turns[-1].extra and state.turns[-1].answer is None:
-            last = state.turns[-1]
-            if last.decides:
-                html(ui.note(f"この回答で判断できること　{last.decides}"))
-            st.caption(f"確認する理由：{readiness.reason_for(state, FRAMEWORK, last.item_id)}"
-                       "　／　分からない場合は「分からない」で構いません（未確認の前提として結果に示します）")
-    else:
-        asked = len(state.turns)
-        html(ui.label("Step 02", "ヒアリング"))
-        st.progress(asked / config.MAX_HEARING_TURNS, text=f"質問 {asked} / {config.MAX_HEARING_TURNS}")
-
-    html("".join(ui.qa(turn) for turn in state.turns))
-
-    if s.error_kind:
-        render_error(retry=advance)
-        return
+    html(ui.label("Step 02", "より正確な分析のための追加確認" if state.extra_started else "ヒアリング"))
 
     current = state.turns[-1] if state.turns and state.turns[-1].answer is None else None
-    if current:
-        default = demo_answer(s.scenario, current.turn_no) if s.mode == "demo" else ""
-        with st.form("answer_form", clear_on_submit=True):
-            answer = st.text_area(
-                "回答",
-                value=default,
-                placeholder=current.answer_example or "",
-                max_chars=config.ANSWER_MAX_CHARS,
-                key=f"answer_{current.turn_no}",
-            )
-            if current.answer_example:
-                st.caption(f"回答の例　{current.answer_example}")
-            col_submit, col_unknown = st.columns([1, 1])
-            submitted = col_submit.form_submit_button("回答する", type="primary", key="submit_answer")
-            # 分からない項目は、それ以上質問しない（item_rules.is_unknown_answer で判定される回答を入れる）
-            unknown = col_unknown.form_submit_button("分からない", key="submit_unknown",
-                                                     help="この点は分からないと回答し、次に進みます")
-        if s.answer_error:
-            st.error(s.answer_error)
-
-        if unknown:
-            add_answer(state, UNKNOWN_ANSWER)
-            s.answer_error = None
-            advance()
+    preparing = s.get("hearing_pending") or (current is None and not s.error_kind)
+    with st.container(key="hearing_card"):
+        html(f'<div class="bic-qhead">{ui.esc(_progress_text(state, current))}</div>')
+        st.progress(_progress_value(state))
+        if s.error_kind:
+            render_error(retry=_retry_question)
+        elif preparing:
+            # 回答を受け取ったあと：ボタンを出さずにAIを呼ぶ（同じ回答を2回送れないようにする）
+            st.markdown('<div class="bic-preparing">次の質問を準備しています…</div>', unsafe_allow_html=True)
+            s.hearing_pending = False
+            advance(spinner="次の質問を準備しています…")
+            result_top.request_scroll(HEARING_CARD)
             st.rerun()
-        if submitted:
-            error = validate_answer(answer)
-            s.answer_error = error
-            if error is None:
-                add_answer(state, answer)
-                advance()
-            st.rerun()
+        else:
+            _render_question(current)
 
+    # 途中で終える・中止する操作は、質問カードの外に置く
     col_finish, col_cancel = st.columns(2)
     with col_finish:
         if st.button("ヒアリングを終了して資料添付へ", key="finish", help="残りの質問をせずに、資料の添付に進みます"):
@@ -402,6 +373,78 @@ def render_hearing() -> None:
         if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
             reset()
             st.rerun()
+
+    answered = [turn for turn in state.turns if turn.answer is not None]
+    if answered:
+        with st.expander(f"これまでの回答（{len(answered)}件）", expanded=False):
+            html("".join(ui.qa(turn) for turn in answered))
+    result_top.render_scroll()  # 次の質問に進んだら、質問カードの先頭が見える位置へ
+
+
+def _progress_text(state, current) -> str:
+    if state.extra_started:
+        n = readiness.extra_count(state)
+        return f"追加確認 {n} / 最大{config.MAX_EXTRA_QUESTIONS}問（必要な情報がそろえば早く終わります）"
+    n = len(state.turns)
+    return f"質問 {n} / 最大{config.MAX_HEARING_TURNS}問（必要な情報がそろえば早く終わります）"
+
+
+def _progress_value(state) -> float:
+    if state.extra_started:
+        return min(readiness.extra_count(state) / config.MAX_EXTRA_QUESTIONS, 1.0)
+    return min(len(state.turns) / config.MAX_HEARING_TURNS, 1.0)
+
+
+def _next_label(state) -> str:
+    """主ボタンの文言。送ったあと資料の添付に進むことが決まっているときだけ「資料添付へ」にする。"""
+    last_extra = state.extra_started and readiness.extra_count(state) >= config.MAX_EXTRA_QUESTIONS
+    return "回答して資料添付へ" if last_extra else "回答して次へ"
+
+
+def _render_question(current) -> None:
+    s = st.session_state
+    state = s.hearing_state
+    html(f'<div class="bic-question">{ui.esc(current.question)}</div>')
+    if current.extra:
+        if current.decides:
+            html(ui.note(f"この回答で判断できること　{current.decides}"))
+        st.caption(f"確認する理由：{readiness.reason_for(state, FRAMEWORK, current.item_id)}")
+    key = f"answer_{current.turn_no}"
+    if s.mode == "demo":
+        s.setdefault(key, demo_answer(s.scenario, current.turn_no))
+    with st.form("answer_form", border=False):
+        # 回答例は入力欄の下に1回だけ出す（入力欄の中の薄い文字とは重ねない）
+        st.text_area("回答", key=key, max_chars=config.ANSWER_MAX_CHARS, height=110)
+        if current.answer_example:
+            st.caption(f"回答例　{current.answer_example}")
+        c1, c2, _ = st.columns([2.2, 1.4, 3])
+        c1.form_submit_button(_next_label(state), type="primary", key="submit_answer", width="stretch",
+                              on_click=_submit_answer, args=(key, False))
+        # 分からない項目は、それ以上質問しない（item_rules.is_unknown_answer で判定される回答を入れる）
+        c2.form_submit_button("分からない", key="submit_unknown", width="stretch",
+                              help="この点は分からないと回答し、次に進みます（未確認の前提として結果に示します）",
+                              on_click=_submit_answer, args=(key, True))
+    if s.answer_error:
+        st.error(s.answer_error)
+
+
+def _submit_answer(key: str, unknown: bool) -> None:
+    """回答を記録し、次の表示で質問を準備する（ここではAIを呼ばない）。"""
+    s = st.session_state
+    state = s.hearing_state
+    if not state.turns or state.turns[-1].answer is not None:
+        return  # すでに送った回答（二重送信）は無視する
+    answer = UNKNOWN_ANSWER if unknown else s.get(key, "")
+    error = None if unknown else validate_answer(answer)
+    s.answer_error = error
+    if error is None:
+        add_answer(state, answer)
+        s.hearing_pending = True
+
+
+def _retry_question() -> None:
+    advance(spinner="次の質問を準備しています…")
+    result_top.request_scroll(HEARING_CARD)
 
 
 # ---------------------------------------------------------------

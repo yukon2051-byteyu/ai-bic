@@ -48,12 +48,18 @@ def go(section: str, pid: str | None = None) -> None:
         focus(pid)
         if section == "flows":
             s["flow_view"] = flows.VIEWS[2]  # 選んだ案の改善後を、現状と並べて見せる
-    s["scroll_to"] = SECTIONS[section]
+    request_scroll("#" + SECTIONS[section])
+
+
+def request_scroll(selector: str) -> None:
+    """次の表示で、selector（CSSの書き方）の要素まで画面を動かすよう頼む。"""
+    s = st.session_state
+    s["scroll_to"] = selector
     s["scroll_count"] = s.get("scroll_count", 0) + 1
 
 
 def render_scroll() -> None:
-    """go で頼まれた見出しまで画面を動かす（ページの最後に置く。描き終わるのを少し待つ）。"""
+    """request_scroll で頼まれた要素まで画面を動かす（ページの最後に置く。描き終わるのを少し待つ）。"""
     target = st.session_state.pop("scroll_to", None)
     if not target:
         return
@@ -61,7 +67,7 @@ def render_scroll() -> None:
     # 回数を入れて毎回違う中身にする（同じ中身だと、2回目に同じ移動先を押したとき動かないため）
     st.html(
         f'<span data-scroll="{count}"></span><script>setTimeout(function () {{'
-        f' var el = document.getElementById("{target}"); if (el) el.scrollIntoView({{block: "start"}}); }}, 250);</script>',
+        f' var el = document.querySelector("{target}"); if (el) el.scrollIntoView({{block: "start"}}); }}, 250);</script>',
         unsafe_allow_javascript=True,
     )
 

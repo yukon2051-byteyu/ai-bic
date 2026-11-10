@@ -334,6 +334,24 @@ a.bic-brand:hover {{ opacity: .7; }}
   .bic-trial td:not(:first-child)::before {{ content: attr(data-label); flex: 0 0 8.5em; font-size: .74rem; color: var(--sub); }}
 }}
 
+/* ヒアリングの現在の質問カード（AI-BIC 3.1）：質問番号・進み具合 → 質問文 → 回答欄 → 回答例 → ボタン */
+.st-key-hearing_card {{ background: #EFF6FF; border: 1px solid #CBDCF3; border-radius: 12px; padding: 1.1rem 1.3rem 1.2rem;
+  gap: .55rem; scroll-margin-top: 72px; }}
+.st-key-hearing_card .bic-qhead {{ font-size: .8rem; letter-spacing: .04em; color: #44546F; }}
+.st-key-hearing_card .bic-question {{ color: #172B4D; font-weight: 700; font-size: 22px; line-height: 1.6; margin: .2rem 0 .6rem; }}
+.st-key-hearing_card .bic-preparing {{ color: #172B4D; font-weight: 600; padding: .6rem 0; }}
+/* 回答のフォームは、共通の白い枠を付けない（カードの中に白い箱が二重にできるため。白いのは回答欄だけ） */
+.st-key-hearing_card [data-testid="stForm"] {{ border: none; background: transparent; padding: 0; }}
+.st-key-hearing_card [data-testid="stWidgetLabel"] p {{ color: #172B4D; font-weight: 600; }}
+.st-key-hearing_card [data-testid="stTextAreaRootElement"] {{ background: #FFFFFF !important; border: 1px solid #9FB6D8 !important; }}
+.st-key-hearing_card [data-testid="stTextAreaRootElement"]:focus-within {{ border-color: #172B4D !important;
+  box-shadow: 0 0 0 3px rgba(23,43,77,.18) !important; }}
+.st-key-hearing_card [data-testid="stCaptionContainer"] {{ color: #44546F; }}
+@media (max-width: 720px) {{
+  .st-key-hearing_card {{ padding: .9rem .9rem 1rem; }}
+  .st-key-hearing_card .bic-question {{ font-size: 19px; }}
+}}
+
 /* 結果画面の中の移動先（固定のヘッダーに隠れないよう、少し上で止める） */
 [id^="sec-"] {{ scroll-margin-top: 72px; }}
 
