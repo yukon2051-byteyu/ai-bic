@@ -34,7 +34,7 @@ from ai_bic.hearing import (  # noqa: E402
 )
 from ai_bic.models import BusinessInfo  # noqa: E402
 from ai_bic.readiness import evaluate, reason_for, should_offer_extra  # noqa: E402
-from scripts.run_scenario import OUTPUT_DIR, YEN_PER_DOLLAR, SimulatedRespondent, usage_summary  # noqa: E402
+from scripts.run_scenario import OUTPUT_DIR, YEN_PER_DOLLAR, SimulatedRespondent, all_scenarios, usage_summary  # noqa: E402
 
 
 def show_readiness(state) -> list[dict]:
@@ -50,7 +50,7 @@ def main() -> int:
     parser.add_argument("--stop-after", type=int, default=None,
                         help="この問数に答えたら「ここまでの情報で診断する」を押したことにする（利用者が途中で止める場合）")
     args = parser.parse_args()
-    scenario = next(s for s in load_scenarios() if s["id"] == args.scenario_id)
+    scenario = next(s for s in all_scenarios() if s["id"] == args.scenario_id)
     api_key = config.get_secret(config.SECRET_API_KEY)
     if not api_key:
         print("APIキーが設定されていません（.streamlit/secrets.toml）")

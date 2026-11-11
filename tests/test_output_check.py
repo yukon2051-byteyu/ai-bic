@@ -31,7 +31,7 @@ from ai_bic.output_check import (
     verify_evidences,
 )
 
-from tests.fakes import make_proposal, make_proposal_result
+from tests.fakes import make_proposal, make_proposal_result, make_question
 
 FW = load_framework("general")
 ITEM_IDS = ["H1", "H2", "H3", "H4", "H5", "H6"]
@@ -537,3 +537,20 @@ def test_判定だけの依頼でも_診断項目が欠けていたら違反():
     result = question_result(next_item_id=None, question=None)
     result.item_status.pop()
     assert check_question_result(result, HearingState(), FW, final=True)
+
+
+
+# --- 同じ趣旨の質問の繰り返し（AI-BIC 3.1。本物のAIで、1問目と2問目がほぼ同じ質問になった） ---
+def test_前の質問とほとんど同じ質問は_作り直させる():
+    from ai_bic.models import HearingTurn
+    from ai_bic.output_check import similarity
+
+    first = "毎日の15分ほどの作業のうち、最も時間がかかっているのはどの作業ですか。何分くらいかかりますか。"
+    again = "毎日の15分のうち、最も時間がかかっている作業はどれで、何分くらいですか。"
+    other = "照合が毎日15分かかることは確認できています。返却時刻の記入漏れは、月に何日くらいありますか？"
+    assert similarity(first, again) >= 0.5 > similarity(first, other)
+    state = HearingState(turns=[HearingTurn(turn_no=1, item_id="H3", question=first, answer="毎日15分です")])
+    statuses = {**{i: "充足" for i in ["H1", "H2", "H4", "H5", "H6"]}, "H3": "不十分"}
+    problems = check_question_result(make_question(statuses, next_item_id="H3", question=again), state, FW)
+    assert any("1問目とほとんど同じ質問" in p for p in problems)
+    assert not check_question_result(make_question(statuses, next_item_id="H3", question=other), state, FW)

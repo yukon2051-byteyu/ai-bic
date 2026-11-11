@@ -162,9 +162,9 @@ def test_特徴カードの質問数は実装の設定と一致する():
     from ai_bic import config
 
     cards = ui.features()
-    total = config.MAX_HEARING_TURNS + config.MAX_EXTRA_QUESTIONS
-    assert f"必要なことだけ、最大{total}問" in cards
-    assert f"基本{config.MAX_HEARING_TURNS}問。情報が不足する場合のみ、最大{config.MAX_EXTRA_QUESTIONS}問を追加できます。" in cards
+    assert "必要な情報だけを確認" in cards
+    assert f"基本は最大{config.MAX_HEARING_TURNS}問、追加は最大{config.MAX_EXTRA_QUESTIONS}問。" in cards
+    assert "情報がそろえば早く終わります" in cards  # 実際の動き（早く終わる）と案内をそろえる
     assert cards.count('class="no"') == 3  # 3カラムのカードは3枚のまま
 
 

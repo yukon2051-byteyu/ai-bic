@@ -1,0 +1,137 @@
+{
+  "scenario_id": "badge_ledger",
+  "turns": [],
+  "offered": false,
+  "readiness_before": [
+    {
+      "機能": "業務フロー",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "不足",
+      "不足（必須）": [
+        "H3"
+      ]
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "十分",
+      "不足（必須）": []
+    }
+  ],
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H3",
+        "question": "毎日の15分ほどの作業のうち、最も時間がかかっているのはどの作業ですか。何分くらいかかりますか。",
+        "answer_example": "例：台帳と入館証を1枚ずつ照合する作業で、10分くらい",
+        "answer": "通常の照合は担当者1人で毎日15分、月20営業日です。記入漏れがあった日だけ10分ほど追加でかかりますが、何日あるかは数えていません。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H3",
+        "question": "毎日の15分のうち、最も時間がかかっている作業はどれで、何分くらいですか。",
+        "answer_example": "例：台帳と入館証を1枚ずつ照合する作業に、10分ほど",
+        "answer": "すみません、その点は分かりません。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H6",
+        "question": "今回の業務を改善するにあたり、予算や使ってよいツール、社内のルールなどで制約はありますか。",
+        "answer_example": "例：予算は特に決まりがなく、新しいソフトは総務部の判断で導入できる",
+        "answer": "予算はほとんどありません。入館者の名前を含むため、社外のサービスには出せません。",
+        "extra": false,
+        "decides": null
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "充足",
+        "known_facts": "来訪者に貸し出す入館証の台帳を、セキュリティ監査に入館の記録として提出するために使う。",
+        "lacking": ""
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "受け取るもの：台帳と返却された入館証。作業：台帳と入館証を照合し、未返却がないか確認する。",
+        "lacking": ""
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "不十分",
+        "known_facts": "通常の照合は担当者1人で毎日15分、月20営業日。記入漏れの日は追加で10分ほど。記入漏れの日数は数えていない。",
+        "lacking": "15分のうち最も時間がかかる作業と、その所要時間"
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "充足",
+        "known_facts": "紙の台帳、受付のメールの記録。",
+        "lacking": ""
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "台帳の返却時刻の記入漏れがあると、受付のメールの記録と突き合わせる追加確認が必要になり、その日は10分ほど余計にかかる。",
+        "lacking": ""
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "充足",
+        "known_facts": "予算はほとんどない。入館者の名前を含むため、社外のサービスには出せない。",
+        "lacking": ""
+      }
+    },
+    "finished_reason": "これ以上お聞きできる項目がないため終了しました",
+    "judged_answers": 3,
+    "extra_started": false,
+    "extra_targets": [],
+    "extra_finished_reason": null
+  },
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4103,
+      "output_tokens": 1709,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00126
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4512,
+      "output_tokens": 554,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00073
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4627,
+      "output_tokens": 563,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00074
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4727,
+      "output_tokens": 736,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00084
+    }
+  ],
+  "total_dollars": 0.00357
+}

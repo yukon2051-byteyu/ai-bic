@@ -99,7 +99,26 @@ def check_question_result(
                 f"同じ項目を{MAX_QUESTIONS_PER_ITEM}回質問済みなのに、さらに質問しようとした: {result.next_item_id}"
             )
 
+    # 前の質問とほとんど同じ文で聞き直さない（本物のAIで、1問目と2問目が同じ質問になった。AI-BIC 3.1）
+    if has_question:
+        for turn in state.turns:
+            if similarity(result.question, turn.question) >= SAME_QUESTION_SIMILARITY:
+                problems.append(f"{turn.turn_no}問目とほとんど同じ質問をしようとした（同じ趣旨の質問を繰り返さない）")
+                break
+
     return problems
+
+
+SAME_QUESTION_SIMILARITY = 0.5  # これ以上似ていれば「同じ質問」とみなす（2文字ずつの重なりの割合）
+
+
+def similarity(a: str | None, b: str | None) -> float:
+    """2つの文の似ている度合い（0〜1）。記号や空白を除いた2文字ずつの組の重なり（ジャカード係数）。"""
+    def grams(text: str | None) -> set[str]:
+        s = re.sub(r"[\s、。？?！!「」（）()・,.:：]", "", normalize(text))
+        return {s[i:i + 2] for i in range(len(s) - 1)}
+    x, y = grams(a), grams(b)
+    return len(x & y) / len(x | y) if x and y else 0.0
 
 
 # ---------------------------------------------------------------

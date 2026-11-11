@@ -1,0 +1,173 @@
+{
+  "scenario_id": "sales_report",
+  "turns": [],
+  "offered": false,
+  "readiness_before": [
+    {
+      "機能": "業務フロー",
+      "判定": "一部不足",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "不足",
+      "不足（必須）": [
+        "H3"
+      ]
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "一部不足",
+      "不足（必須）": []
+    }
+  ],
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H3",
+        "question": "月次売上集計には、毎月どのくらいの時間がかかっていますか。",
+        "answer_example": "例：毎月3営業日目に、1人で丸1日ほど",
+        "answer": "毎月第1営業日から2日間、私1人で作業しています。合計で12時間くらいです。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H3",
+        "question": "毎月2日間、1人で合計12時間ほどかかっていることは確認できています。その中で、最も時間がかかっている作業はどれで、何分くらいですか？",
+        "answer_example": "例：営業所のExcelを1つに転記する作業で、半日ほど",
+        "answer": "すみません、その点は分かりません。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H4",
+        "question": "手作業で転記しているとのことですが、業務で使っているツールは、Excel以外にもありますか？",
+        "answer_example": "例：Excelのほかに、メールで営業所から受け取っている、基幹システムから売上を出している",
+        "answer": "すみません、その点は分かりません。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 4,
+        "item_id": "H6",
+        "question": "この業務の改善に、使える予算や、使うツールの制限、社内ルールなどの制約はありますか？",
+        "answer_example": "例：特に制約はない。予算は月1万円まで。",
+        "answer": "新しいソフトを買う予算はありません。Excelは全員が使えます。集計方法を知っているのは私だけです。",
+        "extra": false,
+        "decides": null
+      },
+      {
+        "turn_no": 5,
+        "item_id": "H1",
+        "question": "月次の売上報告書は、最終的に誰に渡していますか？",
+        "answer_example": "例：部長会議の出席者、営業部長に提出している",
+        "answer": "すみません、その点は分かりません。",
+        "extra": false,
+        "decides": null
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "未確認",
+        "known_facts": "部長会議用の月次売上報告書を作成している",
+        "lacking": "報告書を誰に渡すか（利用者は分からないと回答）"
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "5つの営業所から届く売上Excelを1つにまとめ、部長会議用の月次売上報告書を作成する",
+        "lacking": ""
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "不十分",
+        "known_facts": "毎月第1営業日から2日間、1人で作業し、合計で12時間くらい",
+        "lacking": "作業のうち最も時間がかかっている作業と、その時間の目安（利用者は分からないと回答）"
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "不十分",
+        "known_facts": "営業所から売上Excelが届く。手作業で転記している",
+        "lacking": "業務で使っているツールの名前（Excel以外に使うものがあるか。利用者は分からないと回答）"
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "営業所ごとにExcelの形式が違うため手作業で転記している。転記に時間がかかり、毎月どこかで数字が合わない",
+        "lacking": ""
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "充足",
+        "known_facts": "新しいソフトを買う予算はない。Excelは全員が使える。集計方法を知っているのは担当者のみ",
+        "lacking": ""
+      }
+    },
+    "finished_reason": "質問回数の上限に達したため終了しました",
+    "judged_answers": 5,
+    "extra_started": false,
+    "extra_targets": [],
+    "extra_finished_reason": null
+  },
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4400,
+      "output_tokens": 497,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00069
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4737,
+      "output_tokens": 561,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00075
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4907,
+      "output_tokens": 548,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00076
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 5008,
+      "output_tokens": 546,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00077
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 5124,
+      "output_tokens": 550,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00079
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 5269,
+      "output_tokens": 525,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00079
+    }
+  ],
+  "total_dollars": 0.00455
+}

@@ -48,6 +48,13 @@ YEN_PER_DOLLAR = 150  # 想定の為替
 UNKNOWN_ANSWER = "すみません、その点は分かりません。"
 
 
+def all_scenarios() -> list[dict]:
+    """デモのシナリオと、確認用の架空シナリオ（config/eval_scenarios.json。デモには出さない）。"""
+    path = config.CONFIG_DIR / "eval_scenarios.json"
+    extra = json.loads(path.read_text(encoding="utf-8"))["scenarios"] if path.exists() else []
+    return load_scenarios() + extra
+
+
 class SimulatedRespondent:
     """シナリオの回答を、診断項目ごとに順番に返す模擬の回答者。"""
 
@@ -117,7 +124,7 @@ def main() -> int:
                         help="保存した結果のヒアリングと診断を再利用し、業務フローだけを作る（費用を抑える）")
     args = parser.parse_args()
 
-    scenarios = {s["id"]: s for s in load_scenarios()}
+    scenarios = {s["id"]: s for s in all_scenarios()}
     if args.scenario_id not in scenarios:
         print(f"シナリオが見つかりません。選べるID：{', '.join(scenarios)}")
         return 1
