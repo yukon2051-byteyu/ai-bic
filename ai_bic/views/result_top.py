@@ -9,6 +9,7 @@
 """
 
 import json
+import re
 
 import streamlit as st
 
@@ -23,6 +24,42 @@ from ai_bic.views import flows, simulator
 from ai_bic.views.simulator import PLAN_KEY as SIM_PLAN_KEY
 
 SECTIONS = ui.SECTIONS  # 移動先（見出しに付けた id）
+
+# 結果画面の4つのタブ（AI-BIC 3.2）：キー → 表示名。初期表示は「改善案を選ぶ」
+TABS = {"choose": "改善案を選ぶ", "gaps": "不足情報を確認", "evidence": "診断の根拠を見る", "trial": "小さく試す"}
+TAB_KEY = "result_tab"
+TAB_OF = {"compare": "choose", "flows": "choose", "sim": "choose", "review": "choose", "gaps": "gaps",
+          "evidence": "evidence", "trial": "trial"}
+TAB_BAR = ".st-key-result_tab"  # タブの並び（画面を動かす先）
+
+# タブを切り替えても消さない入力欄（未送信の回答・試算の値・試行の入力など）。ボタンや表の編集は含めない
+KEEP_PREFIXES = ("gap_answer_", "gap_source_", "gap_note_", "gap_value_", "qfix_qid", "qfix_value", "qfix_source",
+                 "qfix_note", "fact_", "trial_scope", "trial_owner", "trial_due", "trial_m", "trial_add_name",
+                 "trial_add_kind", "trial_add_unit", "trial_decision", "trial_reason", "review_decision_", "sim_P",
+                 "flow_view", "flow_pid", "review_pid", "compare_plan", "sim_plan", "rethink_pid", "work_")
+KEEP_EXCLUDE = re.compile(r"(_save|_submit|_decide|_run|_start|_demo|_scenarios)$|_ack_|_restore_")
+
+
+def keep_inputs() -> None:
+    """タブを閉じても、入力欄の値を消さない。
+
+    Streamlit は、表示しなかった入力欄の値を消す。表示の前に値を入れ直すと、残る（入力欄の値ではなく、
+    プログラムが入れた値として扱われるため）。
+    """
+    s = st.session_state
+    for key in list(s.keys()):
+        name = str(key)
+        if name.startswith(KEEP_PREFIXES) and not KEEP_EXCLUDE.search(name):
+            s[key] = s[key]
+
+
+def render_tabs() -> dict:
+    """4つのタブ。開いているタブの中身だけを描く（.open）。"""
+    labels = list(TABS.values())
+    if st.session_state.get(TAB_KEY) not in labels:
+        st.session_state[TAB_KEY] = labels[0]
+    containers = st.tabs(labels, key=TAB_KEY, on_change="rerun")
+    return dict(zip(TABS, containers))
 COMPARE_KEY = "compare_plan"  # 比較で選んでいる案（P1 など）
 
 
@@ -44,7 +81,9 @@ def go(section: str, pid: str | None = None) -> None:
         focus(pid)
         if section == "flows":
             s["flow_view"] = flows.VIEWS[2]  # 選んだ案の改善後を、現状と並べて見せる
-    request_scroll("#" + SECTIONS[section])
+    s[TAB_KEY] = TABS[TAB_OF[section]]  # 対応するタブを開く
+    # タブの先頭（compare・gaps・evidence・trial）なら、タブの並びが上に来るように。それ以外はその見出しへ
+    request_scroll(TAB_BAR if section in ("compare", "gaps", "evidence", "trial") else "#" + SECTIONS[section])
 
 
 def request_scroll(selector: str) -> None:
@@ -128,7 +167,10 @@ def render_decision(ov: Overview, has_proposals: bool) -> None:
 # ---------------------------------------------------------------
 def render_gaps(project: Project, ov: Overview, assumptions: list[str], get_client) -> None:
     """不足情報の確認（AI-BIC 3.0）：重要なものから示し、その場で答えて関係する結果だけを更新する。"""
-    html(ui.label("Check", "不足情報の確認", anchor="gaps"))
+    html(ui.label("Check", "不足情報の確認", anchor="gaps", first=True))
+    if not ov.gaps:
+        html(ui.note("次の判断に必要で、まだ確認できていない情報はありません。"))
+        return
     st.caption("次の判断に必要なのに、まだ確認できていない情報です（重要なものから）。その場で答えると、関係する結果だけを更新します。"
                "あとで確認する項目は、答えずにそのままにしてください（「要確認」のまま残ります）。")
     s = st.session_state
@@ -159,12 +201,12 @@ def _form_key(key: str) -> str:
 def _answer_form(project: Project, g) -> None:
     fk = _form_key(g.key)
     with st.expander("回答を直す" if g.answered else "この場で答える"):
-        with st.form(f"gap_form_{fk}", clear_on_submit=False):
+        with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
             st.text_area("回答", key=f"gap_answer_{fk}", max_chars=config.ANSWER_MAX_CHARS)
             st.radio("出どころ", SOURCES, key=f"gap_source_{fk}", horizontal=True,
                      help="ご本人が知っていること（本人の申告）か、資料で確かめたこと（添付資料）かを区別します")
             st.text_input("資料の名前（添付資料で確かめた場合）", key=f"gap_note_{fk}", max_chars=100)
-            st.form_submit_button("回答を保存して、関係する結果を更新する", key=f"gap_submit_{fk}",
+            st.button("回答を保存して、関係する結果を更新する", key=f"gap_submit_{fk}",
                                   on_click=_save_answer, args=(project, g))
 
 
@@ -215,13 +257,14 @@ def render_fix_form(project: Project) -> None:
     quantities = project.diagnosis.analysis.quantities
     names = {q.qid: f"{q.name}（{q.unit}）" for q in quantities}
     with st.expander("分かっている数値を直す・確かめた値を入れる"):
-        with st.form("qfix_form"):
+        with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
             st.selectbox("数値", list(names), key="qfix_qid", format_func=names.get)
             c = st.columns([2, 2])
-            c[0].number_input("値", key="qfix_value", min_value=0.0, value=None, placeholder="未入力")
+            st.session_state.setdefault("qfix_value", None)  # 空欄で始める（value= を渡すと、保った値と重なり警告が出る）
+            c[0].number_input("値", key="qfix_value", min_value=0.0, placeholder="未入力")
             c[1].radio("出どころ", SOURCES, key="qfix_source", horizontal=True)
             st.text_input("資料の名前（添付資料で確かめた場合）", key="qfix_note", max_chars=100)
-            st.form_submit_button("値を保存して、関係する結果を更新する", key="qfix_submit", on_click=_save_fix, args=(project,))
+            st.button("値を保存して、関係する結果を更新する", key="qfix_submit", on_click=_save_fix, args=(project,))
     for kind, text in st.session_state.pop("qfix_messages", []):
         (st.success if kind == "ok" else st.warning if kind == "warn" else st.error)(text)
 
@@ -253,12 +296,13 @@ def _value_form(project: Project, g) -> None:
     """数値1つの確認。入力した値は関係する試算だけに反映し、手入力の値は残す。"""
     fk = _form_key(g.key)
     with st.expander("この場で答える"):
-        with st.form(f"gap_form_{fk}"):
+        with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
             c = st.columns([2, 2])
-            c[0].number_input("値", key=f"gap_value_{fk}", min_value=0.0, value=None, placeholder="未入力")
+            st.session_state.setdefault(f"gap_value_{fk}", None)
+            c[0].number_input("値", key=f"gap_value_{fk}", min_value=0.0, placeholder="未入力")
             c[1].radio("出どころ", SOURCES, key=f"gap_source_{fk}", horizontal=True)
             st.text_input("資料の名前（添付資料で確かめた場合）", key=f"gap_note_{fk}", max_chars=100)
-            st.form_submit_button("値を保存して、関係する結果を更新する", key=f"gap_submit_{fk}",
+            st.button("値を保存して、関係する結果を更新する", key=f"gap_submit_{fk}",
                                   on_click=_save_value, args=(project, g))
 
 
@@ -291,14 +335,15 @@ def _save_value(project: Project, g) -> None:
 def _numbers_form(project: Project) -> None:
     """試算の元になる数値の確認。計算はプログラムが行い、関係する試算だけを更新する。"""
     with st.expander("数値を確認して入力する", expanded=False):
-        with st.form("gap_form_numbers", clear_on_submit=True):
+        with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
             cols = st.columns(2)
             for i, (name, (label, unit, limit)) in enumerate(facts.FACTS.items()):
-                cols[i % 2].number_input(f"{label}（{unit}）", min_value=0.0, max_value=limit, value=None,
+                st.session_state.setdefault(f"fact_{name}", None)
+                cols[i % 2].number_input(f"{label}（{unit}）", min_value=0.0, max_value=limit,
                                          key=f"fact_{name}", placeholder="未確認（空欄のまま）")
             st.radio("出どころ", SOURCES, key="fact_source", horizontal=True)
             st.text_input("資料の名前（添付資料で確かめた場合）", key="fact_note", max_chars=100)
-            st.form_submit_button("数値を保存して、関係する結果を更新する", key="gap_submit_numbers",
+            st.button("数値を保存して、関係する結果を更新する", key="gap_submit_numbers",
                                   on_click=_save_numbers, args=(project,))
         st.caption("入力した項目だけを記録します。空欄の項目は、前に確認した値のまま（なければ未確認）です。")
     html(numbers_status(project))
@@ -314,6 +359,8 @@ def _save_numbers(project: Project) -> None:
     changed = False
     for name, value in entered.items():
         changed |= facts.record_fact(project, name, value, source, note)
+    for name in entered:
+        s[f"fact_{name}"] = None  # 保存したら入力欄を空にする
     messages = []
     try:
         changes = facts.apply_to_simulations(project)
@@ -402,7 +449,7 @@ def render_compare(project: Project) -> None:
     result = project.diagnosis
     proposals = result.proposals.proposals
     pids = pj.proposal_ids(project)
-    html(ui.label("Compare", "改善案の比較", anchor="compare"))
+    html(ui.label("Compare", "改善案の比較", anchor="compare", first=True))
     html(ui.compare_table(overview.compare_rows(result)))
     relations = overview.valid_relations(result.proposals.relations, len(proposals))
     if relations:

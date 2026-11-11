@@ -9,7 +9,7 @@ from streamlit.testing.v1 import AppTest
 
 from ai_bic import project as pj
 from ai_bic import review as rv
-from tests.test_app import all_text, new_app, result_screen  # noqa: F401
+from tests.test_app import all_text, new_app, open_tab, result_screen  # noqa: F401
 from tests.test_app import secrets  # noqa: F401（フィクスチャ）
 from tests.test_review import demo
 
@@ -97,7 +97,7 @@ def test_製造部デモで_案2の確定_試行_実測_再試行の判断_保�
     # 保存して再開しても、計画・実測・判断が残る
     again = resumed(secrets, s.project, s.scenario)
     assert again.session_state.project.trial == s.project.trial
-    assert "判断：修正して再試行" in all_text(again)
+    assert "判断：修正して再試行" in all_text(open_tab(again, "小さく試す"))
     # Excel の診断レポートに「試行・判定」シートがある
     report = next(b for b in again.get("download_button") if b.key == "download_report_top")
     assert report is not None
@@ -146,7 +146,8 @@ def test_確定のあとの主ボタンは1つだけで_計画を作ったあと
     assert at.session_state.project.trial is None  # 押すまで計画は作らない
     at.button(key="review_trial_P2").click().run()
     assert at.session_state.project.trial.pid == "P2"
-    labels = [b.label for b in at.button]
+    assert at.session_state.result_tab == "小さく試す"  # 計画を作ると「小さく試す」タブを開く
+    labels = [b.label for b in open_tab(at, "改善案を選ぶ").button]
     assert "この案を小さく試す" not in labels and labels.count("試行計画を開く") == 1
     at.button(key="review_trial_P2").click().run()  # 開き直しても、計画は作り直さない
     assert at.session_state.project.trial.pid == "P2"

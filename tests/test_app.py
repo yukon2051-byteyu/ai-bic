@@ -48,6 +48,14 @@ def new_app(secrets, scenario: str | None = SALES) -> AppTest:
     return at
 
 
+def open_tab(at: AppTest, name: str) -> AppTest:
+    """結果画面のタブを開く（AI-BIC 3.2）。name：改善案を選ぶ・不足情報を確認・診断の根拠を見る・小さく試す"""
+    at.session_state["result_tab"] = name
+    at.run()
+    assert not at.exception
+    return at
+
+
 def all_text(at) -> str:
     parts = [m.value for m in at.markdown] + [e.value for e in at.error] + [c.value for c in at.caption]
     parts += [x.value for x in at.warning] + [x.value for x in at.info] + [x.value for x in at.success]
@@ -83,13 +91,17 @@ def test_デモモードで最後まで診断できる(secrets):
     at.button(key="diagnose").click().run()
 
     assert at.session_state.stage == "result"
-    text = all_text(at)
+    # 初期表示は「改善案を選ぶ」。根拠は「診断の根拠を見る」タブにある（AI-BIC 3.2）
+    assert at.session_state.result_tab == "改善案を選ぶ"
+    assert "根拠となる発言を入力内容の中に確認できなかった" not in all_text(at)  # 他のタブの詳細は下に続けて出さない
+    text = all_text(open_tab(at, "診断の根拠を見る"))
     assert "集計作業が担当者1人に依存している" in text
     assert "根拠となる発言を入力内容の中に確認できなかった" in text  # I5 の格下げ表示
     # 添付ファイルからの根拠が、ファイル名つきで表示される（F09）
     assert "添付ファイル『集計差異の記録.csv』" in text
     assert "診断に使った資料" in text
     # 冒頭の3項目（最大の課題・最初にやること・次の判断に必要な情報）と、比較表
+    text = all_text(open_tab(at, "改善案を選ぶ"))
     assert "最大の課題" in text and "最初にやること" in text and "次の判断に必要な情報" in text
     assert "主に減らすもの" in text and "着手前に確認すること" in text
     # 選んだ案の詳細（導入前後の比較・最初の一歩）
@@ -135,7 +147,7 @@ def test_プルダウンで別のシナリオを選んで最後まで診断で�
     assert at.session_state.stage == "result"
     at.radio(key="compare_plan").set_value("P3").run()  # 比較の下には、選んだ案の詳細だけを出す
     assert expected_text in all_text(at)
-    assert "添付ファイル『" in all_text(at)  # どのシナリオも添付ファイルを根拠に使っている
+    assert "添付ファイル『" in all_text(open_tab(at, "診断の根拠を見る"))  # どのシナリオも添付ファイルを根拠に使っている
 
 
 def test_修理受付のデモは不足項目を表示する(secrets):
@@ -148,11 +160,11 @@ def test_修理受付のデモは不足項目を表示する(secrets):
     at.button(key="extra_skip").click().run()  # 追加確認をせずに分析する
     at.button(key="diagnose").click().run()
     # 5問で終わり、5問目の回答（予算は相談次第）も判定したうえで、不足項目と理由を表示（B01）
-    text = all_text(at)
+    text = all_text(open_tab(at, "診断の根拠を見る"))
     assert "情報が不足しています。結果は参考としてご覧ください。" in text
     assert "改善に向けた制約条件（不十分）　足りないこと：予算の目安や、使ってよいツール・社内ルールの有無" in text
     # 情報が足りないまま分析したので、仮定条件も示す（AI-BIC 2.0 ヒアリングの改善 7）
-    assert "仮定条件：業務上の問題点または改善の制約条件が未確認のため" in text
+    assert "仮定条件：業務上の問題点または改善の制約条件が未確認のため" in all_text(open_tab(at, "不足情報を確認"))
 
 
 def test_結果画面の冒頭と末尾に_診断レポートのダウンロードボタンがある(secrets):
@@ -192,7 +204,7 @@ def test_ヒアリングの途中で_ここまでの情報で診断できる(sec
     # デモの結果は全問回答が前提の固定の内容。途中で終えたことと、何と照合したかを明示する（AI-BIC 3.0）
     text = all_text(at)
     assert "全問回答した場合のサンプル結果" in text and "途中（1問回答）" in text
-    assert any(e.label.startswith("今回の入力（途中終了時点：1問回答") for e in at.expander)
+    assert any(e.label.startswith("今回の入力（途中終了時点：1問回答") for e in open_tab(at, "診断の根拠を見る").expander)
 
 
 def test_資料の添付の段階で中止するとトップに戻る(secrets):
@@ -558,9 +570,8 @@ def test_追加確認を選ぶと_追加の質問に答えて分析に進める(
     # 必要な情報がそろったので、上限の3問を待たずに資料の添付へ進む
     assert at.session_state.stage == "attach"
     at.button(key="diagnose").click().run()
-    text = all_text(at)
-    assert "追加確認で、分析に必要な情報がそろいました" in text
-    assert "仮定条件" not in text
+    assert "追加確認で、分析に必要な情報がそろいました" in all_text(open_tab(at, "診断の根拠を見る"))
+    assert "仮定条件" not in all_text(open_tab(at, "不足情報を確認"))
 
 
 def test_分からないボタンで答えると_その項目はもう聞かない(secrets):
@@ -726,7 +737,7 @@ def test_製造部デモの追加確認は_判断できることを添えて_回
 
 def test_追加確認で分からないと答えた項目は_未確認の前提として結果に引き継ぐ(secrets):
     at = production_result(secrets, extra="unknown")
-    text = all_text(at)
+    text = all_text(open_tab(at, "不足情報を確認"))
     assert "「分からない」と回答されたため、未確認の前提として" in text
     assert at.button(key="go_gaps").proto.type == "primary"
 
@@ -735,7 +746,7 @@ def test_デモを途中で終えても_結果と引用の確認状態はサン�
     """途中までの入力と照合すると、同じ引用が「確認済み」と「根拠不足」に分かれていた（AI-BIC 3.0）。"""
     at = production_result(secrets, finish_after=1)
     s = at.session_state
-    text = all_text(at)
+    text = all_text(open_tab(at, "診断の根拠を見る"))
     assert "全問回答した場合のサンプル結果" in text and "途中（1問回答）" in text
     assert s.diagnosis.downgraded == {}  # サンプル回答と照合するため、格下げは起きない
     assert "2問目のサンプル回答" in text  # 引用の出どころも、サンプル回答と明示する
@@ -764,6 +775,7 @@ def test_途中で終えたデモの案件は_保存して再開してもサン�
 # 不足情報への回答と、関係する結果の更新（AI-BIC 3.0 第3段階）
 # ---------------------------------------------------------------
 def answer_gap(at: AppTest, key: str, text: str, source: str = "本人の申告") -> AppTest:
+    open_tab(at, "不足情報を確認")
     fk = key.replace(":", "_")
     at.text_area(key=f"gap_answer_{fk}").input(text)
     at.radio(key=f"gap_source_{fk}").set_value(source)
@@ -785,6 +797,7 @@ def test_不足情報にその場で答えると_要確認から回答済みに�
 
 
 def fix_value(at: AppTest, qid: str, value: float, source: str = "本人の申告") -> AppTest:
+    open_tab(at, "診断の根拠を見る")
     at.selectbox(key="qfix_qid").set_value(qid)
     at.number_input(key="qfix_value").set_value(value)
     at.radio(key="qfix_source").set_value(source)
@@ -795,7 +808,7 @@ def fix_value(at: AppTest, qid: str, value: float, source: str = "本人の申�
 
 def test_月20時間と転記12時間から_割合60パーセントを式つきで表示し_本文と不足情報と試算で同じ値を使う(secrets):
     at = production_result(secrets)
-    text = all_text(at)
+    text = all_text(open_tab(at, "診断の根拠を見る"))
     assert "12時間 ÷ 20時間 × 100 ＝ 60%" in text and "20時間 × 60 ÷ 4台 ＝ 300分" in text
     assert "合計と内訳" not in text and "fact:numbers" not in at.session_state.project.gap_answers  # 4つの数値を機械的に求めない
     sim = at.session_state.project.simulations["P1"]
@@ -819,6 +832,8 @@ def test_確認した数値で試算は計算し直し_手入力した値は残�
     at.button(key="go_sim").click().run()
     at.number_input(key="sim_P2_minutes_per_case").set_value(200.0).run()  # 案2だけ手入力
     fix_value(at, "Q1", 24.0)  # 月の集計時間を24時間に直す → 1台分は 24×60÷4＝360分
+    open_tab(at, "改善案を選ぶ")
+    assert at.session_state.sim_plan == "P2"  # タブを切り替えても、選んでいた案は残る
     sims = at.session_state.project.simulations
     assert sims["P1"].minutes_per_case == 360 and sims["P1"].source_of("minutes_per_case") == "本人の申告"
     assert sims["P2"].minutes_per_case == 200  # 手入力の値は残す
@@ -835,7 +850,7 @@ def test_回答で前提が変わると_対象案の過去のレビューは再�
     at.button(key="go_review").click().run()
     at.button(key="review_run_P2").click().run()
     answer_gap(at, "item:H6", "社外にデータを出せません")
-    assert "前提が変わりました。再レビューが必要です" in all_text(at)
+    assert "前提が変わりました。再レビューが必要です" in all_text(open_tab(at, "改善案を選ぶ"))
 
 
 def test_確定した案は_確定後に前提が変わると再確認が必要と表示し_確定時点の内容を残す(secrets):
@@ -845,7 +860,7 @@ def test_確定した案は_確定後に前提が変わると再確認が必要�
     project = at.session_state.project
     assert project.decision.pid == "P2"
     answer_gap(at, "item:H6", "社外にデータを出せません")
-    assert "確定したあとに前提が変わりました。再確認が必要です" in all_text(at)
+    assert "確定したあとに前提が変わりました。再確認が必要です" in all_text(open_tab(at, "改善案を選ぶ"))
     at.button(key="review_redecide_P2").click().run()
     assert "再確認が必要です" not in all_text(at)
 
@@ -860,3 +875,38 @@ def test_回答を反映して改善案を見直せる_デモはAIを使わな�
     assert len(project.proposal_history["P2"]) == 1  # 見直す前の改善案は残る
     assert "社外にデータを出せません" in " ".join(project.diagnosis.proposals.proposals[1].prerequisites)
     assert project.ai_calls == {}
+
+
+# ---------------------------------------------------------------
+# 結果画面の4つのタブ（AI-BIC 3.2）
+# ---------------------------------------------------------------
+def test_初期表示は改善案を選ぶタブで_他のタブの詳細は下に続けて出さない(secrets):
+    at = production_result(secrets, extra="skip")
+    assert at.session_state.result_tab == "改善案を選ぶ"
+    text = all_text(at)
+    assert 'id="sec-compare"' in text
+    assert all(f'id="sec-{s}"' not in text for s in ("gaps", "evidence", "trial"))  # 他のタブの見出しは描かない
+
+
+def test_上部のボタンは対応するタブを開き_その先頭へ移動する(secrets):
+    at = production_result(secrets, extra="skip")
+    before = at.session_state.scroll_count
+    at.button(key="go_gaps").click().run()
+    assert at.session_state.result_tab == "不足情報を確認"
+    assert 'id="sec-gaps"' in all_text(at) and 'id="sec-compare"' not in all_text(at)
+    at.button(key="go_compare").click().run()
+    assert at.session_state.result_tab == "改善案を選ぶ" and 'id="sec-compare"' in all_text(at)
+    assert at.session_state.scroll_count == before + 2  # どちらも画面を動かす（タブの並びを上へ）
+
+
+def test_タブを切り替えても_送信前の回答と選んだ案は消えない(secrets):
+    at = production_result(secrets, extra="skip")
+    at.radio(key="compare_plan").set_value("P3").run()
+    open_tab(at, "不足情報を確認")
+    at.text_area(key="gap_answer_item_H6").input("書きかけの回答").run()
+    open_tab(at, "診断の根拠を見る")
+    open_tab(at, "改善案を選ぶ")
+    assert at.radio(key="compare_plan").value == "P3"
+    open_tab(at, "不足情報を確認")
+    assert at.text_area(key="gap_answer_item_H6").value == "書きかけの回答"
+    assert "item:H6" not in at.session_state.project.gap_answers  # 送信していないので、記録はしない

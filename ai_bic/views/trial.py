@@ -56,9 +56,14 @@ def render(project: Project) -> None:
     pid = project.selected_proposal
     plan = project.trial
     if pid is None or project.diagnosis.proposals is None or plan is None or plan.pid != pid:
+        html(ui.label("Trial", "この案を小さく試す", anchor="trial", first=True))
+        if pid is None:
+            html(ui.note("改善案を確定すると、ここで小さく試す計画を立てられます。「改善案を選ぶ」タブで、レビューを確かめてから確定してください。"))
+        else:
+            html(ui.note("確定した案の試行計画はまだありません。「改善案を選ぶ」タブの「この案を小さく試す」から作ってください。"))
         return
     no = pj.proposal_ids(project).index(pid) + 1
-    html(ui.label("Trial", "この案を小さく試す", anchor="trial"))
+    html(ui.label("Trial", "この案を小さく試す", anchor="trial", first=True))
     title = project.decision.proposal.title if project.decision else project.diagnosis.proposals.proposals[no - 1].title
     st.caption(f"確定した案：案{no}「{title}」。小さく試して測った結果から、展開するか・直して試すか・見送るかを決めます。"
                "計算と判定の目安はプログラムが行います（AIは使いません）。")
@@ -80,14 +85,14 @@ def _render_plan(project: Project) -> None:
     s.setdefault("trial_scope", plan.scope)
     s.setdefault("trial_owner", plan.owner)
     s.setdefault("trial_due", plan.due)
-    with st.form("trial_plan_form"):
+    with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
         st.markdown("**計画**")
         st.text_area("試行範囲（どこまで小さく試すか）", key="trial_scope", max_chars=300,
                      placeholder="例：1台分・1か月分のデータだけで試す")
         c1, c2 = st.columns(2)
         c1.text_input("担当", key="trial_owner", max_chars=60)
         c2.date_input("期限", key="trial_due", format="YYYY/MM/DD")
-        st.form_submit_button("計画を保存する", key="trial_plan_save", on_click=_save_plan, args=(project,))
+        st.button("計画を保存する", key="trial_plan_save", on_click=_save_plan, args=(project,))
     cols = st.columns(2)
     cols[0].markdown("**想定リスク（確定した案から）**\n\n" + ("\n".join(f"- {ui.esc(r)}" for r in plan.risks) or "（なし）"))
     cols[1].markdown("**試算の前提（確定した時点）**\n\n" + ("\n".join(f"- {ui.esc(a)}" for a in plan.assumptions) or "（試算の値がありません）"))
@@ -105,7 +110,7 @@ def _render_metrics(project: Project) -> None:
     s = st.session_state
     st.markdown("**測定項目と結果**")
     st.caption("改善前の値・試算値（参考）・目標値（合格条件）・実測値は、別々に記録します。測っていない項目は空欄のまま（未測定）にしてください。")
-    with st.form("trial_metrics_form"):
+    with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
         for i, m in enumerate(plan.metrics):
             k = f"trial_m{i}_"
             st.markdown(f"**{i + 1}. {ui.esc(m.name)}**（{'数値' + (f'・{ui.esc(m.unit)}' if m.unit else '') if m.kind == '数値' else '確認'}）")
@@ -131,15 +136,15 @@ def _render_metrics(project: Project) -> None:
             c = st.columns([3, 1])
             c[0].text_input("メモ", key=k + "note", max_chars=200)
             c[1].checkbox("必須の測定", key=k + "required", help="必須の測定が未入力のときは「判定保留」になります")
-        st.form_submit_button("測定結果を保存する", key="trial_metrics_save", type="primary",
+        st.button("測定結果を保存する", key="trial_metrics_save", type="primary",
                               on_click=_save_metrics, args=(project,))
     with st.expander("測定項目を追加する"):
-        with st.form("trial_add_form", clear_on_submit=True):
+        with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
             c = st.columns([3, 1, 1])
             c[0].text_input("項目の名前", key="trial_add_name", max_chars=60)
             c[1].radio("種類", ["数値", "確認"], key="trial_add_kind")
             c[2].text_input("単位（数値の場合）", key="trial_add_unit", max_chars=10)
-            st.form_submit_button("追加する", key="trial_add_submit", on_click=_add_metric, args=(project,))
+            st.button("追加する", key="trial_add_submit", on_click=_add_metric, args=(project,))
     if error := s.pop("trial_error", None):
         st.error(error)
     html(results_table(plan.metrics, plan.sample))
@@ -171,6 +176,7 @@ def _add_metric(project: Project) -> None:
     kind = s["trial_add_kind"]
     project.trial.metrics.append(TrialMetric(name=name, kind=kind, unit=s["trial_add_unit"].strip() if kind == "数値" else ""))
     project.updated_at = pj.now()
+    s["trial_add_name"], s["trial_add_unit"] = "", ""  # 追加したら入力欄を空にする
 
 
 def results_table(metrics: list[TrialMetric], sample: bool) -> str:
@@ -205,10 +211,10 @@ def _render_decision(project: Project) -> None:
     if plan.decision:
         when = f"（{plan.decided_at:%Y-%m-%d %H:%M}）" if plan.decided_at else ""
         st.success(f"判断：{plan.decision}{when}　理由：{plan.reason}")
-    with st.form("trial_decision_form"):
+    with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
         st.radio("判断", tr.DECISIONS, key="trial_decision", index=None, horizontal=True)
         st.text_area("理由", key="trial_reason", max_chars=500, placeholder="例：時間と数量は合格したが、日付の書き方の例外が残ったため")
-        st.form_submit_button("判断を記録する", key="trial_decide", disabled=g.hold, on_click=_decide, args=(project,))
+        st.button("判断を記録する", key="trial_decide", disabled=g.hold, on_click=_decide, args=(project,))
     if error := st.session_state.pop("trial_decision_error", None):
         st.error(error)
 

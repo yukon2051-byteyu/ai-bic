@@ -561,8 +561,8 @@ def render_result() -> None:
     # 結果画面だけ横幅を広げる（業務フロー図を狭いカードに押し込まないため。指示書 7.2）
     html("<style>.block-container { max-width: 1200px; }</style>")
     result = s.diagnosis
-    analysis = result.analysis
     info = s.business_info
+    result_top.keep_inputs()  # タブを切り替えても、入力途中の値を消さない（AI-BIC 3.2）
 
     # 診断レポート（B05）。その場で作って渡すだけで、サーバーには保存しない
     created_at = datetime.now(config.JST)
@@ -600,19 +600,44 @@ def render_result() -> None:
         help="TOP画面の「保存した案件を読み込んで再開する」で、続きから作業できます。入力した内容が含まれるため、取り扱いに注意してください。",
     )
 
-    # --- 不足情報（重要なものから） ---
-    if ov.gaps:
-        result_top.render_gaps(s.project, ov, overview.open_assumptions(s.hearing_state, s.project.gap_answers), get_client)
+    # --- 2. 作業目的ごとの4つのタブ（AI-BIC 3.2）。選んでいないタブの中身は描かない（タブを開いてもAIは動かない） ---
+    tabs = result_top.render_tabs()
+    with tabs["choose"]:
+        if tabs["choose"].open:
+            if result.proposals is None:
+                html(ui.label("Proposals", "改善案", first=True))
+                html(ui.note("課題が確認できなかったため、改善案は作成していません。"))
+            else:
+                result_top.render_compare(s.project)
+                # 業務フロー → 改善効果の試算 → 改善案チャレンジレビューと確定
+                flows.render(s.project, get_client)
+                simulator.render(s.project)
+                review.render(s.project, get_client)
+    with tabs["gaps"]:
+        if tabs["gaps"].open:
+            assumptions = overview.open_assumptions(s.hearing_state, s.project.gap_answers)
+            result_top.render_gaps(s.project, ov, assumptions, get_client)
+    with tabs["evidence"]:
+        if tabs["evidence"].open:
+            render_evidence(partial, answered)
+    with tabs["trial"]:
+        if tabs["trial"].open:
+            trial_view.render(s.project)
 
-    # --- 2. 改善案の比較 → 選んだ案の詳細と、業務フロー・試算・レビューへの移動 ---
-    if result.proposals is None:
-        html(ui.label("Proposals", "改善案"))
-        html(ui.note("課題が確認できなかったため、改善案は作成していません。"))
-    else:
-        result_top.render_compare(s.project)
+    html(ui.footnote(ui.DISCLAIMER))
+    render_report_download(report_data, report_name, key="download_report_bottom")
+    if st.button("新しい診断を始める", type="primary", key="new"):
+        reset()
+        st.rerun()
+    result_top.render_scroll()  # ボタンで頼まれた見出しまで画面を動かす（ページの最後に置く）
 
-    # --- 3. 詳細な根拠：業務の概要・課題 → 業務フロー・試算・レビュー ---
-    html(ui.label("Overview", "業務の概要"))
+
+def render_evidence(partial, answered) -> None:
+    """診断の根拠を見る：業務の概要・分かっている数値・課題（引用・計算式・原因・影響・重要度の理由）。"""
+    s = st.session_state
+    result, info = s.diagnosis, s.business_info
+    analysis = result.analysis
+    html(ui.label("Overview", "業務の概要", first=True, anchor="evidence"))
     html(f'<span class="bic-tag">{ui.esc(info.department)}</span><span class="bic-tag">{ui.esc(info.task_name)}</span>')
     st.write(analysis.business_summary)
     if analysis.quantities:  # 本文・不足情報・試算で同じ値と出どころを使う（AI-BIC 3.1）
@@ -643,22 +668,6 @@ def render_result() -> None:
     if analysis.no_issue_viewpoints:
         names = "、".join(VIEWPOINT_NAMES.get(v, v) for v in analysis.no_issue_viewpoints)
         html(ui.footnote(f"問題が確認できなかった観点：{names}"))
-
-    if result.proposals is not None:
-        # STEP 2〜4：業務フロー（現状と改善後）→ 改善効果の試算（指示書 6章の順）
-        flows.render(s.project, get_client)
-        simulator.render(s.project)
-        # STEP 5〜6：改善案チャレンジレビュー → 改善案の確定（AI-BIC 2.0 機能D）
-        review.render(s.project, get_client)
-        # 確定した案を小さく試し、測った結果から次の判断をする（AI-BIC 3.0。AIは使わない）
-        trial_view.render(s.project)
-
-    html(ui.footnote(ui.DISCLAIMER))
-    render_report_download(report_data, report_name, key="download_report_bottom")
-    if st.button("新しい診断を始める", type="primary", key="new"):
-        reset()
-        st.rerun()
-    result_top.render_scroll()  # ボタンで頼まれた見出しまで画面を動かす（ページの最後に置く）
 
 
 # ---------------------------------------------------------------

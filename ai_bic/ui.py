@@ -105,6 +105,20 @@ header[data-testid="stHeader"] {{ display: none; }}
 .bic-h2 {{ font-size: 1.45rem; font-weight: 500; letter-spacing: .06em; margin: 0 0 1.25rem; }}
 /* トップページ用の詰めた見出し（1画面に収めるため） */
 .bic-label.tight {{ margin-top: .7rem; }}
+.bic-label.first {{ margin-top: .9rem; }}
+
+/* 結果画面の4つのタブ（AI-BIC 3.2）：選択中のタブは白い面・濃紺の文字・金色の下線。スマホでは2段に折り返し、4つとも見える */
+.st-key-result_tab [role="tablist"] {{ gap: 4px; border-bottom: 1px solid var(--line-blue); flex-wrap: wrap; }}
+.st-key-result_tab [data-testid="stTab"] {{ padding: .55rem 1.1rem; border: 1px solid transparent; border-bottom: none;
+  border-radius: 6px 6px 0 0; }}
+.st-key-result_tab [data-testid="stTab"] p {{ font-size: .98rem; font-weight: 600; color: var(--sub); }}
+.st-key-result_tab [data-testid="stTab"][aria-selected="true"] {{ background: var(--card); border-color: var(--line-blue);
+  box-shadow: inset 0 -3px 0 var(--gold); }}
+.st-key-result_tab [data-testid="stTab"][aria-selected="true"] p {{ color: var(--accent); }}
+@media (max-width: 720px) {{
+  .st-key-result_tab [role="tablist"] {{ overflow: visible; }}
+  .st-key-result_tab [data-testid="stTab"] {{ flex: 1 1 45%; justify-content: center; padding: .5rem .4rem; }}
+}}
 .bic-h2.tight {{ font-size: 1.15rem; margin-bottom: .5rem; }}
 
 /* トップの見出し：紺からスレートへのグラデーションの面に、白い文字 */
@@ -445,15 +459,16 @@ def md_text(text: str) -> str:
 
 # 結果画面の中の移動先（見出しそのものに付ける id。空の要素を置くと、見出しの上の余白が画面の上に残ったため）
 SECTIONS = {"gaps": "sec-gaps", "compare": "sec-compare", "flows": "sec-flows", "sim": "sec-sim", "review": "sec-review",
-            "trial": "sec-trial"}
+            "trial": "sec-trial", "evidence": "sec-evidence"}
 
 
-def label(en: str, ja: str, tight: bool = False, anchor: str | None = None) -> str:
+def label(en: str, ja: str, tight: bool = False, anchor: str | None = None, first: bool = False) -> str:
     """英字の小さなラベル＋日本語の見出し。tight=True は余白を詰めた版（トップページ用）。
 
     anchor：SECTIONS のキー。見出しに移動先の id を付ける（画面を動かすと、この見出しが上に来る）。
+    first：タブの中の最初の見出し。上の大きな余白を付けない（タブのすぐ下から内容が始まるように）。
     """
-    extra = " tight" if tight else ""
+    extra = (" tight" if tight else "") + (" first" if first else "")
     id_attr = f' id="{SECTIONS[anchor]}"' if anchor else ""
     return f'<div class="bic-label{extra}"{id_attr}>{esc(en)}</div><div class="bic-h2{extra}">{esc(ja)}</div>'
 
