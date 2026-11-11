@@ -10,8 +10,10 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
+from ai_bic import facts
 from ai_bic import project as pj
 from ai_bic import simulation as sim
+from ai_bic.output_check import similarity
 from ai_bic.project import Project, TrialMetric, TrialPlan
 
 DECISIONS = ["展開する", "修正して再試行", "見送る"]
@@ -52,6 +54,29 @@ def default_metrics(inputs: sim.SimulationInputs | None, effect_metric: str | No
     return [TrialMetric(name=metric), time_metric.model_copy(update={"required": False}), rest[1]]
 
 
+def same_metric(a: str, b: str) -> bool:
+    """測定項目の名前が同じものを指すか（重複して追加しないため）。"""
+    x, y = "".join(a.split()), "".join(b.split())
+    return x in y or y in x or similarity(x, y) >= 0.5
+
+
+def add_metric_unique(plan: TrialPlan, metric: TrialMetric) -> bool:
+    """測定項目を追加する。既にある項目と同じなら追加せず False。"""
+    if any(same_metric(m.name, metric.name) for m in plan.metrics):
+        return False
+    plan.metrics.append(metric)
+    return True
+
+
+def planned_metrics(project: Project) -> list[TrialMetric]:
+    """「確認予定」の値を、試行で測る項目にする（例：記入漏れの月間発生日数を、1か月記録して確かめる。AI-BIC 3.2）。"""
+    metrics = [TrialMetric(name=n.name, unit=n.unit, note=f"確認予定：{n.detail}")
+               for n in facts.needs(project) if n.status == "確認予定"]
+    metrics += [TrialMetric(name=a.question, kind="確認", check_target="確かめた結果を記録する", note=f"確認予定：{a.answer}")
+                for key, a in project.gap_answers.items() if a.kind == "確認予定" and not key.startswith("fact:")]
+    return metrics
+
+
 def new_plan(project: Project) -> TrialPlan:
     """確定した案の試行計画を作る（確定した時点の改善案・試算から引き継ぐ）。"""
     d = project.decision
@@ -60,8 +85,11 @@ def new_plan(project: Project) -> TrialPlan:
         raise ValueError("改善案が確定していません")
     proposal = d.proposal if d else project.diagnosis.proposals.proposals[pj.proposal_ids(project).index(pid)]
     inputs = d.simulation if d else project.simulations.get(pid)
-    return TrialPlan(pid=pid, risks=list(proposal.risks), assumptions=assumptions_of(inputs),
+    plan = TrialPlan(pid=pid, risks=list(proposal.risks), assumptions=assumptions_of(inputs),
                      metrics=default_metrics(inputs, proposal.effect_metric), created_at=pj.now())
+    for metric in planned_metrics(project):  # 確認予定の値も、試行で測る（既にある項目とは重ねない）
+        add_metric_unique(plan, metric)
+    return plan
 
 
 def demo_plan(project: Project, sample: dict) -> TrialPlan:

@@ -60,6 +60,8 @@ def _hearing_log_block(state: HearingState) -> str:
     lines = ["<hearing_log>"]
     for turn in state.turns:
         answer = _escape(turn.answer) if turn.answer is not None else "（未回答）"
+        if turn.answer is not None and turn.kind == "確認予定":
+            answer += "（確認予定：利用者があとで確かめる予定。聞き直さない）"
         lines += [
             f'<turn no="{turn.turn_no}" item="{turn.item_id}">',
             f"質問: {_escape(turn.question)}",

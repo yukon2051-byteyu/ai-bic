@@ -102,7 +102,8 @@ class GapAnswer(BaseModel):
     """不足情報への文章の回答（overview.Gap の key ごと）。"""
 
     question: str
-    answer: str
+    answer: str  # 確認予定のときは、その予定（例：1か月記録して確かめる）
+    kind: Literal["回答", "確認予定"] = "回答"  # 確認予定は回答済みにも確認済みの値にもしない（AI-BIC 3.2）
     source: Source
     note: str = ""
     affects: list[str] = Field(default_factory=list)  # 回答したときに影響すると示したもの

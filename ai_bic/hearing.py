@@ -13,7 +13,7 @@ AIClient の3つの関数だけを使う（基本設計の方針P4）。
 from typing import Protocol
 
 from ai_bic.config import MAX_EXTRA_QUESTIONS, MAX_HEARING_TURNS
-from ai_bic.item_rules import askable_item_ids
+from ai_bic.item_rules import askable_item_ids, is_planned_answer, is_unknown_answer
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
@@ -163,11 +163,16 @@ def _finish_reason(result: QuestionResult, state: HearingState, framework: Frame
     return None
 
 
-def add_answer(state: HearingState, answer: str) -> None:
-    """最新の質問に回答を記録する。入力チェックは validation.validate_answer で済ませておくこと。"""
+def add_answer(state: HearingState, answer: str, kind: str | None = None) -> None:
+    """最新の質問に回答を記録する。入力チェックは validation.validate_answer で済ませておくこと。
+
+    kind：回答の種類（回答・分からない・確認予定）。省略時は、言い回しから判定する（AI-BIC 3.2）。
+    """
     if not state.turns or state.turns[-1].answer is not None:
         raise ValueError("回答する質問がありません")
-    state.turns[-1].answer = answer.strip()
+    text = answer.strip()
+    state.turns[-1].answer = text
+    state.turns[-1].kind = kind or ("分からない" if is_unknown_answer(text) else "確認予定" if is_planned_answer(text) else "回答")
 
 
 def finish_by_user(state: HearingState) -> None:

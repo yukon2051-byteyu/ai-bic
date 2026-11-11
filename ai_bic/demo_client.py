@@ -13,7 +13,7 @@ import json
 
 from ai_bic.config import CONFIG_DIR, MAX_FIRST_STEPS
 from ai_bic.hearing import add_answer, request_extra_question, request_next_question, start_extra, start_hearing
-from ai_bic.item_rules import is_unknown_answer
+from ai_bic.item_rules import blocked_reason, is_planned_answer, is_unknown_answer
 from ai_bic.models import (
     AnalysisResult,
     Attachment,
@@ -53,18 +53,20 @@ class DemoClient:
         結果に引き継げなかった（本物のAIには、質問の指示文で同じ扱いを求めている）。
         """
         result = self._ask(state, framework, final)
-        unknown = {t.item_id for t in state.turns if t.answer and is_unknown_answer(t.answer)}
+        # 「分からない」と「確認予定（あとで確かめる）」の項目は、シナリオの値によらず「充足」にしない（AI-BIC 3.2）
+        unknown = {t.item_id for t in state.turns
+                   if t.answer and (is_unknown_answer(t.answer) or t.kind == "確認予定" or is_planned_answer(t.answer))}
         for status in result.item_status:
             if status.item_id in unknown and status.status == "充足":
                 status.status = "不十分"
-                status.lacking = "ヒアリングで「分からない」と回答された"
+                status.lacking = "ヒアリングで「分からない」または「あとで確認する」と回答された"
         return result
 
     def _ask(self, state: HearingState, framework: Framework, final: bool) -> QuestionResult:
         if state.extra_started:
             return self._extra_question(state, framework, final)
         turns = self.scenario["turns"]
-        n = len(state.turns)  # これまでの質問数で、次に返すデータを決める
+        n = _next_index(turns, state)  # 次に返す用意した質問の番号
 
         # 用意した質問をすべて終えたあとの最終判定は、シナリオの final_statuses を使う
         # （書いていなければ「全項目充足」）
@@ -173,9 +175,32 @@ class DemoClient:
         return FlowResult.model_validate(self.scenario["flows"])
 
 
-def demo_answer(scenario: dict, turn_no: int) -> str:
-    """回答欄にあらかじめ入れておく、シナリオの回答（決定事項E2）。"""
+def _next_index(turns: list[dict], state: HearingState) -> int:
+    """次に返す、用意した基本の質問の番号。
+
+    最後に聞いた質問の次から始め、「分からない」「確認予定」と答えてもう聞けない項目の質問は飛ばす
+    （デモでも、同じ項目を聞き直さない。AI-BIC 3.2）。
+    """
+    asked = [t.question for t in state.turns if not t.extra]
+    index = 0
+    for no, t in enumerate(turns):
+        if t["question"] in asked:
+            index = no + 1
+    while index < len(turns) and blocked_reason(state, turns[index]["next_item_id"]) is not None:
+        index += 1
+    return index
+
+
+def demo_answer(scenario: dict, turn_no: int, question: str | None = None) -> str:
+    """回答欄にあらかじめ入れておく、シナリオの回答（決定事項E2）。
+
+    question があれば、その質問の回答を返す（質問を飛ばしたときに、回の番号と回答がずれないように）。
+    """
     turns = scenario["turns"] + scenario.get("extra_turns", [])  # 追加確認の回答は、基本の質問の後に続く
+    if question is not None:
+        hit = next((t["demo_answer"] for t in turns if t["question"] == question), None)
+        if hit is not None:
+            return hit
     return turns[turn_no - 1]["demo_answer"] if 1 <= turn_no <= len(turns) else ""
 
 
@@ -196,11 +221,11 @@ def sample_hearing(scenario: dict, framework: Framework) -> tuple[BusinessInfo, 
     info = BusinessInfo(**scenario["business_info"])
     state = start_hearing(framework)
     while (turn := request_next_question(client, info, state, framework)) is not None:
-        add_answer(state, demo_answer(scenario, turn.turn_no))
+        add_answer(state, demo_answer(scenario, turn.turn_no, turn.question))
     if should_offer_extra(state, framework):
         start_extra(state, framework)
         while (turn := request_extra_question(client, info, state, framework)) is not None:
-            add_answer(state, demo_answer(scenario, turn.turn_no))
+            add_answer(state, demo_answer(scenario, turn.turn_no, turn.question))
     return info, state
 
 

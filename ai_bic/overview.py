@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 from ai_bic import config
 from ai_bic.models import DiagnosisResult, Framework, HearingState, Issue, Proposal, ProposalRelation
-from ai_bic.item_rules import is_unknown_answer
+from ai_bic.item_rules import is_unknown_answer, planned_turn
 from ai_bic.output_check import similarity
 from ai_bic.readiness import evaluate
 
@@ -40,6 +40,7 @@ class Gap:
     answered: str | None = None  # 回答済みなら、その出どころつきの短い表示（例：本人の申告：12時間）
     numeric: bool = False  # 数値で答える項目（試算の元になる数値）
     merged_keys: list[str] = field(default_factory=list)  # 同じ確認項目として1件にまとめた、ほかの不足情報の key
+    planned: str | None = None  # 確認予定の内容（あとで確かめる。聞き直さず、確認済みの値にもしない。AI-BIC 3.2）
 
 
 @dataclass
@@ -51,7 +52,8 @@ class Overview:
 
     @property
     def has_important_gaps(self) -> bool:
-        return any(g.important and not g.answered for g in self.gaps)
+        # 確認予定の項目は、いま答えを求めない（あとで確かめると決めている）ので数えない
+        return any(g.important and not g.answered and not g.planned for g in self.gaps)
 
     @property
     def open_gaps(self) -> list[Gap]:
@@ -93,7 +95,8 @@ def gaps(result: DiagnosisResult, hearing: HearingState, framework: Framework,
         unknown = any(t.item_id == item_id and t.answer and is_unknown_answer(t.answer) for t in hearing.turns)
         reason = (f"ヒアリングで「分からない」と回答されたため、未確認の前提として{'・'.join(features)}を作っています"
                   if unknown else f"{'・'.join(features)}に必要な情報が、ヒアリングで確認できていません")
-        found.append(Gap(
+        planned = planned_turn(hearing, item_id)
+        found.append(Gap(planned=planned.answer if planned else None,
             key=f"item:{item_id}",
             # 足りないことが分かっていれば、それをそのまま聞く（項目の説明より具体的で答えやすい）
             question=(f"{status.lacking}を教えてください（{item.name}）" if status and status.lacking
@@ -137,10 +140,12 @@ def gaps(result: DiagnosisResult, hearing: HearingState, framework: Framework,
     found = merge_duplicates(found)
     for g in found:
         hit = next((answers[k] for k in [g.key, *g.merged_keys] if k in answers), None)
-        if hit:
-            g.answered = f"{hit.source}：{hit.answer}"
-    # 未回答の重要なもの → 未回答の参考 → 回答済み（同じ重さの中は上の順）
-    return sorted(found, key=lambda g: (bool(g.answered), not g.important))
+        if hit and hit.kind == "確認予定":
+            g.planned = hit.answer
+        elif hit:
+            g.answered, g.planned = f"{hit.source}：{hit.answer}", None
+    # 未回答の重要なもの → 未回答の参考 → 確認予定 → 回答済み（同じ重さの中は上の順）
+    return sorted(found, key=lambda g: (bool(g.answered), bool(g.planned), not g.important))
 
 
 # ---------------------------------------------------------------
@@ -193,6 +198,11 @@ def merge_duplicates(gaps: list[Gap]) -> list[Gap]:
 
 def number_gap(n) -> Gap:
     """確認が必要な数値（facts.Need）の不足情報。"""
+    if n.status == "確認予定":
+        return Gap(key=f"fact:{n.key}", question=n.name,
+                   reason="あとで確かめる予定の値です。確かめたら、ここで値を入れると関係する計算と試算を更新します。",
+                   affects=n.proposals + (["効果試算"] if n.for_simulation else []) + [f"「{b}」" for b in n.blocked],
+                   important=False, numeric=True, planned=n.detail)
     if n.status == "食い違い":
         question = f"{n.name}：申告と資料の値が食い違っています（{n.detail}）。正しい値を確認してください"
     elif n.status == "未集計":

@@ -1,0 +1,100 @@
+{
+  "scenario_id": "badge_self",
+  "turns": [],
+  "offered": false,
+  "readiness_before": [
+    {
+      "機能": "業務フロー",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "十分",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "十分",
+      "不足（必須）": []
+    }
+  ],
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H6",
+        "question": "業務を改善する際に、予算や使えるツール、社内ルールなどに制限はありますか？",
+        "answer_example": "例：予算は特に決まっていないが、新しいシステムの導入は情報システム部の承認が必要",
+        "answer": "予算はほとんどありません。入館者の名前を含むため、社外のサービスには出せません。",
+        "extra": false,
+        "decides": null,
+        "kind": "回答"
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "充足",
+        "known_facts": "入館証の未返却を確認するため（台帳と返却された入館証を照合し、未返却を把握する）。",
+        "lacking": ""
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "充足",
+        "known_facts": "受け取るもの：受付の紙の台帳、返却された入館証。主な作業：台帳と入館証を照合する。作るもの：未返却の確認結果。",
+        "lacking": ""
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "充足",
+        "known_facts": "毎日夕方に担当者1人が行い、1回15分ほど。月20営業日。返却時刻の記入漏れがある日は10分ほど追加。",
+        "lacking": ""
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "充足",
+        "known_facts": "紙の台帳、返却された入館証、受付のメールの記録を使っている。",
+        "lacking": ""
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "台帳に返却時刻の記入漏れがあると、メールの記録と突き合わせる追加確認が必要になり、その日は10分ほど余計にかかる。",
+        "lacking": ""
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "充足",
+        "known_facts": "予算はほとんどない。入館者の名前を含むため、社外のサービスは使えない。",
+        "lacking": ""
+      }
+    },
+    "finished_reason": "必要な情報がそろったため終了しました",
+    "judged_answers": 1,
+    "extra_started": false,
+    "extra_targets": [],
+    "extra_finished_reason": null
+  },
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4734,
+      "output_tokens": 557,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00075
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 5103,
+      "output_tokens": 743,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00088
+    }
+  ],
+  "total_dollars": 0.00163
+}

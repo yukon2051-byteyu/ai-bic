@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 from ai_bic import project as pj
 from ai_bic import simulation as sim
+from ai_bic.item_rules import is_planned_answer
 from ai_bic.project import DecisionRecord, FactEntry, GapAnswer, Project, Source
 from ai_bic.quantities import Calc as QCalc
 from ai_bic.quantities import evaluate as evaluate_formula
@@ -139,9 +140,23 @@ SOURCE_LABEL = {"業務情報": "業務情報", "回答": "回答", "添付フ�
 @dataclass
 class Known:
     value: float | None
-    status: str  # 確認済み・未集計・未確認・食い違い
+    status: str  # 確認済み・未集計・未確認・食い違い・確認予定
     source: str  # 表示用の出どころ（例：業務情報／2問目の回答／本人の申告）
     sim_source: str | None  # 試算の出どころ（ヒアリング・添付資料・本人の申告）
+    plan: str = ""  # 確認予定の内容（例：1か月記録して確かめる）
+    base: str = ""  # 確認予定の値の、もとの状態（未集計・未確認）
+
+
+def planned_text(project: Project, q) -> str:
+    """その数値の「確認予定」の内容。結果画面で確認予定にしたか、ヒアリングでそう答えた回を根拠にしている場合。"""
+    a = project.gap_answers.get(f"fact:{q.qid}")
+    if a and a.kind == "確認予定":
+        return a.answer
+    if q.source == "回答" and q.turn_no:
+        turn = next((t for t in project.hearing.turns if t.turn_no == q.turn_no), None)
+        if turn and turn.answer and (turn.kind == "確認予定" or is_planned_answer(turn.answer)):
+            return turn.answer
+    return q.quote if q.quote and is_planned_answer(q.quote) else ""
 
 
 def known_values(project: Project) -> dict[str, Known]:
@@ -153,6 +168,9 @@ def known_values(project: Project) -> dict[str, Known]:
             result[q.qid] = Known(None, "食い違い", user.conflict_text, None)
         elif user.value is not None:
             result[q.qid] = Known(user.value, "確認済み", user.source, user.source)
+        elif plan := (planned_text(project, q) if q.status != "確認済み" else ""):
+            # 確認予定：確認済みの値として計算に使わず、いまの判断に残る制約として示す（AI-BIC 3.2）
+            result[q.qid] = Known(None, "確認予定", "", None, plan, q.status)
         elif q.status == "確認済み" and q.value is not None:
             answer = "サンプル回答" if project.partial_hearing else "回答"  # デモを途中で終えた場合は、サンプル回答と照合
             where = f"{q.turn_no}問目の{answer}" if q.source == "回答" and q.turn_no else SOURCE_LABEL.get(q.source, "")
@@ -226,6 +244,11 @@ def assumption_lines(project: Project) -> list[str]:
         追加確認を含む総作業時間は、記入漏れの月間発生日数が不明のため未確定
     """
     lines = []
+    known = known_values(project)
+    for q in project.diagnosis.analysis.quantities:  # 確認予定の値（例：月間発生日数は未集計。1か月記録して確認する予定）
+        k = known[q.qid]
+        if k.status == "確認予定":
+            lines.append(f"{q.name}は{k.base}。確認予定：{k.plan}")
     for d in derived_values(project):
         if d.calc.value is not None:
             lines.append(f"{d.name}は{sim.fmt(d.calc.value)}{d.unit}（{d.calc.text}）")
@@ -279,7 +302,8 @@ def needs(project: Project) -> list[Need]:
         k = known[q.qid]
         if k.value is not None or (q.qid not in used_by and q.qid not in sim_ids):
             continue
-        result.append(Need(q.qid, q.name, q.unit, k.status, k.source if k.status == "食い違い" else "",
+        detail = k.source if k.status == "食い違い" else k.plan if k.status == "確認予定" else ""
+        result.append(Need(q.qid, q.name, q.unit, k.status, detail,
                            used_by.get(q.qid, []), blocked_by.get(q.name, []), q.qid in sim_ids))
     if "hourly_cost" not in quantity_basis(project):
         result.append(Need("hourly_cost", "時間あたり人件費", "円", "未確認", "", [], [], True))
@@ -361,13 +385,13 @@ def affected_pids(project: Project, affects: list[str]) -> list[str]:
 
 
 def answer_gap(project: Project, key: str, question: str, answer: str, source: Source,
-               affects: list[str], note: str = "") -> list[str]:
-    """不足情報に回答する。影響する改善案の前提を更新し、その改善案IDを返す。"""
+               affects: list[str], note: str = "", kind: str = "回答") -> list[str]:
+    """不足情報に回答する（kind＝確認予定なら、あとで確かめる予定を記録する）。影響する改善案の前提を更新し、その改善案IDを返す。"""
     text = answer.strip()
     if not text:
-        raise ValueError("回答を入力してください")
+        raise ValueError("確認予定の内容を入力してください" if kind == "確認予定" else "回答を入力してください")
     project.gap_answers[key] = GapAnswer(question=question, answer=text, source=source, note=note.strip(),
-                                         affects=affects, at=pj.now())
+                                         affects=affects, at=pj.now(), kind=kind)
     pids = affected_pids(project, affects)
     mark_premise(project, pids)
     return pids

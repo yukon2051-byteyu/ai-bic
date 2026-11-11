@@ -14,6 +14,7 @@ import re
 import streamlit as st
 
 from ai_bic import config, facts, overview, ui
+from ai_bic import trial as tr
 from ai_bic import project as pj
 from ai_bic import review as review_logic
 from ai_bic import simulation as sim
@@ -33,7 +34,7 @@ TAB_OF = {"compare": "choose", "flows": "choose", "sim": "choose", "review": "ch
 TAB_BAR = ".st-key-result_tab"  # タブの並び（画面を動かす先）
 
 # タブを切り替えても消さない入力欄（未送信の回答・試算の値・試行の入力など）。ボタンや表の編集は含めない
-KEEP_PREFIXES = ("gap_answer_", "gap_source_", "gap_note_", "gap_value_", "qfix_qid", "qfix_value", "qfix_source",
+KEEP_PREFIXES = ("gap_answer_", "gap_plan_", "gap_source_", "gap_note_", "gap_value_", "qfix_qid", "qfix_value", "qfix_source",
                  "qfix_note", "fact_", "trial_scope", "trial_owner", "trial_due", "trial_m", "trial_add_name",
                  "trial_add_kind", "trial_add_unit", "trial_decision", "trial_reason", "review_decision_", "sim_P",
                  "flow_view", "flow_pid", "review_pid", "compare_plan", "sim_plan", "rethink_pid", "work_")
@@ -191,6 +192,8 @@ def render_gaps(project: Project, ov: Overview, assumptions: list[str], get_clie
                 _value_form(project, g)
             else:
                 _answer_form(project, g)
+            if g.key != overview.NUMBERS_KEY and not g.answered:
+                _plan_form(project, g)
     for assumption in assumptions:
         html(ui.footnote(f"仮定条件：{assumption}"))
     _render_rethink(project, get_client)
@@ -337,6 +340,41 @@ def _save_value(project: Project, g) -> None:
     if facts.state_of(project, name).conflict:
         messages.append(("warn", "申告と資料の値が食い違っています。食い違いが解消するまで、その値は使いません。"))
     s["gap_messages"] = messages
+
+
+def _plan_form(project: Project, g) -> None:
+    """あとで確かめる（確認予定）。聞き直さず、確認済みの値にもしない。確定した案の試行で測る項目にもできる（AI-BIC 3.2）。"""
+    fk = _form_key(g.key)
+    st.markdown("**今は答えられない場合**")
+    st.session_state.setdefault(f"gap_plan_{fk}", g.planned or "")
+    st.text_input("確認予定の内容", key=f"gap_plan_{fk}", max_chars=100, placeholder="例：1か月記録して確かめる")
+    c1, c2 = st.columns(2)
+    c1.button("確認予定にする", key=f"gap_planbtn_{fk}", on_click=_save_plan, args=(project, g), width="stretch")
+    plan = project.trial
+    if g.planned and plan is not None and plan.pid == project.selected_proposal:
+        c2.button("試行の測定項目に追加する", key=f"gap_totrial_{fk}", on_click=_to_trial, args=(project, g), width="stretch")
+
+
+def _save_plan(project: Project, g) -> None:
+    s = st.session_state
+    fk = _form_key(g.key)
+    try:
+        for key in [g.key, *g.merged_keys]:
+            facts.answer_gap(project, key, g.question, s.get(f"gap_plan_{fk}", ""), "本人の申告", g.affects, kind="確認予定")
+    except ValueError as e:
+        s["gap_messages"] = [("error", str(e))]
+        return
+    s["gap_messages"] = [("ok", "確認予定にしました。聞き直さず、確認済みの値としても使いません。確かめたら、値や回答を入れて更新できます。")]
+
+
+def _to_trial(project: Project, g) -> None:
+    s = st.session_state
+    metric = next((m for m in tr.planned_metrics(project) if tr.same_metric(m.name, g.question)), None)
+    if metric is None:
+        metric = tr.TrialMetric(name=g.question, kind="確認", check_target="確かめた結果を記録する", note=f"確認予定：{g.planned}")
+    added = tr.add_metric_unique(project.trial, metric)
+    s["gap_messages"] = [("ok", f"試行の測定項目に「{metric.name}」を追加しました。") if added
+                         else ("warn", "同じ測定項目が、試行計画にすでにあります（重ねて追加していません）。")]
 
 
 def _numbers_form(project: Project) -> None:

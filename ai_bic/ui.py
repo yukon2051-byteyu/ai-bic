@@ -345,6 +345,8 @@ a.bic-brand:hover {{ opacity: .7; }}
   padding: .6rem .9rem .5rem; margin-top: .6rem; border-bottom: none; }}
 .bic-gap-row .q {{ font-weight: 700; color: var(--accent); margin-top: .3rem; line-height: 1.6; }}
 .bic-gap-row .aff {{ font-size: .8rem; color: var(--sub); margin-left: .3rem; }}
+.bic-gap-row .plan {{ margin-top: .25rem; color: var(--ink); font-size: .9rem; }}
+.bic-badge.plan {{ border-color: var(--notice-line); color: var(--accent); background: var(--notice-bg); }}
 .bic-issue-row {{ display: flex; gap: .8rem; }}
 .bic-issue-row .no {{ font-family: "Inter", sans-serif; color: var(--gold-deep); font-weight: 600; }}
 .bic-issue-row .t {{ font-weight: 700; color: var(--accent); margin-bottom: .25rem; }}
@@ -569,7 +571,8 @@ def decision_card(ov, shown_gaps: int) -> str:
     gaps = open_gaps[:shown_gaps]
     if gaps:
         items = "".join(
-            f'<li><span class="m">{"！" if g.important else "・"}</span>{esc(g.question)}</li>' for g in gaps)
+            f'<li><span class="m">{"◷" if g.planned else "！" if g.important else "・"}</span>{esc(g.question)}'
+            + ("（確認予定）" if g.planned else "") + "</li>" for g in gaps)
         rest = len(open_gaps) - len(gaps)
         sub = ("！は重要な未確認の情報です" if any(g.important for g in gaps) else "分かると判断の精度が上がる情報です")
         need = f'<ul class="gaps">{items}</ul><div class="t-sub">？ 未確認　{sub}{f"（ほか{rest}件）" if rest else ""}</div>'
@@ -614,11 +617,16 @@ def gap_row(g) -> str:
     """不足情報の一覧の1行（質問・重要度・確認状態・影響する案）。確認理由と回答欄は、開いたときだけ出す（AI-BIC 3.2）。"""
     badge = '<span class="bic-badge gold">！ 重要</span>' if g.important else '<span class="bic-badge gray">参考</span>'
     state = (f'<span class="bic-badge rel">✓ 回答済み（{esc(g.answered.split("：")[0])}）</span>' if g.answered
+             else '<span class="bic-badge plan">◷ 確認予定</span>' if g.planned
              else '<span class="bic-badge gray">？ 要確認</span>')
+    if g.planned:
+        badge = '<span class="bic-badge gray">参考</span>'
     plans = [a for a in g.affects if a.startswith("案")]
     where = f'<span class="aff">影響：{esc("・".join(plans))}</span>' if plans else ""
     merged = f'<span class="aff">（{len(g.merged_keys) + 1}か所の確認をまとめています）</span>' if g.merged_keys else ""
-    return f'<div class="bic-gap-row">{badge}{state}{where}{merged}<div class="q">{esc(g.question)}</div></div>'
+    plan = (f'<div class="plan">確認予定：{esc(g.planned)}（確かめたら、値や回答を入れて更新できます）</div>'
+            if g.planned else "")
+    return f'<div class="bic-gap-row">{badge}{state}{where}{merged}<div class="q">{esc(g.question)}</div>{plan}</div>'
 
 
 def gap_detail(g) -> str:

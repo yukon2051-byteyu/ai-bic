@@ -960,3 +960,36 @@ def test_作業領域を切り替えても_試算の値とレビューの採否�
     at.button(key="go_review").click().run()
     assert at.radio(key=key).value == "採用"
     assert "review_decide_P2" in [b.key for b in at.button]  # 確定は、レビューの判定・採否と同じ場所
+
+
+# ---------------------------------------------------------------
+# 「あとで確認する」（確認予定。AI-BIC 3.2）
+# ---------------------------------------------------------------
+def test_ヒアリングのあとで確認するボタンは_確認予定として記録し_同じ項目を聞き直さない(secrets):
+    at = hearing_screen(secrets)
+    assert at.button(key="submit_planned").label == "あとで確認する"
+    at.text_area(key="answer_1").input("未集計なので、1か月記録して確かめます")
+    at.button(key="submit_planned").click().run()
+    state = at.session_state.hearing_state
+    first = state.turns[0]
+    assert first.kind == "確認予定" and first.answer == "未集計なので、1か月記録して確かめます"
+    assert all(t.item_id != first.item_id for t in state.turns[1:])  # 同じ項目は聞き直さない
+
+
+def test_不足情報のタブで確認予定にでき_試行の測定項目に追加できる(secrets):
+    at = production_result(secrets, extra="skip")
+    open_tab(at, "不足情報を確認")
+    at.text_input(key="gap_plan_fact_hourly_cost").input("経理に確認する予定")
+    at.button(key="gap_planbtn_fact_hourly_cost").click().run()
+    project = at.session_state.project
+    assert project.gap_answers["fact:hourly_cost"].kind == "確認予定"
+    assert "◷ 確認予定" in all_text(at) and "確認予定：経理に確認する予定" in all_text(at)
+    # 案を確定して試行計画を作ったあと、測定項目に追加する（重ねて追加しない）
+    work(at, "review").button(key="review_decide_P1").click().run()
+    at.button(key="review_trial_P1").click().run()
+    open_tab(at, "不足情報を確認")
+    at.button(key="gap_totrial_fact_hourly_cost").click().run()
+    names = [m.name for m in at.session_state.project.trial.metrics]
+    at.button(key="gap_totrial_fact_hourly_cost").click().run()
+    assert [m.name for m in at.session_state.project.trial.metrics] == names
+    assert "同じ測定項目が、試行計画にすでにあります" in all_text(at)

@@ -1,0 +1,178 @@
+{
+  "scenario_id": "badge_self",
+  "turns": [],
+  "offered": false,
+  "readiness_before": [
+    {
+      "機能": "業務フロー",
+      "判定": "不足",
+      "不足（必須）": [
+        "H2"
+      ]
+    },
+    {
+      "機能": "改善効果の試算",
+      "判定": "一部不足",
+      "不足（必須）": []
+    },
+    {
+      "機能": "改善案レビュー",
+      "判定": "一部不足",
+      "不足（必須）": []
+    }
+  ],
+  "hearing": {
+    "turns": [
+      {
+        "turn_no": 1,
+        "item_id": "H6",
+        "question": "業務の改善にあたって、予算、使えるツール、社内ルールなどの制約はありますか？",
+        "answer_example": "例：予算は特に決まりがない、新しいツールの導入は難しい",
+        "answer": "予算はほとんどありません。入館者の名前を含むため、社外のサービスには出せません。",
+        "extra": false,
+        "decides": null,
+        "kind": "回答"
+      },
+      {
+        "turn_no": 2,
+        "item_id": "H2",
+        "question": "台帳と入館証を照合した後、その結果として何か記録や一覧は作っていますか？",
+        "answer_example": "例：未返却の入館証の番号と来訪者名を、別の紙にメモしている",
+        "answer": "台帳の貸出と返却の欄を1行ずつ見て、返却された入館証の番号と照らし合わせます。",
+        "extra": false,
+        "decides": null,
+        "kind": "回答"
+      },
+      {
+        "turn_no": 3,
+        "item_id": "H2",
+        "question": "照合の結果、未返却の入館証が分かったとき、その結果は紙に残していますか、それとも特に記録はしていませんか？",
+        "answer_example": "例：未返却の番号を紙にメモして、総務の机に置いている",
+        "answer": "すみません、その点は分かりません。",
+        "extra": false,
+        "decides": null,
+        "kind": "分からない"
+      },
+      {
+        "turn_no": 4,
+        "item_id": "H1",
+        "question": "この入館証の未返却の確認結果は、最終的に誰に報告・共有されていますか？",
+        "answer_example": "例：総務部長に、週1回口頭で報告している",
+        "answer": "未返却の入館証がないかを、総務担当が自分で確かめるためです。誰かに提出するものではありません。",
+        "extra": false,
+        "decides": null,
+        "kind": "回答"
+      },
+      {
+        "turn_no": 5,
+        "item_id": "H1",
+        "question": "未返却の確認結果は、総務担当が自分で確かめるためのものと分かりました。この結果を、後で誰かに報告することはありますか？",
+        "answer_example": "例：特に報告はしない、または上司に口頭で伝えることがある",
+        "answer": "すみません、その点は分かりません。",
+        "extra": false,
+        "decides": null,
+        "kind": "分からない"
+      }
+    ],
+    "item_status": {
+      "H1": {
+        "item_id": "H1",
+        "status": "不十分",
+        "known_facts": "来訪者に貸し出した入館証の未返却を確認するため。未返却の入館証がないかを総務担当が自分で確かめるためで、誰かに提出するものではない。",
+        "lacking": "成果物を誰に渡すか（提出先・報告先）"
+      },
+      "H2": {
+        "item_id": "H2",
+        "status": "不十分",
+        "known_facts": "受付の紙の台帳と返却された入館証を受け取り、台帳の貸出と返却の欄を1行ずつ見て、返却された入館証の番号と照らし合わせる。",
+        "lacking": "照合の結果として作るもの（未返却の記録など）"
+      },
+      "H3": {
+        "item_id": "H3",
+        "status": "充足",
+        "known_facts": "毎日夕方に担当者1人が照合し、1回15分ほど。月20営業日。",
+        "lacking": ""
+      },
+      "H4": {
+        "item_id": "H4",
+        "status": "充足",
+        "known_facts": "紙の台帳、受付のメールの記録を使用。",
+        "lacking": ""
+      },
+      "H5": {
+        "item_id": "H5",
+        "status": "充足",
+        "known_facts": "台帳に返却時刻の記入漏れがあると、メールの記録と突き合わせる追加確認が必要になり、その日は10分ほど余計にかかる。",
+        "lacking": ""
+      },
+      "H6": {
+        "item_id": "H6",
+        "status": "充足",
+        "known_facts": "予算はほとんどない。入館者の名前を含むため社外のサービスには出せない。",
+        "lacking": ""
+      }
+    },
+    "finished_reason": "質問回数の上限に達したため終了しました",
+    "judged_answers": 5,
+    "extra_started": false,
+    "extra_targets": [],
+    "extra_finished_reason": null
+  },
+  "usage": [
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4445,
+      "output_tokens": 1583,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00124
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4794,
+      "output_tokens": 516,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00074
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 4900,
+      "output_tokens": 566,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00077
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 5053,
+      "output_tokens": 538,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00077
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 5143,
+      "output_tokens": 605,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.00082
+    },
+    {
+      "call_type": "question",
+      "model": "claude-haiku-5-5",
+      "input_tokens": 5342,
+      "output_tokens": 531,
+      "status": "success",
+      "error_type": null,
+      "dollars": 0.0008
+    }
+  ],
+  "total_dollars": 0.00514
+}

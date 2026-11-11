@@ -110,6 +110,8 @@ class HearingTurn(BaseModel):
     answer: str | None = None  # 回答前は None
     extra: bool = False  # 基本の質問のあとの「追加確認」の質問か（AI-BIC 2.0）
     decides: str | None = None  # 追加確認：この回答で何が判断できるか（質問の近くに表示する）
+    # 回答の種類（AI-BIC 3.2）：確認予定＝あとで確かめる（例：1か月記録して確かめる）。聞き直さず、確認済みの値としても使わない
+    kind: Literal["回答", "分からない", "確認予定"] = "回答"
 
 
 class HearingState(BaseModel):

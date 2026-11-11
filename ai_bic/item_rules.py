@@ -10,6 +10,7 @@
 
 from ai_bic.config import (
     MAX_QUESTIONS_PER_ITEM,
+    PLANNED_ANSWER_PHRASES,
     UNKNOWN_ANSWER_FILLERS,
     UNKNOWN_ANSWER_MAX_REST_CHARS,
     UNKNOWN_ANSWER_WORDS,
@@ -39,6 +40,18 @@ def is_unknown_answer(answer: str | None) -> bool:
     return len(rest) <= UNKNOWN_ANSWER_MAX_REST_CHARS
 
 
+def is_planned_answer(answer: str | None) -> bool:
+    """あとで確かめる予定を述べた回答か（例：未集計なので1か月記録して確かめたい）。決まった言い回しで判定する。"""
+    text = "".join((answer or "").split())
+    return any(p in text for p in PLANNED_ANSWER_PHRASES)
+
+
+def planned_turn(state: HearingState, item_id: str):
+    """その項目に「確認予定」と答えた回（なければ None）。"""
+    return next((t for t in state.turns if t.item_id == item_id and t.answer is not None
+                 and (t.kind == "確認予定" or is_planned_answer(t.answer))), None)
+
+
 def answered_unknown(state: HearingState, item_id: str) -> bool:
     """その項目への質問に、利用者が「分からない」と答えたことがあるか。"""
     return any(turn.item_id == item_id and is_unknown_answer(turn.answer) for turn in state.turns)
@@ -50,6 +63,8 @@ def blocked_reason(state: HearingState, item_id: str) -> str | None:
         return f"質問回数が上限（{MAX_QUESTIONS_PER_ITEM}回）に達した"
     if answered_unknown(state, item_id):
         return "利用者が「分からない」と回答済み"
+    if planned_turn(state, item_id) is not None:
+        return "利用者が「確認予定（あとで確かめる）」と回答済み"
     return None
 
 

@@ -51,6 +51,7 @@ VIEWPOINT_NAMES = {v.id: v.name for v in FRAMEWORK.viewpoints}
 
 NOTICE = "個人情報や社外秘の情報は入力しないでください。企業名は空欄または架空の名前をおすすめします。"
 UNKNOWN_ANSWER = "分かりません。"  # 「分からない」ボタンの回答（item_rules.is_unknown_answer で、それ以上聞かない項目になる）
+PLANNED_ANSWER = "あとで確認する予定です。"  # 「あとで確認する」ボタンで、回答欄が空のときに残す回答（確認予定）
 HEARING_CARD = ".st-key-hearing_card"  # ヒアリングの現在の質問カード（画面を動かす先）
 STEPS = [
     ("input", "01 業務情報"),
@@ -411,34 +412,43 @@ def _render_question(current) -> None:
         st.caption(f"確認する理由：{readiness.reason_for(state, FRAMEWORK, current.item_id)}")
     key = f"answer_{current.turn_no}"
     if s.mode == "demo":
-        s.setdefault(key, demo_answer(s.scenario, current.turn_no))
+        s.setdefault(key, demo_answer(s.scenario, current.turn_no, current.question))
     with st.form("answer_form", border=False):
         # 回答例は入力欄の下に1回だけ出す（入力欄の中の薄い文字とは重ねない）
         st.text_area("回答", key=key, max_chars=config.ANSWER_MAX_CHARS, height=110)
         if current.answer_example:
             st.caption(f"回答例　{current.answer_example}")
-        c1, c2, _ = st.columns([2.2, 1.4, 3])
+        c1, c2, c3, _ = st.columns([2.2, 1.4, 1.8, 1.6])
         c1.form_submit_button(_next_label(state), type="primary", key="submit_answer", width="stretch",
-                              on_click=_submit_answer, args=(key, False))
+                              on_click=_submit_answer, args=(key, "回答"))
         # 分からない項目は、それ以上質問しない（item_rules.is_unknown_answer で判定される回答を入れる）
         c2.form_submit_button("分からない", key="submit_unknown", width="stretch",
                               help="この点は分からないと回答し、次に進みます（未確認の前提として結果に示します）",
-                              on_click=_submit_answer, args=(key, True))
+                              on_click=_submit_answer, args=(key, "分からない"))
+        # あとで確かめる項目も聞き直さない。回答欄に予定を書けば、それを残す（AI-BIC 3.2）
+        c3.form_submit_button("あとで確認する", key="submit_planned", width="stretch",
+                              help="今は分からないが、あとで確かめる予定です（例：1か月記録して確かめる）。回答欄に予定を書けば残します",
+                              on_click=_submit_answer, args=(key, "確認予定"))
     if s.answer_error:
         st.error(s.answer_error)
 
 
-def _submit_answer(key: str, unknown: bool) -> None:
-    """回答を記録し、次の表示で質問を準備する（ここではAIを呼ばない）。"""
+def _submit_answer(key: str, kind: str) -> None:
+    """回答を記録し、次の表示で質問を準備する（ここではAIを呼ばない）。kind：回答・分からない・確認予定"""
     s = st.session_state
     state = s.hearing_state
     if not state.turns or state.turns[-1].answer is not None:
         return  # すでに送った回答（二重送信）は無視する
-    answer = UNKNOWN_ANSWER if unknown else s.get(key, "")
-    error = None if unknown else validate_answer(answer)
+    typed = (s.get(key) or "").strip()
+    if kind == "分からない":
+        answer, error = UNKNOWN_ANSWER, None
+    elif kind == "確認予定":
+        answer, error = (typed or PLANNED_ANSWER), None
+    else:
+        answer, error = typed, validate_answer(typed)
     s.answer_error = error
     if error is None:
-        add_answer(state, answer)
+        add_answer(state, answer, None if kind == "回答" else kind)
         s.hearing_pending = True
 
 
