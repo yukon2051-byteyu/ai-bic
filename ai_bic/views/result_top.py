@@ -134,10 +134,14 @@ def render_gaps(project: Project, ov: Overview, assumptions: list[str], get_clie
     s = st.session_state
     for kind, text in s.pop("gap_messages", []):
         (st.success if kind == "ok" else st.warning if kind == "warn" else st.error)(text)
+    if project.diagnosis.analysis.quantities:
+        html(quantity_panel(project, compact=True))
     for g in ov.gaps:
         html(ui.gap_card(g))
-        if g.numeric:
-            _numbers_form(project)
+        if g.key == overview.NUMBERS_KEY:
+            _numbers_form(project)  # 数値の一覧がない古い案件
+        elif g.numeric:
+            _value_form(project, g)
         else:
             _answer_form(project, g)
     for assumption in assumptions:
@@ -176,6 +180,112 @@ def _save_answer(project: Project, g) -> None:
     names = "・".join(f"案{pid[1:]}" for pid in pids)
     s["gap_messages"] = [("ok", f"回答を保存しました（{s[f'gap_source_{fk}']}）。{names}の前提を更新しました。"
                                 "過去のレビューは「再レビューが必要」になります。改善案の内容を見直す場合は、下の「回答を反映して改善案を見直す」を使ってください。")]
+
+
+def quantity_panel(project: Project, compact: bool = False) -> str:
+    """分かっている数値と、計算する値（式つき）。未確定の値は、何が分かれば決まるかを示す（AI-BIC 3.1）。
+
+    compact：不足情報欄の先頭に出す短い版（計算する値の結論だけ）。
+    """
+    rows = []
+    if not compact:
+        for q in project.diagnosis.analysis.quantities:
+            k = facts.known_values(project)[q.qid]
+            if k.value is not None:
+                rows.append(("✓", q.name, f"{sim.fmt(k.value)}{q.unit}（{k.source}）"))
+            else:
+                state = "申告と資料が食い違い（" + k.source + "）" if k.status == "食い違い" else k.status
+                rows.append(("？", q.name, state))
+    for d in facts.derived_values(project):
+        if d.calc.value is not None:
+            rows.append(("✓", d.name, d.calc.text))
+        elif d.calc.error:
+            rows.append(("？", d.name, d.calc.error))
+        else:
+            rows.append(("？", d.name, f"未確定（{'・'.join(d.missing_names)}が分かるまで）"))
+    if not rows:
+        return ""
+    body = "".join(f"<dt>{ui.esc(m)} {ui.esc(n)}</dt><dd>{ui.esc(v)}</dd>" for m, n, v in rows)
+    title = "計算できる値と、まだ決まらない値" if compact else "分かっている数値（入力と照合済み）と、計算する値"
+    return f'<div class="bic-quantities"><div class="k">{title}</div><dl class="bic-dl">{body}</dl></div>'
+
+
+def render_fix_form(project: Project) -> None:
+    """分かっている数値を直す（例：資料で確かめたら値が違った）。関係する計算・試算だけを更新する。"""
+    quantities = project.diagnosis.analysis.quantities
+    names = {q.qid: f"{q.name}（{q.unit}）" for q in quantities}
+    with st.expander("分かっている数値を直す・確かめた値を入れる"):
+        with st.form("qfix_form"):
+            st.selectbox("数値", list(names), key="qfix_qid", format_func=names.get)
+            c = st.columns([2, 2])
+            c[0].number_input("値", key="qfix_value", min_value=0.0, value=None, placeholder="未入力")
+            c[1].radio("出どころ", SOURCES, key="qfix_source", horizontal=True)
+            st.text_input("資料の名前（添付資料で確かめた場合）", key="qfix_note", max_chars=100)
+            st.form_submit_button("値を保存して、関係する結果を更新する", key="qfix_submit", on_click=_save_fix, args=(project,))
+    for kind, text in st.session_state.pop("qfix_messages", []):
+        (st.success if kind == "ok" else st.warning if kind == "warn" else st.error)(text)
+
+
+def _save_fix(project: Project) -> None:
+    s = st.session_state
+    value = s.get("qfix_value")
+    if value is None:
+        s["qfix_messages"] = [("error", "値を入力してください。")]
+        return
+    try:
+        changed = facts.record_fact(project, s["qfix_qid"], value, s["qfix_source"], s["qfix_note"])
+        changes = facts.apply_to_simulations(project)
+    except ValueError as e:
+        s["qfix_messages"] = [("error", str(e))]
+        return
+    simulator.sync_widgets(project, [(c.pid, c.field) for c in changes if c.applied])
+    if changed:
+        facts.mark_premise(project, pj.proposal_ids(project))
+    messages = [("ok", f"値を保存しました（{s['qfix_source']}）。関係する計算と試算を更新しました。")]
+    messages += [("warn", f"案{c.pid[1:]}の{sim.label(c.field)}は手入力の値を残しました（確認した値：{sim.fmt(c.value)}）。")
+                 for c in changes if not c.applied]
+    if facts.state_of(project, s["qfix_qid"]).conflict:
+        messages.append(("warn", "申告と資料の値が食い違っています。食い違いが解消するまで、その値は使いません。"))
+    s["qfix_messages"] = messages
+
+
+def _value_form(project: Project, g) -> None:
+    """数値1つの確認。入力した値は関係する試算だけに反映し、手入力の値は残す。"""
+    fk = _form_key(g.key)
+    with st.expander("この場で答える"):
+        with st.form(f"gap_form_{fk}"):
+            c = st.columns([2, 2])
+            c[0].number_input("値", key=f"gap_value_{fk}", min_value=0.0, value=None, placeholder="未入力")
+            c[1].radio("出どころ", SOURCES, key=f"gap_source_{fk}", horizontal=True)
+            st.text_input("資料の名前（添付資料で確かめた場合）", key=f"gap_note_{fk}", max_chars=100)
+            st.form_submit_button("値を保存して、関係する結果を更新する", key=f"gap_submit_{fk}",
+                                  on_click=_save_value, args=(project, g))
+
+
+def _save_value(project: Project, g) -> None:
+    s = st.session_state
+    fk = _form_key(g.key)
+    value = s.get(f"gap_value_{fk}")
+    if value is None:
+        s["gap_messages"] = [("error", "値を入力してください。分からない場合は、答えずにそのままにしてください。")]
+        return
+    name = g.key.split(":", 1)[1]
+    try:
+        changed = facts.record_fact(project, name, value, s[f"gap_source_{fk}"], s[f"gap_note_{fk}"])
+        changes = facts.apply_to_simulations(project)
+    except ValueError as e:
+        s["gap_messages"] = [("error", str(e))]
+        return
+    simulator.sync_widgets(project, [(c.pid, c.field) for c in changes if c.applied])
+    pids = facts.affected_pids(project, g.affects)
+    if changed:
+        facts.mark_premise(project, pids)
+    messages = [("ok", f"値を保存しました（{s[f'gap_source_{fk}']}）。関係する計算と試算を更新しました。")]
+    messages += [("warn", f"案{c.pid[1:]}の{sim.label(c.field)}は手入力の値を残しました（確認した値：{sim.fmt(c.value)}）。")
+                 for c in changes if not c.applied]
+    if facts.state_of(project, name).conflict:
+        messages.append(("warn", "申告と資料の値が食い違っています。食い違いが解消するまで、その値は使いません。"))
+    s["gap_messages"] = messages
 
 
 def _numbers_form(project: Project) -> None:

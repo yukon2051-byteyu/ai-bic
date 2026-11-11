@@ -14,12 +14,15 @@
 - 確定した時点の改善案・試算を残す。そのあと改善案・前提・試算が変わったら、再確認が必要と示す
 """
 
+import ast
 import re
 from dataclasses import dataclass
 
 from ai_bic import project as pj
 from ai_bic import simulation as sim
 from ai_bic.project import DecisionRecord, FactEntry, GapAnswer, Project, Source
+from ai_bic.quantities import Calc as QCalc
+from ai_bic.quantities import evaluate as evaluate_formula
 
 # 確認する数値：名前 → (画面の名前, 単位, 上限)
 FACTS = {
@@ -59,7 +62,7 @@ def state_of(project: Project, name: str) -> FactState:
 
 def record_fact(project: Project, name: str, value: float, source: Source, note: str = "") -> bool:
     """数値を1つ記録する（同じ出どころの古い値は置き換える）。使う値が変わったら True。"""
-    if name not in FACTS:
+    if name not in FACTS and name not in {q.qid for q in project.diagnosis.analysis.quantities}:
         raise ValueError(f"不明な項目です：{name}")
     if value < 0:
         raise ValueError("0以上の値を入力してください")
@@ -106,8 +109,14 @@ def minutes_per_case(total_hours: float | None, cases: float | None) -> Calc:
 # ---------------------------------------------------------------
 # 試算への反映（関係する試算だけ）
 # ---------------------------------------------------------------
-def basis(project: Project) -> dict[str, tuple[float, Source]]:
-    """確認した数値から決まる、試算の元の値（項目名 → (値, 出どころ)）。決まらない項目は含めない。"""
+def basis(project: Project) -> dict[str, tuple[float, str]]:
+    """確認した数値から決まる、試算の元の値（項目名 → (値, 出どころ)）。決まらない項目は含めない。
+
+    数値の一覧がある案件（AI-BIC 3.1）は、一覧の値（照合済み）と、利用者が確認した値から決める。
+    一覧がない古い案件は、不足情報で確認した4つの数値（合計・内訳・件数・人件費）から決める。
+    """
+    if project.diagnosis.analysis.quantities:
+        return quantity_basis(project)
     states = {name: state_of(project, name) for name in FACTS}
     result: dict[str, tuple[float, Source]] = {}
     total, cases = states["total_hours"], states["cases_per_month"]
@@ -118,6 +127,145 @@ def basis(project: Project) -> dict[str, tuple[float, Source]]:
     for name in ("cases_per_month", "hourly_cost"):
         if states[name].value is not None:
             result[name] = (states[name].value, states[name].source)
+    return result
+
+
+# ---------------------------------------------------------------
+# 数値の一覧（AI-BIC 3.1）：本文・不足情報・試算で、同じ値と出どころを使う
+# ---------------------------------------------------------------
+SOURCE_LABEL = {"業務情報": "業務情報", "回答": "回答", "添付ファイル": "添付ファイル"}
+
+
+@dataclass
+class Known:
+    value: float | None
+    status: str  # 確認済み・未集計・未確認・食い違い
+    source: str  # 表示用の出どころ（例：業務情報／2問目の回答／本人の申告）
+    sim_source: str | None  # 試算の出どころ（ヒアリング・添付資料・本人の申告）
+
+
+def known_values(project: Project) -> dict[str, Known]:
+    """数値の一覧の番号 → 今の値。利用者が結果画面で確認した値があれば、それを使う（AIの値より優先）。"""
+    result = {}
+    for q in project.diagnosis.analysis.quantities:
+        user = state_of(project, q.qid)
+        if user.conflict:
+            result[q.qid] = Known(None, "食い違い", user.conflict_text, None)
+        elif user.value is not None:
+            result[q.qid] = Known(user.value, "確認済み", user.source, user.source)
+        elif q.status == "確認済み" and q.value is not None:
+            answer = "サンプル回答" if project.partial_hearing else "回答"  # デモを途中で終えた場合は、サンプル回答と照合
+            where = f"{q.turn_no}問目の{answer}" if q.source == "回答" and q.turn_no else SOURCE_LABEL.get(q.source, "")
+            sim_source = "添付資料" if q.source == "添付ファイル" else "ヒアリング"
+            result[q.qid] = Known(q.value, "確認済み", where, sim_source)
+        else:
+            result[q.qid] = Known(None, q.status, "", None)
+    return result
+
+
+@dataclass
+class DerivedValue:
+    qid: str
+    name: str
+    unit: str
+    calc: QCalc
+    missing_names: list[str]
+    sim_field: str | None
+    sim_source: str | None
+
+
+def derived_values(project: Project) -> list[DerivedValue]:
+    """計算する値（式の順に。前の計算結果も使える）。足りない値があれば、その名前を返す。"""
+    analysis = project.diagnosis.analysis
+    known = known_values(project)
+    values = {k: v.value for k, v in known.items()}
+    sources = {k: v.sim_source for k, v in known.items()}
+    units = {q.qid: q.unit for q in analysis.quantities}
+    names = {q.qid: q.name for q in analysis.quantities}
+    result = []
+    for d in analysis.derived:
+        calc = evaluate_formula(d.formula, d.unit, values, units)
+        if calc.value is not None and d.unit == "%" and calc.value > 100:
+            # 割合が100%を超えるのは、内訳が合計を上回っているとき。誤った値を表示・使用しない
+            calc = QCalc(None, "", [], "割合が100%を超えています（内訳が合計を上回っています）。入力を確認してください")
+        used = [n.id for n in _names(d.formula)]
+        weak = [sources.get(i) for i in used]
+        sim_source = None if calc.value is None else (
+            "本人の申告" if "本人の申告" in weak else "ヒアリング" if "ヒアリング" in weak else "添付資料")
+        result.append(DerivedValue(d.qid, d.name, d.unit, calc, [names.get(m, m) for m in calc.missing],
+                                   d.sim_field, sim_source))
+        values[d.qid], units[d.qid], names[d.qid], sources[d.qid] = calc.value, d.unit, d.name, sim_source
+    return result
+
+
+def _names(formula: str):
+    return [n for n in ast.walk(ast.parse(formula, mode="eval")) if isinstance(n, ast.Name)]
+
+
+def quantity_basis(project: Project) -> dict[str, tuple[float, str]]:
+    """数値の一覧から決まる、試算の元の値。人件費は、一覧になくても結果画面で確認した値を使う。"""
+    result: dict[str, tuple[float, str]] = {}
+    known = known_values(project)
+    for q in project.diagnosis.analysis.quantities:
+        k = known[q.qid]
+        if q.sim_field and k.value is not None:
+            result[q.sim_field] = (k.value, k.sim_source)
+    for d in derived_values(project):
+        if d.sim_field and d.calc.value is not None:
+            result[d.sim_field] = (round(d.calc.value, 1), d.sim_source)
+    hourly = state_of(project, "hourly_cost")
+    if "hourly_cost" not in result and hourly.value is not None:
+        result["hourly_cost"] = (hourly.value, hourly.source)
+    return result
+
+
+@dataclass
+class Need:
+    """不足情報欄で確認する数値（改善案の効果の判断や試算に必要で、まだ分からないもの）。"""
+
+    key: str  # Q の番号、または hourly_cost
+    name: str
+    unit: str
+    status: str  # 未集計・未確認・食い違い
+    detail: str  # 食い違いの内容など
+    proposals: list[str]  # この値を使う改善案（案1 など）
+    blocked: list[str]  # この値が分かるまで未確定の、計算する値の名前
+    for_simulation: bool  # 試算の入力値に使う
+
+
+def needs(project: Project) -> list[Need]:
+    """確認が必要な数値。全案件に同じ項目を求めず、改善案の効果や試算に必要な値だけを挙げる。"""
+    analysis = project.diagnosis.analysis
+    if not analysis.quantities:
+        return []
+    proposals = project.diagnosis.proposals.proposals if project.diagnosis.proposals else []
+    formulas = {d.qid: {n.id for n in _names(d.formula)} for d in analysis.derived}
+
+    def expand(ids: set[str]) -> set[str]:
+        out = set(ids)
+        for i in ids:
+            out |= expand(formulas[i]) if i in formulas else set()
+        return out
+
+    used_by: dict[str, list[str]] = {}
+    for no, p in enumerate(proposals, start=1):
+        for i in expand(set(p.effect_inputs)):
+            used_by.setdefault(i, []).append(f"案{no}")
+    sim_ids = expand({q.qid for q in analysis.quantities if q.sim_field} | {d.qid for d in analysis.derived if d.sim_field})
+    known = known_values(project)
+    blocked_by: dict[str, list[str]] = {}
+    for d in derived_values(project):
+        for name in d.missing_names:
+            blocked_by.setdefault(name, []).append(d.name)
+    result = []
+    for q in analysis.quantities:
+        k = known[q.qid]
+        if k.value is not None or (q.qid not in used_by and q.qid not in sim_ids):
+            continue
+        result.append(Need(q.qid, q.name, q.unit, k.status, k.source if k.status == "食い違い" else "",
+                           used_by.get(q.qid, []), blocked_by.get(q.name, []), q.qid in sim_ids))
+    if "hourly_cost" not in quantity_basis(project):
+        result.append(Need("hourly_cost", "時間あたり人件費", "円", "未確認", "", [], [], True))
     return result
 
 

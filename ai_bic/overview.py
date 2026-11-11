@@ -64,7 +64,7 @@ NUMBERS_KEY = "fact:numbers"  # 試算の元になる数値の確認（数値で
 
 
 def gaps(result: DiagnosisResult, hearing: HearingState, framework: Framework,
-         answers: dict | None = None, numbers_answered: str | None = None) -> list[Gap]:
+         answers: dict | None = None, numbers_answered: str | None = None, needs: list | None = None) -> list[Gap]:
     """まだ確認できていない情報（重要なものから。回答済みのものは最後）。
 
     answers：不足情報の key → 回答（project.GapAnswer）。numbers_answered：試算の元になる数値の確認状況の表示。
@@ -115,8 +115,12 @@ def gaps(result: DiagnosisResult, hearing: HearingState, framework: Framework,
             reason="分かると、改善案の選び方や効果の見込みがより確かになります。",
             affects=[f"課題「{issue.title}」"] + _targets(proposals, issue.issue_id), important=False))
 
-    # 4. 試算の元になる数値（月の作業時間の合計と内訳・件数・人件費）。計算結果の課題があれば、その確認にもなる
-    if result.proposals:
+    # 4. 数値の一覧がある案件（AI-BIC 3.1）：改善案の効果や試算に必要で、まだ分からない値だけを確認する
+    if result.proposals and result.analysis.quantities:
+        for n in needs or []:
+            found.append(number_gap(n))
+    # 4'. 一覧がない古い案件：試算の元になる数値（合計と内訳・件数・人件費）。計算結果の課題があれば、その確認にもなる
+    elif result.proposals:
         calculated = [f"課題「{i.title}」" for i in result.analysis.issues if i.evidence_type == "計算結果"]
         found.append(Gap(
             key=NUMBERS_KEY,
@@ -132,8 +136,31 @@ def gaps(result: DiagnosisResult, hearing: HearingState, framework: Framework,
     return sorted(found, key=lambda g: (bool(g.answered), not g.important))
 
 
+def number_gap(n) -> Gap:
+    """確認が必要な数値（facts.Need）の不足情報。"""
+    if n.status == "食い違い":
+        question = f"{n.name}：申告と資料の値が食い違っています（{n.detail}）。正しい値を確認してください"
+    elif n.status == "未集計":
+        question = f"{n.name}を教えてください（ヒアリングでは「集計していない」とのことでした。おおよそでも構いません）"
+    elif n.key == "hourly_cost":
+        question = "時間あたり人件費を教えてください（削減できる時間を、金額に換算するのに使います）"
+    else:
+        question = f"{n.name}を教えてください"
+    reasons = []
+    if n.proposals:
+        reasons.append(f"{'・'.join(n.proposals)}の効果を判断するのに必要です。")
+    if n.blocked:
+        reasons.append(f"「{'」「'.join(n.blocked)}」は、これが分かるまで未確定です。")
+    if n.for_simulation and not n.proposals:
+        reasons.append("効果試算に使います。")
+    affects = n.proposals + (["効果試算"] if n.for_simulation else []) + [f"「{b}」" for b in n.blocked]
+    # 改善案の効果の判断に必要な値は重要（主ボタンを「不足情報を確認する」にする）。試算の金額換算だけなら参考
+    return Gap(key=f"fact:{n.key}", question=question, reason="".join(reasons), affects=affects,
+               important=bool(n.proposals), numeric=True)
+
+
 def build(result: DiagnosisResult, hearing: HearingState, framework: Framework,
-          answers: dict | None = None, numbers_answered: str | None = None) -> Overview:
+          answers: dict | None = None, numbers_answered: str | None = None, needs: list | None = None) -> Overview:
     issues = {i.issue_id: i for i in result.analysis.issues}
     if result.proposals:
         top = issues.get(result.proposals.summary.top_issue_id)
@@ -144,7 +171,7 @@ def build(result: DiagnosisResult, hearing: HearingState, framework: Framework,
         top_issue=top,
         top_confirmation=CONFIRMATION[top.evidence_type] if top else "",
         first_action=first_action,
-        gaps=gaps(result, hearing, framework, answers, numbers_answered),
+        gaps=gaps(result, hearing, framework, answers, numbers_answered, needs),
     )
 
 

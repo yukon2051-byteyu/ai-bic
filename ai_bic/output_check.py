@@ -30,6 +30,7 @@ from ai_bic.models import (
     ProposalResult,
     QuestionResult,
 )
+from ai_bic.quantities import formula_problem
 
 # 引用の前後についていても無視する括弧類（AIが「」で囲んで引用することがあるため）
 QUOTE_BRACKETS = "「」『』\"'“”‘’"
@@ -268,6 +269,65 @@ def verify_evidences(
             issue.evidence_type = "要確認"
 
     return checked, downgraded
+
+
+def verify_quantities(
+    analysis: AnalysisResult,
+    info: BusinessInfo,
+    state: HearingState,
+    attachments: list[Attachment] | None = None,
+) -> tuple[AnalysisResult, dict[str, str]]:
+    """数値の一覧（AI-BIC 3.1）を、利用者の実際の入力と照合する。
+
+    - 確認済み：引用が指定の出どころに実在し、値の数字が引用の中にあること。だめなら「未確認」にして値を消す
+    - 未集計：その旨の発言（引用）が実在すること。だめなら「未確認」
+    - 計算する値（derived）：式が Q の番号・数・四則演算だけで、存在する番号だけを使うこと。だめなら一覧から外す
+    戻り値：(照合を反映した分析結果, Q／D の番号 → 理由)。元の analysis は変更しない。
+    """
+    attachments = attachments or []
+    business = [info.company_name or "", info.department, info.task_name, info.overview, info.pain_points]
+    answers = {turn.turn_no: turn.answer or "" for turn in state.turns}
+
+    def texts_for(q) -> list[str]:
+        if q.source == "業務情報":
+            return business
+        if q.source == "添付ファイル":
+            ok = q.file_no is not None and 1 <= q.file_no <= len(attachments)
+            return [attachments[q.file_no - 1].text] if ok else []
+        if q.source == "回答":
+            return [answers.get(q.turn_no, "")]
+        return []
+
+    checked = analysis.model_copy(deep=True)
+    notes: dict[str, str] = {}
+    seen = set()
+    for q in checked.quantities:
+        if q.qid in seen:
+            notes[q.qid] = "番号が重複しているため使いません"
+            q.status, q.value = "未確認", None
+            continue
+        seen.add(q.qid)
+        if q.status == "未確認":
+            q.value = None
+            continue
+        quote_ok = bool(q.quote) and _quote_found(q.quote, texts_for(q))
+        number_ok = q.status == "未集計" or (q.value is not None and q.value in _numbers(q.quote or ""))
+        if not (quote_ok and number_ok):
+            reason = "根拠の発言を入力の中に確認できなかった" if not quote_ok else "引用の中に、その数値がなかった"
+            notes[q.qid] = f"AIは「{q.status}」としましたが、{reason}ため「未確認」としています。"
+            q.status, q.value = "未確認", None
+        elif q.status == "未集計":
+            q.value = None
+    known = {q.qid for q in checked.quantities}
+    kept = []
+    for d in checked.derived:
+        problem = formula_problem(d.formula, known | {k.qid for k in kept})
+        if problem or d.qid in known:
+            notes[d.qid] = f"計算式（{d.formula}）を使えないため、計算しません（{problem or '番号が重複しています'}）。"
+        else:
+            kept.append(d)
+    checked.derived = kept
+    return checked, notes
 
 
 # ---------------------------------------------------------------

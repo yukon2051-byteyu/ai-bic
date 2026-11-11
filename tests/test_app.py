@@ -457,7 +457,8 @@ def test_試算の最上部に全改善案の削減時間と回収期間を並�
 def test_入力値の出どころは1行にまとめ_欄ごとに出さない(secrets):
     at = result_screen(secrets)
     texts = [m.value for m in at.markdown] + [c.value for c in at.caption]
-    assert any("□ デモ値（すべての項目）" in t for t in texts)
+    # 本文と同じ数値（ヒアリングで分かった件数・時間）は「ヒアリング」、それ以外はデモ値（AI-BIC 3.1）
+    assert any("◎ ヒアリング" in t and "□ デモ値" in t for t in texts)
     assert not any(c.value == "□ デモ値" for c in at.caption)  # 入力欄の下ごとの表示はしない
 
 
@@ -771,15 +772,6 @@ def answer_gap(at: AppTest, key: str, text: str, source: str = "本人の申告"
     return at
 
 
-def enter_numbers(at: AppTest, source: str = "本人の申告", **values) -> AppTest:
-    for name, value in values.items():
-        at.number_input(key=f"fact_{name}").set_value(value)
-    at.radio(key="fact_source").set_value(source)
-    at.button(key="gap_submit_numbers").click().run()
-    assert not at.exception
-    return at
-
-
 def test_不足情報にその場で答えると_要確認から回答済みになり_重要な不足がなくなれば主ボタンが変わる(secrets):
     at = production_result(secrets, extra="skip")
     assert at.button(key="go_gaps").proto.type == "primary"
@@ -792,15 +784,33 @@ def test_不足情報にその場で答えると_要確認から回答済みに�
     assert "✓ 回答済み（添付資料）" in all_text(at)
 
 
-def test_月20時間と転記12時間を確認すると60パーセントと式を表示する(secrets):
-    at = enter_numbers(production_result(secrets), total_hours=20.0, part_hours=12.0)
-    assert "12 ÷ 20 × 100 = 60%" in all_text(at)
+def fix_value(at: AppTest, qid: str, value: float, source: str = "本人の申告") -> AppTest:
+    at.selectbox(key="qfix_qid").set_value(qid)
+    at.number_input(key="qfix_value").set_value(value)
+    at.radio(key="qfix_source").set_value(source)
+    at.button(key="qfix_submit").click().run()
+    assert not at.exception
+    return at
+
+
+def test_月20時間と転記12時間から_割合60パーセントを式つきで表示し_本文と不足情報と試算で同じ値を使う(secrets):
+    at = production_result(secrets)
+    text = all_text(at)
+    assert "12時間 ÷ 20時間 × 100 ＝ 60%" in text and "20時間 × 60 ÷ 4台 ＝ 300分" in text
+    assert "合計と内訳" not in text and "fact:numbers" not in at.session_state.project.gap_answers  # 4つの数値を機械的に求めない
+    sim = at.session_state.project.simulations["P1"]
+    assert sim.minutes_per_case == 300 and sim.source_of("minutes_per_case") == "ヒアリング"
 
 
 def test_内訳が合計を超えると割合を出さず_入力の確認を求める(secrets):
-    at = enter_numbers(production_result(secrets), total_hours=20.0, part_hours=25.0)
+    at = fix_value(production_result(secrets), "Q2", 25.0)  # 転記の時間を25時間に直す（合計20時間を超える）
     text = all_text(at)
-    assert "内訳（25）が合計（20）を上回っています" in text and "%" not in text.split("最も時間がかかる作業の割合")[1][:20]
+    assert "内訳が合計を上回っています" in text and "÷ 20時間 × 100 ＝" not in text
+
+
+def test_合計が0なら割合と1件あたりの時間を計算しない(secrets):
+    at = fix_value(production_result(secrets), "Q1", 0.0)
+    assert "分母が0" in all_text(at)
 
 
 def test_確認した数値で試算は計算し直し_手入力した値は残して元の値が変わったと示す(secrets):
@@ -808,7 +818,7 @@ def test_確認した数値で試算は計算し直し_手入力した値は残�
     at.radio(key="compare_plan").set_value("P2").run()
     at.button(key="go_sim").click().run()
     at.number_input(key="sim_P2_minutes_per_case").set_value(200.0).run()  # 案2だけ手入力
-    enter_numbers(at, total_hours=24.0, cases_per_month=4.0)
+    fix_value(at, "Q1", 24.0)  # 月の集計時間を24時間に直す → 1台分は 24×60÷4＝360分
     sims = at.session_state.project.simulations
     assert sims["P1"].minutes_per_case == 360 and sims["P1"].source_of("minutes_per_case") == "本人の申告"
     assert sims["P2"].minutes_per_case == 200  # 手入力の値は残す

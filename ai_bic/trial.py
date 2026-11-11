@@ -33,16 +33,23 @@ def assumptions_of(inputs: sim.SimulationInputs | None) -> list[str]:
     return lines
 
 
-def default_metrics(inputs: sim.SimulationInputs | None) -> list[TrialMetric]:
-    """最初の測定項目：1件あたりの作業時間（改善前・試算値つき）、誤りの件数、例外処理の確認。"""
+def default_metrics(inputs: sim.SimulationInputs | None, effect_metric: str | None = None) -> list[TrialMetric]:
+    """最初の測定項目：その案の効果を測る指標（あれば）、1件あたりの作業時間（改善前・試算値つき）、誤りの件数、例外処理の確認。
+
+    作業時間の短縮を直接の目的としない案（例：記入漏れを減らす）は、その案の指標を先頭の必須の項目にし、
+    作業時間は参考の項目にする（AI-BIC 3.1）。
+    """
     minutes = inputs.minutes_per_case if inputs else None
     rate = inputs.reduction_rate if inputs else None
     estimate = round(minutes * (1 - rate / 100), 1) if minutes is not None and rate is not None else None
-    return [
-        TrialMetric(name="1件あたりの作業時間", unit="分", baseline=minutes, estimate=estimate, target=estimate),
-        TrialMetric(name="誤り・差異の件数", unit="件", target=0),
-        TrialMetric(name="例外の処理（想定外の形式など）", kind="確認", check_target="すべて処理できる"),
-    ]
+    time_metric = TrialMetric(name="1件あたりの作業時間", unit="分", baseline=minutes, estimate=estimate, target=estimate)
+    rest = [TrialMetric(name="誤り・差異の件数", unit="件", target=0),
+            TrialMetric(name="例外の処理（想定外の形式など）", kind="確認", check_target="すべて処理できる")]
+    metric = (effect_metric or "").strip()
+    if not metric or "作業時間" in metric:
+        return [time_metric] + rest
+    # その案の指標を必須に、作業時間は参考にする（誤りの件数の一般的な項目は、指標と重なりやすいので入れない）
+    return [TrialMetric(name=metric), time_metric.model_copy(update={"required": False}), rest[1]]
 
 
 def new_plan(project: Project) -> TrialPlan:
@@ -54,7 +61,7 @@ def new_plan(project: Project) -> TrialPlan:
     proposal = d.proposal if d else project.diagnosis.proposals.proposals[pj.proposal_ids(project).index(pid)]
     inputs = d.simulation if d else project.simulations.get(pid)
     return TrialPlan(pid=pid, risks=list(proposal.risks), assumptions=assumptions_of(inputs),
-                     metrics=default_metrics(inputs), created_at=pj.now())
+                     metrics=default_metrics(inputs, proposal.effect_metric), created_at=pj.now())
 
 
 def demo_plan(project: Project, sample: dict) -> TrialPlan:

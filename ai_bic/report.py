@@ -20,7 +20,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from ai_bic import simulation as sim
 from ai_bic.flow import Flow, compare_flows
 from ai_bic.models import BusinessInfo, DiagnosisResult, Framework, HearingState
-from ai_bic.facts import decision_changes
+from ai_bic.facts import decision_changes, derived_values, known_values, needs
 from ai_bic.overview import relation_tags
 from ai_bic.project import Project, proposal_ids
 from ai_bic.trial import assumptions_of as trial_assumptions
@@ -58,7 +58,7 @@ def build_report(
     project：案件データ。渡すと「試行・判定」シートを加える（AI-BIC 3.0）
     """
     wb = Workbook()
-    _summary_sheet(wb.active, info, state, result, framework, created_at, demo, sample_of)
+    _summary_sheet(wb.active, info, state, result, framework, created_at, demo, sample_of, project)
     _issues_sheet(wb.create_sheet("課題"), result, framework, sample=sample_of is not None)
     _proposals_sheet(wb.create_sheet("改善案"), result)
     if project is not None:
@@ -72,7 +72,7 @@ def build_report(
 # ---------------------------------------------------------------
 # シートごとの内容
 # ---------------------------------------------------------------
-def _summary_sheet(ws, info, state, result, framework, created_at, demo, sample_of=None) -> None:
+def _summary_sheet(ws, info, state, result, framework, created_at, demo, sample_of=None, project=None) -> None:
     ws.title = "サマリー"
     analysis, proposals = result.analysis, result.proposals
     issues_by_id = {i.issue_id: i for i in analysis.issues}
@@ -105,6 +105,8 @@ def _summary_sheet(ws, info, state, result, framework, created_at, demo, sample_
     else:
         rows.append(("要点", "お聞きした範囲では、明確な課題は確認できませんでした。改善案は作成していません。"))
 
+    if project is not None and analysis.quantities:
+        rows += quantity_rows(project)
     issue_lines = [f"{i.title}（{_issue_label(i, result)}）" for i in analysis.issues]
     rows.append(("抽出された課題", _bullets(issue_lines) or "なし"))
 
@@ -252,6 +254,29 @@ def _trial_sheet(ws, project: Project) -> None:
             for c, value in enumerate(row, start=1):
                 _put(ws, start + i, c, value)
     _format(ws, [22, 60, 8, 10, 12, 16, 10, 22, 10, 30])
+
+
+def quantity_rows(project: Project) -> list[tuple[str, str]]:
+    """分かっている数値と、計算する値・未確定の値（画面の「分かっている数値」と同じ内容。AI-BIC 3.1）。"""
+    known = known_values(project)
+    lines = []
+    for q in project.diagnosis.analysis.quantities:
+        k = known[q.qid]
+        lines.append(f"✓ {q.name}：{sim.fmt(k.value)}{q.unit}（{k.source}）" if k.value is not None
+                     else f"？ {q.name}：{k.status}")
+    calcs = []
+    for d in derived_values(project):
+        if d.calc.value is not None:
+            calcs.append(f"✓ {d.name}：{d.calc.text}")
+        else:
+            calcs.append(f"？ {d.name}：" + (d.calc.error or f"未確定（{'・'.join(d.missing_names)}が分かるまで）"))
+    rows = [("分かっている数値", _bullets(lines))]
+    if calcs:
+        rows.append(("計算する値", _bullets(calcs)))
+    open_needs = [f"{n.name}（{n.status}）" for n in needs(project)]
+    if open_needs:
+        rows.append(("確認が必要な数値", _bullets(open_needs)))
+    return rows
 
 
 def _text(value: float | None, unit: str) -> str:

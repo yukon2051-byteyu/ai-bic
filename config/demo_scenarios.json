@@ -211,6 +211,84 @@
         "no_issue_viewpoints": [
           "V4",
           "V7"
+        ],
+        "quantities": [
+          {
+            "qid": "Q1",
+            "name": "月次集計の作業時間（月の合計、2人分）",
+            "value": 20,
+            "unit": "時間",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 1,
+            "file_no": null,
+            "quote": "合計で20時間くらいかかります",
+            "sim_field": null
+          },
+          {
+            "qid": "Q2",
+            "name": "転記の作業時間（月）",
+            "value": 12,
+            "unit": "時間",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 2,
+            "file_no": null,
+            "quote": "品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです",
+            "sim_field": null
+          },
+          {
+            "qid": "Q3",
+            "name": "集計の担当人数",
+            "value": 2,
+            "unit": "人",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 1,
+            "file_no": null,
+            "quote": "私と後輩の2人で作業しています",
+            "sim_field": null
+          },
+          {
+            "qid": "Q4",
+            "name": "設備の台数（試算の1件＝設備1台分の月次データ）",
+            "value": 4,
+            "unit": "台",
+            "status": "確認済み",
+            "source": "業務情報",
+            "turn_no": null,
+            "file_no": null,
+            "quote": "工場の4台の設備から出力される日々の生産実績",
+            "sim_field": "cases_per_month"
+          },
+          {
+            "qid": "Q5",
+            "name": "転記漏れの件数（10月）",
+            "value": 1,
+            "unit": "件",
+            "status": "確認済み",
+            "source": "添付ファイル",
+            "turn_no": null,
+            "file_no": 1,
+            "quote": "10月は組立ラインの数量の転記漏れが1件あった",
+            "sim_field": null
+          }
+        ],
+        "derived": [
+          {
+            "qid": "D1",
+            "name": "集計作業のうち転記の割合",
+            "formula": "Q2 / Q1 * 100",
+            "unit": "%",
+            "sim_field": null
+          },
+          {
+            "qid": "D2",
+            "name": "設備1台分の集計時間",
+            "formula": "Q1 * 60 / Q4",
+            "unit": "分",
+            "sim_field": "minutes_per_case"
+          }
         ]
       },
       "proposals": {
@@ -224,6 +302,10 @@
             "title": "設備データの書き方をそろえる変換表と、集計手順の標準化",
             "short_title": "変換表と集計手順の標準化",
             "reduces": "書き方の読み替えと転記の誤り",
+            "effect_metric": "集計の誤りの件数",
+            "effect_inputs": [
+              "Q5"
+            ],
             "category": "業務標準化",
             "description": "設備ごとの日付・品番の書き方と、集計表の書き方の対応を変換表にまとめ、転記と照合の手順を手順書にする。",
             "target_issue_ids": [
@@ -251,6 +333,11 @@
             "title": "Excelのデータ取り込み機能で、4設備のCSVを自動で取り込む",
             "short_title": "Excelで自動取り込み",
             "reduces": "転記の時間",
+            "effect_metric": "月の転記の時間",
+            "effect_inputs": [
+              "Q2",
+              "D1"
+            ],
             "category": "既存ツールの活用",
             "description": "Excelのデータの取得（Power Query）で、決まったフォルダに置いた4設備のCSVを取り込み、書き方をそろえて集計表を作る。",
             "target_issue_ids": [
@@ -279,6 +366,10 @@
             "title": "集計の締めを前倒しし、会議前日に工場長が確認する",
             "short_title": "締めの前倒しと前日確認",
             "reduces": "会議で見つかる誤りと手戻り",
+            "effect_metric": "会議で見つかる誤りの件数",
+            "effect_inputs": [
+              "Q5"
+            ],
             "category": "業務ルールの見直し",
             "description": "月の途中までのデータを週ごとに集計しておき、月初は残りだけを集計する。会議の前日に工場長が集計結果を確認する。",
             "target_issue_ids": [
@@ -1631,6 +1722,84 @@
         "no_issue_viewpoints": [
           "V4",
           "V7"
+        ],
+        "quantities": [
+          {
+            "qid": "Q1",
+            "name": "月次集計の作業時間（月の合計）",
+            "value": 12,
+            "unit": "時間",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 2,
+            "file_no": null,
+            "quote": "合計で12時間くらいです",
+            "sim_field": null
+          },
+          {
+            "qid": "Q2",
+            "name": "営業所の数（試算の1件＝営業所1か所分のファイル）",
+            "value": 5,
+            "unit": "件",
+            "status": "確認済み",
+            "source": "業務情報",
+            "turn_no": null,
+            "file_no": null,
+            "quote": "5つの営業所から届く売上Excel",
+            "sim_field": "cases_per_month"
+          },
+          {
+            "qid": "Q3",
+            "name": "集計の担当人数",
+            "value": 1,
+            "unit": "人",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 2,
+            "file_no": null,
+            "quote": "私1人で作業しています",
+            "sim_field": null
+          },
+          {
+            "qid": "Q4",
+            "name": "数字の不一致の原因調査の時間（1回あたり）",
+            "value": 3,
+            "unit": "時間",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 1,
+            "file_no": null,
+            "quote": "原因を探すのに毎回3時間ほどかかります",
+            "sim_field": null
+          },
+          {
+            "qid": "Q5",
+            "name": "数字の不一致の月間発生回数",
+            "value": null,
+            "unit": "回",
+            "status": "未確認",
+            "source": null,
+            "turn_no": null,
+            "file_no": null,
+            "quote": null,
+            "sim_field": null
+          }
+        ],
+        "derived": [
+          {
+            "qid": "D1",
+            "name": "営業所1か所分の集計時間",
+            "formula": "Q1 * 60 / Q2",
+            "unit": "分",
+            "sim_field": "minutes_per_case"
+          },
+          {
+            "qid": "D2",
+            "name": "原因調査を含む月の作業時間",
+            "formula": "Q1 + Q4 * Q5",
+            "unit": "時間",
+            "sim_field": null
+          }
         ]
       },
       "proposals": {
@@ -1644,6 +1813,8 @@
             "title": "集計手順書の作成と、副担当者の設定",
             "short_title": "手順書と副担当者の設定",
             "reduces": "担当者1人への依存",
+            "effect_metric": "集計できる人の数",
+            "effect_inputs": [],
             "category": "業務ルールの見直し",
             "description": "現在の集計手順を画面の写真つきで手順書にまとめ、副担当者を1人決めて、年に数回は副担当者が集計を行います。",
             "target_issue_ids": [
@@ -1672,6 +1843,10 @@
             "title": "営業所の提出様式の統一",
             "short_title": "営業所の提出様式を統一",
             "reduces": "営業所ごとの様式の読み替え",
+            "effect_metric": "月の転記の時間",
+            "effect_inputs": [
+              "D1"
+            ],
             "category": "業務標準化",
             "description": "売上報告の提出用Excelを1つの様式にそろえ、全営業所に同じファイルで提出してもらいます。項目の並びを集計用ファイルと同じにします。",
             "target_issue_ids": [
@@ -1700,6 +1875,10 @@
             "title": "表計算ソフトの集計機能による自動集計",
             "short_title": "表計算で自動集計",
             "reduces": "転記と電卓での検算",
+            "effect_metric": "月の作業時間（原因調査を含む）",
+            "effect_inputs": [
+              "D2"
+            ],
             "category": "既存ツールの活用",
             "description": "様式の統一後、集計用ファイルに各営業所のファイルを読み込んで合計する計算式を組み込み、コピーと貼り付け、電卓での検算をなくします。",
             "target_issue_ids": [
@@ -3008,6 +3187,77 @@
         ],
         "no_issue_viewpoints": [
           "V2"
+        ],
+        "quantities": [
+          {
+            "qid": "Q1",
+            "name": "1日の修理依頼の受付件数",
+            "value": 40,
+            "unit": "件",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 3,
+            "file_no": null,
+            "quote": "1日に40件ほどを4人で受けています",
+            "sim_field": null
+          },
+          {
+            "qid": "Q2",
+            "name": "受付の担当人数",
+            "value": 4,
+            "unit": "人",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 3,
+            "file_no": null,
+            "quote": "1日に40件ほどを4人で受けています",
+            "sim_field": null
+          },
+          {
+            "qid": "Q3",
+            "name": "1日の状況確認の電話の件数",
+            "value": 10,
+            "unit": "件",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 3,
+            "file_no": null,
+            "quote": "お客様からの状況確認の電話も1日に10件以上あります",
+            "sim_field": null
+          },
+          {
+            "qid": "Q4",
+            "name": "月の営業日数",
+            "value": null,
+            "unit": "日",
+            "status": "未確認",
+            "source": null,
+            "turn_no": null,
+            "file_no": null,
+            "quote": null,
+            "sim_field": null
+          },
+          {
+            "qid": "Q5",
+            "name": "1件あたりの受付・手配の時間",
+            "value": null,
+            "unit": "分",
+            "status": "未確認",
+            "source": null,
+            "turn_no": null,
+            "file_no": null,
+            "quote": null,
+            "sim_field": "minutes_per_case"
+          }
+        ],
+        "derived": [
+          {
+            "qid": "D1",
+            "name": "月の修理依頼の受付件数",
+            "formula": "Q1 * Q4",
+            "unit": "件",
+            "sim_field": "cases_per_month"
+          }
         ]
       },
       "proposals": {
@@ -3021,6 +3271,10 @@
             "title": "受付票の保管方法と、状況の記入ルールの統一",
             "short_title": "受付票の保管と記入ルール",
             "reduces": "受付票の探し回り",
+            "effect_metric": "状況確認の電話に答えるまでの時間",
+            "effect_inputs": [
+              "Q3"
+            ],
             "category": "業務ルールの見直し",
             "description": "受付票に案件番号を振り、決まった棚に番号順で保管します。業者から返事が来たら、受け付けた人に限らず、電話を受けた人が「手配済み」「訪問日確定」「完了」などの状況を受付票に記入するルールにします。",
             "target_issue_ids": [
@@ -3049,6 +3303,11 @@
             "title": "表計算ソフトの共有ファイルによる案件一覧の管理",
             "short_title": "共有ファイルで案件管理",
             "reduces": "状況の問い合わせへの回答時間",
+            "effect_metric": "状況確認の電話の件数",
+            "effect_inputs": [
+              "Q3",
+              "Q5"
+            ],
             "category": "既存ツールの活用",
             "description": "部署の共有フォルダに案件一覧の表を作り、受付時に直接入力します。業者からの返事も同じ表に記入し、お客様名や電話番号で検索して状況をすぐに答えられるようにします。",
             "target_issue_ids": [
@@ -3080,6 +3339,11 @@
             "title": "受付管理の仕組み（クラウド型の受付・手配管理システム）の導入検討",
             "short_title": "受付管理システムの検討",
             "reduces": "受付と手配の管理の手間",
+            "effect_metric": "受付・手配の作業時間",
+            "effect_inputs": [
+              "Q1",
+              "Q5"
+            ],
             "category": "新規システム導入",
             "description": "案2の運用で限界が確認できた場合に、受付から業者への手配、業者からの返事までを1か所で管理できる仕組みの導入を検討します。",
             "target_issue_ids": [
@@ -4250,6 +4514,84 @@
         "no_issue_viewpoints": [
           "V2",
           "V6"
+        ],
+        "quantities": [
+          {
+            "qid": "Q1",
+            "name": "月の精算書の件数（試算の1件＝精算書1枚）",
+            "value": 120,
+            "unit": "件",
+            "status": "確認済み",
+            "source": "業務情報",
+            "turn_no": null,
+            "file_no": null,
+            "quote": "社員約120名が、毎月末に紙の精算書へ交通費を記入し",
+            "sim_field": "cases_per_month"
+          },
+          {
+            "qid": "Q2",
+            "name": "確認・入力の担当人数",
+            "value": 2,
+            "unit": "人",
+            "status": "確認済み",
+            "source": "業務情報",
+            "turn_no": null,
+            "file_no": null,
+            "quote": "総務部の2名が内容と金額を確認し",
+            "sim_field": null
+          },
+          {
+            "qid": "Q3",
+            "name": "確認・入力にかかる日数（月）",
+            "value": 3,
+            "unit": "日",
+            "status": "確認済み",
+            "source": "業務情報",
+            "turn_no": null,
+            "file_no": null,
+            "quote": "毎月の締め後3日間ほど、2名で確認と入力にかかりきりになる",
+            "sim_field": null
+          },
+          {
+            "qid": "Q4",
+            "name": "確認・入力の1日あたりの作業時間（1人）",
+            "value": null,
+            "unit": "時間",
+            "status": "未確認",
+            "source": null,
+            "turn_no": null,
+            "file_no": null,
+            "quote": null,
+            "sim_field": null
+          },
+          {
+            "qid": "Q5",
+            "name": "月の差し戻し件数",
+            "value": 20,
+            "unit": "件",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 1,
+            "file_no": null,
+            "quote": "毎月20件くらいです",
+            "sim_field": null
+          }
+        ],
+        "derived": [
+          {
+            "qid": "D1",
+            "name": "月の確認・入力の時間",
+            "formula": "Q2 * Q3 * Q4",
+            "unit": "時間",
+            "sim_field": null
+          },
+          {
+            "qid": "D2",
+            "name": "精算書1枚あたりの作業時間",
+            "formula": "D1 * 60 / Q1",
+            "unit": "分",
+            "sim_field": "minutes_per_case"
+          }
         ]
       },
       "proposals": {
@@ -4263,6 +4605,10 @@
             "title": "精算書の記入見本と、提出前チェックリストの配布",
             "short_title": "記入見本と提出前チェック",
             "reduces": "記入の誤りと差し戻し",
+            "effect_metric": "月の差し戻し件数",
+            "effect_inputs": [
+              "Q5"
+            ],
             "category": "業務標準化",
             "description": "よくある間違い（運賃の計算、押印漏れ）を示した記入見本と、提出前に社員と上長が確認するチェックリストを配布します。",
             "target_issue_ids": [
@@ -4289,6 +4635,10 @@
             "title": "表計算ソフトの精算書様式による自動計算",
             "short_title": "表計算で精算を標準化",
             "reduces": "金額の計算と記入漏れ",
+            "effect_metric": "月の確認・入力の時間",
+            "effect_inputs": [
+              "D1"
+            ],
             "category": "既存ツールの活用",
             "description": "紙の精算書を、社内のパソコンで使う表計算ソフトの様式に切り替えます。合計金額は計算式で自動計算し、未入力の欄があれば分かるようにします。印刷して領収書を貼り、上長が押印する流れは変えず、原本保管の規定も守ります。",
             "target_issue_ids": [
@@ -4316,6 +4666,10 @@
             "title": "精算データから、会計ソフトの取り込み用ファイルを自動作成",
             "short_title": "会計ソフトへの連携",
             "reduces": "会計ソフトへの手入力",
+            "effect_metric": "月の確認・入力の時間",
+            "effect_inputs": [
+              "D1"
+            ],
             "category": "自動化",
             "description": "案2の様式で集まった精算書のファイルを、表計算ソフトのマクロ（作業を自動で実行する仕組み）で1つにまとめ、会計ソフトに取り込める形式のファイルを自動で作成します。総務部の手入力をなくします。",
             "target_issue_ids": [

@@ -120,12 +120,17 @@ def test_試行の測定結果は画面で入力して保存でき_必須が未�
     at.button(key="review_decide_P1").click().run()
     at.button(key="review_trial_P1").click().run()
     assert at.button(key="trial_decide").disabled
-    at.number_input(key="trial_m0_actual").set_value(200.0)
-    at.number_input(key="trial_m1_actual").set_value(0.0)
+    metrics = at.session_state.project.trial.metrics
+    # 案1は作業時間の短縮が直接の目的ではないため、案の指標（集計の誤りの件数）が先頭の必須の項目、作業時間は参考（AI-BIC 3.1）
+    assert [m.name for m in metrics] == ["集計の誤りの件数", "1件あたりの作業時間", "例外の処理（想定外の形式など）"]
+    assert metrics[0].required and not metrics[1].required
+    at.number_input(key="trial_m0_target").set_value(0.0)
+    at.number_input(key="trial_m0_actual").set_value(0.0)
+    at.number_input(key="trial_m1_actual").set_value(200.0)
     at.radio(key="trial_m2_check_result").set_value("成功")
     at.button(key="trial_metrics_save").click().run()
     metrics = at.session_state.project.trial.metrics
-    assert metrics[0].actual == 200 and metrics[0].estimate == 255 and metrics[0].target == 255
+    assert metrics[1].actual == 200 and metrics[1].estimate == 255 and metrics[1].target == 255
     assert "判定の目安　展開する" in all_text(at)
     assert not at.button(key="trial_decide").disabled
 

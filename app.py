@@ -582,7 +582,8 @@ def render_result() -> None:
     # --- 1. 結論と次の操作（最大の課題・最初にやること・次の判断に必要な情報 → 主ボタン。AI-BIC 3.0） ---
     if partial:
         html(ui.sample_banner(answered, len(s.hearing_state.turns)))
-    ov = overview.build(result, s.hearing_state, FRAMEWORK, s.project.gap_answers, facts.numbers_summary(s.project))
+    ov = overview.build(result, s.hearing_state, FRAMEWORK, s.project.gap_answers, facts.numbers_summary(s.project),
+                        facts.needs(s.project))
     result_top.render_decision(ov, has_proposals=result.proposals is not None)
     if s.get("loaded"):
         html(ui.note("読み込んだAI診断の案件です。費用を管理するため、AIを使う操作はできません。"))
@@ -614,6 +615,9 @@ def render_result() -> None:
     html(ui.label("Overview", "業務の概要"))
     html(f'<span class="bic-tag">{ui.esc(info.department)}</span><span class="bic-tag">{ui.esc(info.task_name)}</span>')
     st.write(analysis.business_summary)
+    if analysis.quantities:  # 本文・不足情報・試算で同じ値と出どころを使う（AI-BIC 3.1）
+        html(result_top.quantity_panel(s.project))
+        result_top.render_fix_form(s.project)
     meta = [s.hearing_state.finished_reason]
     if s.hearing_state.extra_finished_reason:
         meta.append(s.hearing_state.extra_finished_reason)

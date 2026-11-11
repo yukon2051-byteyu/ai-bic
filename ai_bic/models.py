@@ -155,12 +155,49 @@ class Issue(BaseModel):
     followup_questions: list[str]
 
 
+QuantityStatus = Literal["確認済み", "未集計", "未確認"]
+SimField = Literal["minutes_per_case", "cases_per_month", "hourly_cost"]
+
+
+class Quantity(BaseModel):
+    """入力から分かる数値（AI-BIC 3.1）。本文・不足情報・試算で同じ値と出どころを使うための一覧。
+
+    確認済み：利用者が述べた値（quote に原文。プログラムが入力と照合し、確認できなければ「未確認」にする）
+    未集計：利用者が「数えていない」などと述べた値（value は null。quote にその発言）
+    未確認：判断に必要だが、述べられていない値（value・quote は null）
+    """
+
+    qid: str  # Q1, Q2 …（計算式や改善案から参照する）
+    name: str  # 何の数値か（範囲が分かる名前。例：通常の照合の作業時間（1日あたり））
+    value: float | None
+    unit: str  # 分・時間・日・人・件・円・% など
+    status: QuantityStatus
+    source: Literal["業務情報", "回答", "添付ファイル"] | None
+    turn_no: int | None
+    file_no: int | None
+    quote: str | None
+    sim_field: SimField | None = None  # 効果試算のどの入力値に当たるか（試算の単位：分／件／円）
+
+
+class DerivedQuantity(BaseModel):
+    """数値の一覧から計算する値（計算はプログラムが行う。例：Q1 * Q2 / 60）。"""
+
+    qid: str  # D1, D2 …
+    name: str
+    formula: str  # Q の番号・数・+ - * / ( ) だけを使う式
+    unit: str
+    sim_field: SimField | None = None
+
+
 class AnalysisResult(BaseModel):
     """課題分析のAIが返す内容。"""
 
     business_summary: str
     issues: list[Issue]
     no_issue_viewpoints: list[str]
+    # 入力から分かる数値と、そこから計算する値（AI-BIC 3.1。古い保存データにはない）
+    quantities: list[Quantity] = Field(default_factory=list)
+    derived: list[DerivedQuantity] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------
@@ -176,6 +213,10 @@ class Proposal(BaseModel):
     # 比較表の「主に減らすもの」（例：転記の時間と誤り）。古い保存データやAIが書かなかったときは None
     # （画面では、対象の課題の名前で代わりに示す）
     reduces: str | None = None
+    # 効果を測る指標（例：月の作業時間、月の記入漏れの日数）。作業時間の短縮が目的でない案は、その案に合う指標にする
+    effect_metric: str | None = None
+    # 効果を判断するのに必要な数値（課題分析の数値の一覧の Q／D の番号）。不足情報欄では、これだけを確認する
+    effect_inputs: list[str] = Field(default_factory=list)
     category: ProposalCategory
     description: str
     target_issue_ids: list[str]
@@ -339,3 +380,5 @@ class DiagnosisResult(BaseModel):
     proposals: ProposalResult | None  # 課題が0件のときは None（提案のAIを呼ばない）
     downgraded: dict[str, str]  # 根拠を確認できず「要確認」に格下げした課題ID → 格下げの理由
     missing_item_ids: list[str]  # 情報が不足している診断項目（R6）
+    # 数値の一覧のうち、引用を入力の中に確認できず「未確認」にしたもの（Q の番号 → 理由。AI-BIC 3.1）
+    quantity_notes: dict[str, str] = Field(default_factory=dict)

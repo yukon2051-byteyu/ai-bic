@@ -53,9 +53,11 @@ def ensure_inputs(project: Project) -> None:
     デモ：シナリオに用意したデモ値をすべて入れる（出どころ「デモ値」。架空のサンプルと明示する）。
     """
     demo = demo_values(project)
+    created = False
     for no, pid in enumerate(pj.proposal_ids(project)):
         if pid in project.simulations:
             continue
+        created = True
         if demo:
             values = {**demo["base"], **demo["proposals"][no]}
             project.simulations[pid] = sim.SimulationInputs(
@@ -65,6 +67,9 @@ def ensure_inputs(project: Project) -> None:
             project.simulations[pid] = sim.prefill(project.business_info.task_name, project.diagnosis.analysis).inputs
         project.scenarios[pid] = sim.blank_scenarios()
         pj.mark_updated(project, "simulation", pid)
+    # 本文と同じ数値（入力と照合した数値の一覧）を、試算の元の値にも使う（AI-BIC 3.1。デモの値より優先）
+    if created and project.diagnosis.analysis.quantities:
+        facts.apply_to_simulations(project)
 
 
 def input_notes(project: Project) -> list[str]:

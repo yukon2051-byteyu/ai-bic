@@ -30,6 +30,7 @@ from ai_bic.demo_client import demo_attachments, load_scenarios  # noqa: E402
 from ai_bic.errors import AIError  # noqa: E402
 from ai_bic.hearing import add_answer, request_next_question, run_diagnosis, start_hearing  # noqa: E402
 from ai_bic.overview import valid_relations  # noqa: E402
+from ai_bic.facts import derived_values, known_values, needs, quantity_basis  # noqa: E402
 from ai_bic.flow import time_per_case  # noqa: E402
 from ai_bic.flow_ai import generate_flows  # noqa: E402
 from ai_bic.models import BusinessInfo, DiagnosisResult, HearingState  # noqa: E402
@@ -204,6 +205,23 @@ def main() -> int:
         for r in result.proposals.relations:
             mark = "" if r in kept else "【出さない】"
             print(f"  {mark}{r.kind}：案{r.first}→案{r.second}　{r.reason}")
+        # 数値の一覧（AI-BIC 3.1）：照合の結果・計算する値・確認が必要な数値・改善案の効果の測り方
+        qp = new_project("ai", info, state, result)
+        print("\n■ 数値の一覧（照合後）")
+        for qq in result.analysis.quantities:
+            k = known_values(qp)[qq.qid]
+            note = result.quantity_notes.get(qq.qid, "")
+            print(f"  {qq.qid} {qq.name}：{k.value}{qq.unit if k.value is not None else ''}（{k.status}・{k.source}）"
+                  f"{' 試算=' + qq.sim_field if qq.sim_field else ''} {note}")
+        for dv in derived_values(qp):
+            print(f"  {dv.qid} {dv.name}：{dv.calc.text or dv.calc.error or '未確定（' + '・'.join(dv.missing_names) + 'が分かるまで）'}")
+        for k, v in result.quantity_notes.items():
+            if k.startswith("D"):
+                print(f"  {k}：{v}")
+        print("  試算の元の値：", quantity_basis(qp))
+        print("  確認が必要：", [(n.name, n.status, n.proposals, n.blocked) for n in needs(qp)])
+        for n, pp in enumerate(result.proposals.proposals, start=1):
+            print(f"  案{n} 効果の指標：{pp.effect_metric}／必要な数値：{pp.effect_inputs}")
 
     project = None
     if args.flows and result and result.proposals:

@@ -28,7 +28,7 @@ from ai_bic.models import (
     ProposalResult,
     QuestionResult,
 )
-from ai_bic.output_check import verify_evidences
+from ai_bic.output_check import verify_evidences, verify_quantities
 from ai_bic.readiness import evaluate, extra_count, extra_targets
 
 # 終了理由（結果画面と利用状況の確認に使う）
@@ -259,12 +259,14 @@ def run_diagnosis(
     judge_last_answers(client, info, state, framework)
 
     if cache and cache.get("attachments") == attachments:
-        checked, downgraded = cache["analysis"]
+        checked, downgraded, quantity_notes = cache["analysis"]
     else:
         analysis = client.analyze(info, state, framework, attachments)
         checked, downgraded = verify_evidences(analysis, info, state, attachments)
+        # 数値の一覧も、同じ入力と照合する（AI-BIC 3.1。確認できない数値は「未確認」にする）
+        checked, quantity_notes = verify_quantities(checked, info, state, attachments)
         if cache is not None:
-            cache.update(attachments=attachments, analysis=(checked, downgraded))
+            cache.update(attachments=attachments, analysis=(checked, downgraded, quantity_notes))
 
     # 課題が0件なら改善提案のAIを呼ばない（費用削減・課題の捏造防止）
     proposals = client.propose(info, state, checked) if checked.issues else None
@@ -275,4 +277,5 @@ def run_diagnosis(
         proposals=proposals,
         downgraded=downgraded,
         missing_item_ids=[item.id for item in missing_items(state, framework)],
+        quantity_notes=quantity_notes,
     )

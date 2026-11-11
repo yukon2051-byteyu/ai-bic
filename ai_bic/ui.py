@@ -314,6 +314,10 @@ a.bic-brand:hover {{ opacity: .7; }}
 .bic-relations {{ margin: .2rem 0 .6rem; padding-left: 1.2rem; font-size: .86rem; line-height: 1.7; color: var(--ink); }}
 .bic-relations b {{ color: var(--accent); }}
 
+/* 分かっている数値と計算する値（AI-BIC 3.1） */
+.bic-quantities {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px; padding: .6rem .9rem; margin: .4rem 0 .6rem; }}
+.bic-quantities .k {{ font-weight: 700; color: var(--accent); font-size: .9rem; }}
+
 /* 不足情報のカード（重要なものから） */
 .bic-gap {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px; padding: .7rem .9rem; margin: .4rem 0; }}
 .bic-gap .q {{ font-weight: 700; color: var(--accent); margin: .3rem 0 .2rem; line-height: 1.6; }}
