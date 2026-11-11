@@ -16,7 +16,7 @@ from ai_bic import config
 from ai_bic import project as pj
 from ai_bic import simulation as sim
 from ai_bic.errors import AIError
-from ai_bic.facts import affected_pids
+from ai_bic.facts import affected_pids, assumption_lines, needs
 from ai_bic.flow import compare_flows
 from ai_bic.models import Proposal, ReviewFinding, ReviewResult, RevisedProposal
 from ai_bic.output_check import _quote_found
@@ -199,6 +199,11 @@ def review_context(project: Project, pid: str, rules: list[RuleFinding]) -> str:
             lines.append(f"- {s.id} {s.name}［{s.change}］{s.change_note}（担当：{s.actor or '不明'}、{minutes}{rate}）")
         lines += [f"- 統制のために残した工程：{k}" for k in project.kept_controls.get(pid, [])]
         lines += [f"- 初回の準備作業：{k}" for k in project.setup_tasks.get(pid, [])]
+    if project.diagnosis.analysis.quantities:
+        # 画面・サマリー・Excel と同じ前提（確認済みの値から計算できた値と、未確定の値）を渡す（AI-BIC 3.2）
+        lines += ["", "## 確認済みの値と未確定の値（プログラムの計算）"]
+        lines += [f"- {x}" for x in assumption_lines(project)] or ["- なし"]
+        lines += [f"- 未確認：{n.name}（{n.status}）" for n in needs(project)]
     lines += ["", "## 情報の充足度（プログラムの判定）"]
     lines += [f"- {f.name}：{f.level}" for f in evaluate(project.hearing)]
     lines += ["", "## プログラムの検証で見つかった問題"]

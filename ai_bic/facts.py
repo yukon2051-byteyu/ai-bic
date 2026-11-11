@@ -219,6 +219,23 @@ def quantity_basis(project: Project) -> dict[str, tuple[float, str]]:
     return result
 
 
+def assumption_lines(project: Project) -> list[str]:
+    """確認済みの値から計算できた値と、未確定の値（その理由）。画面・サマリー・レビュー・Excel で同じ文を使う。
+
+    例：通常の照合の月間作業時間は5時間（15分 × 20日 ÷ 60 ＝ 5時間）／
+        追加確認を含む総作業時間は、記入漏れの月間発生日数が不明のため未確定
+    """
+    lines = []
+    for d in derived_values(project):
+        if d.calc.value is not None:
+            lines.append(f"{d.name}は{sim.fmt(d.calc.value)}{d.unit}（{d.calc.text}）")
+        elif d.calc.error:
+            lines.append(f"{d.name}は計算できません（{d.calc.error}）")
+        else:
+            lines.append(f"{d.name}は、{'・'.join(d.missing_names)}が不明のため未確定")
+    return lines
+
+
 @dataclass
 class Need:
     """不足情報欄で確認する数値（改善案の効果の判断や試算に必要で、まだ分からないもの）。"""

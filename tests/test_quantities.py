@@ -134,3 +134,26 @@ def test_デモの数値の一覧は_サンプル回答とすべて照合でき�
     ids = {x.qid for x in result.analysis.quantities} | {d.qid for d in result.analysis.derived}
     for p in result.proposals.proposals:
         assert p.effect_metric and set(p.effect_inputs) <= ids
+
+
+# --- 確認済みの範囲と仮定条件（AI-BIC 3.2） ---
+def test_仮定条件は_計算できた値と_欠けている値とその影響だけを示す():
+    from ai_bic import overview
+    from ai_bic.config import load_framework
+    from ai_bic.models import ItemStatus
+
+    project = badge_project()
+    lines = facts.assumption_lines(project)
+    assert lines == ["通常の照合の月間時間は5時間（15分 × 20日 ÷ 60 ＝ 5時間）",
+                     "追加確認を含む総作業時間は、記入漏れの月間発生日数が不明のため未確定"]
+    hearing = HearingState(item_status={i: ItemStatus(item_id=i, status="充足", known_facts="", lacking="")
+                                        for i in ["H1", "H2", "H4", "H5", "H6"]}
+                           | {"H3": ItemStatus(item_id="H3", status="不十分", known_facts="", lacking="")})
+    texts = overview.open_assumptions(hearing, {}, lines)
+    assert texts == ["試算の前提：" + "。".join(lines) + "。"]
+    assert all("作業時間・頻度" not in x for x in texts)  # 作業時間・頻度が未確認とまとめて言わない
+    # 不足情報欄でも、作業時間・頻度の項目をまとめて聞かない（欠けている数値だけを聞く）
+    project.hearing = hearing
+    ov = overview.build(project.diagnosis, hearing, load_framework("general"), {}, None, facts.needs(project))
+    assert "item:H3" not in [g.key for g in ov.gaps]
+    assert "fact:Q4" in [g.key for g in ov.gaps]

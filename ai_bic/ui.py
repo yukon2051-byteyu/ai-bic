@@ -340,6 +340,17 @@ a.bic-brand:hover {{ opacity: .7; }}
 .bic-quantities {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px; padding: .6rem .9rem; margin: .4rem 0 .6rem; }}
 .bic-quantities .k {{ font-weight: 700; color: var(--accent); font-size: .9rem; }}
 
+/* 一覧から詳細を開く形（AI-BIC 3.2）：不足情報と課題の1行。詳しい内容は、その下の開閉できる欄に */
+.bic-gap-row, .bic-issue-row {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px 6px 0 0;
+  padding: .6rem .9rem .5rem; margin-top: .6rem; border-bottom: none; }}
+.bic-gap-row .q {{ font-weight: 700; color: var(--accent); margin-top: .3rem; line-height: 1.6; }}
+.bic-gap-row .aff {{ font-size: .8rem; color: var(--sub); margin-left: .3rem; }}
+.bic-issue-row {{ display: flex; gap: .8rem; }}
+.bic-issue-row .no {{ font-family: "Inter", sans-serif; color: var(--gold-deep); font-weight: 600; }}
+.bic-issue-row .t {{ font-weight: 700; color: var(--accent); margin-bottom: .25rem; }}
+.bic-issue-row .s {{ margin-top: .3rem; line-height: 1.7; color: var(--ink); }}
+.bic-gap-row + div [data-testid="stExpander"] details, .bic-issue-row + div [data-testid="stExpander"] details {{ border-radius: 0 0 6px 6px; }}
+
 /* 不足情報のカード（重要なものから） */
 .bic-gap {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px; padding: .7rem .9rem; margin: .4rem 0; }}
 .bic-gap .q {{ font-weight: 700; color: var(--accent); margin: .3rem 0 .2rem; line-height: 1.6; }}
@@ -597,6 +608,34 @@ def gap_card(g) -> str:
         f'<dl class="bic-dl"><dt>確認が必要な理由</dt><dd>{esc(g.reason)}</dd>'
         f'<dt>影響するもの</dt><dd>{esc("、".join(g.affects))}</dd>{answered}</dl></div>'
     )
+
+
+def gap_row(g) -> str:
+    """不足情報の一覧の1行（質問・重要度・確認状態・影響する案）。確認理由と回答欄は、開いたときだけ出す（AI-BIC 3.2）。"""
+    badge = '<span class="bic-badge gold">！ 重要</span>' if g.important else '<span class="bic-badge gray">参考</span>'
+    state = (f'<span class="bic-badge rel">✓ 回答済み（{esc(g.answered.split("：")[0])}）</span>' if g.answered
+             else '<span class="bic-badge gray">？ 要確認</span>')
+    plans = [a for a in g.affects if a.startswith("案")]
+    where = f'<span class="aff">影響：{esc("・".join(plans))}</span>' if plans else ""
+    merged = f'<span class="aff">（{len(g.merged_keys) + 1}か所の確認をまとめています）</span>' if g.merged_keys else ""
+    return f'<div class="bic-gap-row">{badge}{state}{where}{merged}<div class="q">{esc(g.question)}</div></div>'
+
+
+def gap_detail(g) -> str:
+    """不足情報を開いたときの説明（確認が必要な理由・影響するもの・回答）。"""
+    answered = f"<dt>回答</dt><dd>{esc(g.answered)}</dd>" if g.answered else ""
+    return (f'<dl class="bic-dl"><dt>確認が必要な理由</dt><dd>{esc(g.reason)}</dd>'
+            f'<dt>影響するもの</dt><dd>{esc("、".join(g.affects))}</dd>{answered}</dl>')
+
+
+def issue_row(no: int, issue: Issue, downgraded: str | None) -> str:
+    """課題の一覧の1行（課題名・重要度・確認状態・短い説明）。引用・原因・影響・計算式は開いて読む（AI-BIC 3.2）。"""
+    warn = '<span class="bic-badge gray">格下げあり</span>' if downgraded else ""
+    return (f'<div class="bic-issue-row"><span class="no">{no:02d}</span><div style="flex:1">'
+            f'<div class="t">{esc(issue.title)}</div>'
+            f'<span class="bic-badge {SEVERITY_CLASS[issue.severity]}">重要度 {esc(issue.severity)}</span>'
+            f'<span class="bic-badge gray">{esc(EVIDENCE_TEXT[issue.evidence_type])}</span>{warn}'
+            f'<div class="s">{esc(issue.summary)}</div></div></div>')
 
 
 def gap_list(gaps) -> str:

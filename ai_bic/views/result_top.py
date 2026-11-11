@@ -180,14 +180,17 @@ def render_gaps(project: Project, ov: Overview, assumptions: list[str], get_clie
         (st.success if kind == "ok" else st.warning if kind == "warn" else st.error)(text)
     if project.diagnosis.analysis.quantities:
         html(quantity_panel(project, compact=True))
+    # 一覧（質問・重要度・確認状態・影響する案）。確認理由・回答欄・詳しい説明は、開いた項目だけに出す（AI-BIC 3.2）
     for g in ov.gaps:
-        html(ui.gap_card(g))
-        if g.key == overview.NUMBERS_KEY:
-            _numbers_form(project)  # 数値の一覧がない古い案件
-        elif g.numeric:
-            _value_form(project, g)
-        else:
-            _answer_form(project, g)
+        html(ui.gap_row(g))
+        with st.expander("回答済みの内容を見る・直す" if g.answered else "確認理由を見て答える"):
+            html(ui.gap_detail(g))
+            if g.key == overview.NUMBERS_KEY:
+                _numbers_form(project)  # 数値の一覧がない古い案件
+            elif g.numeric:
+                _value_form(project, g)
+            else:
+                _answer_form(project, g)
     for assumption in assumptions:
         html(ui.footnote(f"仮定条件：{assumption}"))
     _render_rethink(project, get_client)
@@ -202,22 +205,23 @@ def _form_key(key: str) -> str:
 
 def _answer_form(project: Project, g) -> None:
     fk = _form_key(g.key)
-    with st.expander("回答を直す" if g.answered else "この場で答える"):
-        with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
-            st.text_area("回答", key=f"gap_answer_{fk}", max_chars=config.ANSWER_MAX_CHARS)
-            st.radio("出どころ", SOURCES, key=f"gap_source_{fk}", horizontal=True,
-                     help="ご本人が知っていること（本人の申告）か、資料で確かめたこと（添付資料）かを区別します")
-            st.text_input("資料の名前（添付資料で確かめた場合）", key=f"gap_note_{fk}", max_chars=100)
-            st.button("回答を保存して、関係する結果を更新する", key=f"gap_submit_{fk}",
-                                  on_click=_save_answer, args=(project, g))
+    with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
+        st.text_area("回答", key=f"gap_answer_{fk}", max_chars=config.ANSWER_MAX_CHARS)
+        st.radio("出どころ", SOURCES, key=f"gap_source_{fk}", horizontal=True,
+                 help="ご本人が知っていること（本人の申告）か、資料で確かめたこと（添付資料）かを区別します")
+        st.text_input("資料の名前（添付資料で確かめた場合）", key=f"gap_note_{fk}", max_chars=100)
+        st.button("回答を保存して、関係する結果を更新する", key=f"gap_submit_{fk}",
+                              on_click=_save_answer, args=(project, g))
 
 
 def _save_answer(project: Project, g) -> None:
     s = st.session_state
     fk = _form_key(g.key)
     try:
-        pids = facts.answer_gap(project, g.key, g.question, s[f"gap_answer_{fk}"], s[f"gap_source_{fk}"],
-                                g.affects, s[f"gap_note_{fk}"])
+        # まとめた確認項目（merged_keys）にも同じ回答を記録し、関係するすべての表示と判断に反映する
+        for key in [g.key, *g.merged_keys]:
+            pids = facts.answer_gap(project, key, g.question, s[f"gap_answer_{fk}"], s[f"gap_source_{fk}"],
+                                    g.affects, s[f"gap_note_{fk}"])
     except ValueError as e:
         s["gap_messages"] = [("error", str(e))]
         return
@@ -297,15 +301,14 @@ def _save_fix(project: Project) -> None:
 def _value_form(project: Project, g) -> None:
     """数値1つの確認。入力した値は関係する試算だけに反映し、手入力の値は残す。"""
     fk = _form_key(g.key)
-    with st.expander("この場で答える"):
-        with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
-            c = st.columns([2, 2])
-            st.session_state.setdefault(f"gap_value_{fk}", None)
-            c[0].number_input("値", key=f"gap_value_{fk}", min_value=0.0, placeholder="未入力")
-            c[1].radio("出どころ", SOURCES, key=f"gap_source_{fk}", horizontal=True)
-            st.text_input("資料の名前（添付資料で確かめた場合）", key=f"gap_note_{fk}", max_chars=100)
-            st.button("値を保存して、関係する結果を更新する", key=f"gap_submit_{fk}",
-                                  on_click=_save_value, args=(project, g))
+    with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
+        c = st.columns([2, 2])
+        st.session_state.setdefault(f"gap_value_{fk}", None)
+        c[0].number_input("値", key=f"gap_value_{fk}", min_value=0.0, placeholder="未入力")
+        c[1].radio("出どころ", SOURCES, key=f"gap_source_{fk}", horizontal=True)
+        st.text_input("資料の名前（添付資料で確かめた場合）", key=f"gap_note_{fk}", max_chars=100)
+        st.button("値を保存して、関係する結果を更新する", key=f"gap_submit_{fk}",
+                              on_click=_save_value, args=(project, g))
 
 
 def _save_value(project: Project, g) -> None:
@@ -323,6 +326,8 @@ def _save_value(project: Project, g) -> None:
         s["gap_messages"] = [("error", str(e))]
         return
     simulator.sync_widgets(project, [(c.pid, c.field) for c in changes if c.applied])
+    for key in g.merged_keys:  # まとめた文章の確認項目（課題の追加質問など）も、答えたことにする
+        facts.answer_gap(project, key, g.question, sim.fmt(value), s[f"gap_source_{fk}"], g.affects, s[f"gap_note_{fk}"])
     pids = facts.affected_pids(project, g.affects)
     if changed:
         facts.mark_premise(project, pids)
@@ -336,18 +341,17 @@ def _save_value(project: Project, g) -> None:
 
 def _numbers_form(project: Project) -> None:
     """試算の元になる数値の確認。計算はプログラムが行い、関係する試算だけを更新する。"""
-    with st.expander("数値を確認して入力する", expanded=False):
-        with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
-            cols = st.columns(2)
-            for i, (name, (label, unit, limit)) in enumerate(facts.FACTS.items()):
-                st.session_state.setdefault(f"fact_{name}", None)
-                cols[i % 2].number_input(f"{label}（{unit}）", min_value=0.0, max_value=limit,
-                                         key=f"fact_{name}", placeholder="未確認（空欄のまま）")
-            st.radio("出どころ", SOURCES, key="fact_source", horizontal=True)
-            st.text_input("資料の名前（添付資料で確かめた場合）", key="fact_note", max_chars=100)
-            st.button("数値を保存して、関係する結果を更新する", key="gap_submit_numbers",
-                                  on_click=_save_numbers, args=(project,))
-        st.caption("入力した項目だけを記録します。空欄の項目は、前に確認した値のまま（なければ未確認）です。")
+    with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
+        cols = st.columns(2)
+        for i, (name, (label, unit, limit)) in enumerate(facts.FACTS.items()):
+            st.session_state.setdefault(f"fact_{name}", None)
+            cols[i % 2].number_input(f"{label}（{unit}）", min_value=0.0, max_value=limit,
+                                     key=f"fact_{name}", placeholder="未確認（空欄のまま）")
+        st.radio("出どころ", SOURCES, key="fact_source", horizontal=True)
+        st.text_input("資料の名前（添付資料で確かめた場合）", key="fact_note", max_chars=100)
+        st.button("数値を保存して、関係する結果を更新する", key="gap_submit_numbers",
+                              on_click=_save_numbers, args=(project,))
+    st.caption("入力した項目だけを記録します。空欄の項目は、前に確認した値のまま（なければ未確認）です。")
     html(numbers_status(project))
 
 

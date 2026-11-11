@@ -20,8 +20,8 @@ from openpyxl.worksheet.worksheet import Worksheet
 from ai_bic import simulation as sim
 from ai_bic.flow import Flow, compare_flows
 from ai_bic.models import BusinessInfo, DiagnosisResult, Framework, HearingState
-from ai_bic.facts import decision_changes, derived_values, known_values, needs
-from ai_bic.overview import relation_tags
+from ai_bic.facts import assumption_lines, decision_changes, derived_values, known_values, needs
+from ai_bic.overview import open_assumptions, relation_tags
 from ai_bic.project import Project, proposal_ids
 from ai_bic.trial import assumptions_of as trial_assumptions
 from ai_bic.trial import evaluate as evaluate_metric
@@ -114,7 +114,9 @@ def _summary_sheet(ws, info, state, result, framework, created_at, demo, sample_
     if result.missing_item_ids:
         lines = [missing_item_text(items[i], state.item_status.get(i)) for i in result.missing_item_ids]
         rows.append(("情報が不足している項目", "結果は参考としてご覧ください。\n" + _bullets(lines)))
-    if assumed := assumptions(state):  # 情報が足りないまま分析した機能の仮定条件（AI-BIC 2.0）
+    quantity_lines = assumption_lines(project) if project is not None and analysis.quantities else None
+    if assumed := (open_assumptions(state, project.gap_answers, quantity_lines) if quantity_lines is not None
+                   else assumptions(state)):  # 情報が足りないまま分析した機能の仮定条件（画面と同じ文。AI-BIC 3.2）
         rows.append(("仮定条件", _bullets(assumed)))
     rows.append(("ご注意", DISCLAIMER))
 

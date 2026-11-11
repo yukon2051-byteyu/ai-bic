@@ -617,7 +617,8 @@ def render_result() -> None:
                     result_top.render_back()
     with tabs["gaps"]:
         if tabs["gaps"].open:
-            assumptions = overview.open_assumptions(s.hearing_state, s.project.gap_answers)
+            quantity_lines = facts.assumption_lines(s.project) if result.analysis.quantities else None
+            assumptions = overview.open_assumptions(s.hearing_state, s.project.gap_answers, quantity_lines)
             result_top.render_gaps(s.project, ov, assumptions, get_client)
     with tabs["evidence"]:
         if tabs["evidence"].open:
@@ -666,7 +667,10 @@ def render_evidence(partial, answered) -> None:
         viewpoints = "観点：" + "・".join(VIEWPOINT_NAMES.get(v, v) for v in issue.viewpoint_ids)
         sources = [ui.evidence_source(ev, result.attachment_names, sample=partial is not None) for ev in issue.evidences]
         downgraded = result.downgraded.get(issue.issue_id)
-        html(ui.issue_card(no, issue, viewpoints, sources, downgraded))
+        # 一覧は課題名・重要度・確認状態・短い説明。引用・計算式・原因・影響・重要度の理由は開いて読む（AI-BIC 3.2）
+        html(ui.issue_row(no, issue, downgraded))
+        with st.expander("引用・計算式・原因・影響・重要度の理由を見る"):
+            html(ui.issue_card(no, issue, viewpoints, sources, downgraded))
     if analysis.no_issue_viewpoints:
         names = "、".join(VIEWPOINT_NAMES.get(v, v) for v in analysis.no_issue_viewpoints)
         html(ui.footnote(f"問題が確認できなかった観点：{names}"))

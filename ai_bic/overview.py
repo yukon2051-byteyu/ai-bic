@@ -9,11 +9,13 @@
 - 比較表：「改善案」「主に減らすもの」「着手前に確認すること」と、案どうしの関係（先にやる・次に試す・併用できる）
 """
 
+import re
 from dataclasses import dataclass, field
 
 from ai_bic import config
 from ai_bic.models import DiagnosisResult, Framework, HearingState, Issue, Proposal, ProposalRelation
 from ai_bic.item_rules import is_unknown_answer
+from ai_bic.output_check import similarity
 from ai_bic.readiness import evaluate
 
 # 課題の根拠の区分 → 冒頭に出す確認状態。「本人の申告」「計算結果」は、引用を入力と照合できたものだけが残る
@@ -37,6 +39,7 @@ class Gap:
     important: bool  # 重要（主ボタンを「不足情報を確認する」にする）。回答済みなら重要として数えない
     answered: str | None = None  # 回答済みなら、その出どころつきの短い表示（例：本人の申告：12時間）
     numeric: bool = False  # 数値で答える項目（試算の元になる数値）
+    merged_keys: list[str] = field(default_factory=list)  # 同じ確認項目として1件にまとめた、ほかの不足情報の key
 
 
 @dataclass
@@ -81,6 +84,9 @@ def gaps(result: DiagnosisResult, hearing: HearingState, framework: Framework,
         for item_id in feature.missing_required:
             needed.setdefault(item_id, []).append(feature.name)
     for item_id, features in needed.items():
+        if item_id == "H3" and result.analysis.quantities:
+            # 数値の一覧がある案件では、作業時間・頻度をまとめて「未確認」と言わず、欠けている数値だけを下の4で確認する
+            continue
         item = names[item_id]
         status = hearing.item_status.get(item_id)
         # 「分からない」は有効な回答。聞き直さず、未確認の前提として扱っていることを示す
@@ -128,12 +134,61 @@ def gaps(result: DiagnosisResult, hearing: HearingState, framework: Framework,
             reason="確認した数値で、割合と1件あたりの時間をプログラムが計算し、効果試算に反映します。",
             affects=["効果試算（全案）"] + calculated, important=False, numeric=True, answered=numbers_answered))
 
+    found = merge_duplicates(found)
     for g in found:
-        if g.key in answers:
-            a = answers[g.key]
-            g.answered = f"{a.source}：{a.answer}"
+        hit = next((answers[k] for k in [g.key, *g.merged_keys] if k in answers), None)
+        if hit:
+            g.answered = f"{hit.source}：{hit.answer}"
     # 未回答の重要なもの → 未回答の参考 → 回答済み（同じ重さの中は上の順）
     return sorted(found, key=lambda g: (bool(g.answered), not g.important))
+
+
+# ---------------------------------------------------------------
+# 同じ確認項目の統合（AI-BIC 3.2）：ヒアリングの判定・課題の追加質問・数値の一覧から、同じことを別々に聞かない
+# ---------------------------------------------------------------
+_UNITS = [("日", r"日数|何日|[0-9０-９]+日"), ("件", r"件数|何件"), ("回", r"回数|何回"), ("時間", r"何時間|何分|作業時間|時間"),
+          ("人", r"人数|何人"), ("円", r"人件費|費用|円")]
+_PERIODS = [("月", r"月"), ("週", r"週"), ("年", r"年"), ("日", r"1日|毎日|日あたり")]
+_GENERIC = {"教えて", "ください", "確認", "くらい", "ありますか", "ですか", "どれくらい", "何日", "何件", "何回", "何時間",
+            "何分", "月間", "月あたり", "発生", "回答", "ヒアリング", "集計", "おおよそ", "構いません"}
+
+
+def signature(text: str) -> tuple[str | None, str | None, set[str]]:
+    """確認項目の手がかり：(単位, 期間, 内容の言葉)。単位と期間が同じで、内容の言葉が重なれば同じ確認項目とみなす。"""
+    unit = next((u for u, pattern in _UNITS if re.search(pattern, text)), None)
+    period = next((p for p, pattern in _PERIODS if re.search(pattern, text)), None)
+    words = {w for w in re.findall(r"[一-龥ァ-ヴー]{2,}", text) if w not in _GENERIC}
+    return unit, period, words
+
+
+def same_item(a: Gap, b: Gap) -> bool:
+    """同じ確認項目か。単位（日・件など）や期間（月・日など）が違えば、別の項目（例：月間発生日数と月間漏れ件数）。"""
+    if similarity(a.question, b.question) >= 0.6:
+        return True
+    ua, pa, wa = signature(a.question)
+    ub, pb, wb = signature(b.question)
+    if not ua or ua != ub or pa != pb:
+        return False
+    return any(x in y or y in x for x in wa for y in wb)
+
+
+def merge_duplicates(gaps: list[Gap]) -> list[Gap]:
+    """同じ確認項目を1件にまとめる。数値で答える項目を残し、ほかの確認理由と影響するもの（課題・案・試算）を引き継ぐ。"""
+    kept: list[Gap] = []
+    for g in gaps:
+        twin = next((k for k in kept if same_item(k, g)), None)
+        if twin is None:
+            kept.append(g)
+            continue
+        main, other = (g, twin) if g.numeric and not twin.numeric else (twin, g)
+        if main is g:
+            kept[kept.index(twin)] = g
+        main.merged_keys = [*main.merged_keys, other.key, *other.merged_keys]
+        if other.reason and other.reason not in main.reason:
+            main.reason = f"{main.reason}　{other.reason}".strip()
+        main.affects = list(dict.fromkeys([*main.affects, *other.affects]))
+        main.important = main.important or other.important
+    return kept
 
 
 def number_gap(n) -> Gap:
@@ -257,8 +312,18 @@ def compare_rows(result: DiagnosisResult) -> list[CompareRow]:
 MAX_TOP_GAPS = 2  # 冒頭に出す不足情報の数（最初の画面に収めるため。残りは件数で示す）
 
 
-def open_assumptions(hearing: HearingState, answers: dict | None = None) -> list[str]:
-    """結果に示す仮定条件。足りなかった必須の項目に、結果画面ですべて答えた機能の仮定条件は出さない。"""
+def open_assumptions(hearing: HearingState, answers: dict | None = None, quantity_lines: list[str] | None = None) -> list[str]:
+    """結果に示す仮定条件。足りなかった必須の項目に、結果画面ですべて答えた機能の仮定条件は出さない。
+
+    quantity_lines：数値の一覧がある案件の、確認済みの値と未確定の値（facts.assumption_lines）。あれば、試算の仮定条件を
+    「作業時間・頻度が未確認」とまとめて言わず、欠けている値とその影響だけを示す（AI-BIC 3.2）。
+    """
+    if quantity_lines is not None:
+        rest = [config.FEATURE_ASSUMPTIONS[f.key] for f in evaluate(hearing)
+                if f.key != "simulation" and f.level == "不足" and any(f"item:{i}" not in (answers or {}) for i in f.missing_required)]
+        # すべて確認済みの値なら、仮定ではないので出さない。未確定の値があるときだけ、分かっている範囲と一緒に示す
+        undetermined = any("未確定" in x or "計算できません" in x for x in quantity_lines)
+        return ([f"試算の前提：{'。'.join(quantity_lines)}。"] if undetermined else []) + rest
     answers = answers or {}
     return [config.FEATURE_ASSUMPTIONS[f.key] for f in evaluate(hearing)
             if f.level == "不足" and any(f"item:{i}" not in answers for i in f.missing_required)]

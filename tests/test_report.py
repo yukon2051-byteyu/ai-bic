@@ -233,3 +233,17 @@ def test_途中で終えたデモのサンプル結果は_レポートでもそ�
     summary = sheet_text(wb["サマリー"])
     assert "全問回答した場合のサンプル結果（ヒアリングは1問で終了" in summary
     assert "問目のサンプル回答" in sheet_text(wb["課題"])
+
+
+def test_仮定条件は画面と同じ文で_確認済みの範囲と未確定の値を分けて残す():
+    """AI-BIC 3.2：作業時間・頻度が未確認とまとめず、計算できた値と、欠けている値・その影響を示す。"""
+    from ai_bic import facts
+    from ai_bic.overview import open_assumptions
+    from tests.test_quantities import badge_project
+
+    project = badge_project()
+    data = build_report(project.business_info, project.hearing, project.diagnosis, FW, CREATED_AT, project=project)
+    summary = sheet_text(load_workbook(BytesIO(data))["サマリー"])
+    expected = open_assumptions(project.hearing, project.gap_answers, facts.assumption_lines(project))
+    assert expected and all(x in summary for x in expected)
+    assert "通常の照合の月間時間は5時間" in summary and "記入漏れの月間発生日数が不明のため未確定" in summary

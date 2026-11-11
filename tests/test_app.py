@@ -583,7 +583,10 @@ def test_追加確認を選ぶと_追加の質問に答えて分析に進める(
     assert at.session_state.stage == "attach"
     at.button(key="diagnose").click().run()
     assert "追加確認で、分析に必要な情報がそろいました" in all_text(open_tab(at, "診断の根拠を見る"))
-    assert "仮定条件" not in all_text(open_tab(at, "不足情報を確認"))
+    text = all_text(open_tab(at, "不足情報を確認"))
+    assert "業務上の問題点または改善の制約条件が未確認" not in text  # 答えた項目の仮定条件は出さない
+    # 残る仮定は、欠けている値と影響だけを具体的に示す（AI-BIC 3.2）
+    assert "仮定条件：試算の前提：月の修理依頼の受付件数は、月の営業日数が不明のため未確定。" in text
 
 
 def test_分からないボタンで答えると_その項目はもう聞かない(secrets):

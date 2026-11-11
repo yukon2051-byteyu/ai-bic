@@ -135,3 +135,42 @@ def test_足りないことが分かっていれば_それをそのまま聞き_
     assert len(overview.open_assumptions(state)) == 1
     answer = GapAnswer(question="q", answer="1回90分", source="本人の申告", at=datetime(2026, 11, 11))
     assert overview.open_assumptions(state, {"item:H3": answer}) == []
+
+
+# --- 同じ確認項目の統合（AI-BIC 3.2） ---
+def test_同じ月間発生日数を聞く数値の項目と課題の追加質問は_1件にまとめ理由と影響を引き継ぐ():
+    from ai_bic.overview import Gap, merge_duplicates
+
+    number = Gap("fact:Q5", "返却時刻の記入漏れの月間発生日数を教えてください（ヒアリングでは「集計していない」とのことでした）",
+                 "案1の効果を判断するのに必要です。", ["案1", "効果試算"], True, numeric=True)
+    followup = Gap("followup:I2", "記入漏れは月に何日くらいありますか？", "分かると、改善案の選び方がより確かになります。",
+                   ["課題「記入漏れ」", "案2"], False)
+    other = Gap("followup:I3", "記入漏れは月に何件くらいありますか？", "参考", ["案3"], False)  # 単位（件）が違う
+    merged = merge_duplicates([followup, number, other])
+    assert [g.key for g in merged] == ["fact:Q5", "followup:I3"]
+    main = merged[0]
+    assert main.merged_keys == ["followup:I2"] and main.numeric and main.important
+    assert main.affects == ["案1", "効果試算", "課題「記入漏れ」", "案2"]
+    assert "改善案の選び方" in main.reason
+
+
+def test_期間が違う項目はまとめない():
+    from ai_bic.overview import Gap, merge_duplicates
+
+    a = Gap("x", "記入漏れの月間発生日数を教えてください", "", [], False)
+    b = Gap("y", "記入漏れは1週に何日ありますか", "", [], False)
+    assert len(merge_duplicates([a, b])) == 2
+
+
+def test_まとめた項目のどれかに答えれば_回答済みになる():
+    from datetime import datetime
+
+    from ai_bic.project import GapAnswer
+
+    issues = [make_issue(issue_id="I1", severity="高", evidence_type="本人の申告",
+                         followup_questions=["業務の目的（使い道）は何ですか？"]),
+              make_issue(issue_id="I2", severity="高", evidence_type="要確認", followup_questions=["業務の目的（使い道）は何ですか？"])]
+    answer = GapAnswer(question="q", answer="監査の記録", source="本人の申告", at=datetime(2026, 11, 11))
+    ov = overview.build(diagnosis(issues), hearing(ALL), FW, answers={"followup:I1": answer})
+    target = [g for g in ov.gaps if "目的" in g.question]
+    assert len(target) == 1 and target[0].answered == "本人の申告：監査の記録"
