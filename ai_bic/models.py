@@ -22,6 +22,7 @@ ProposalCategory = Literal[
     "業務標準化",
     "既存ツールの活用",
     "自動化",
+    "生成AI活用",  # 人が文章を読み、解釈し、書き直している工程に生成AIを使う（AI-BIC 3.4）
     "新規システム導入",
 ]
 # 業務フロー（AI-BIC 2.0 機能B）。flow.py と、AIの出力の形（下の FlowResult）で共通に使う
@@ -222,6 +223,25 @@ class TrialMetricPlan(BaseModel):
     quantity_ref: str | None = None  # 改善前の値に当たる、数値の一覧の番号（Q1・D1）。なければ null
 
 
+class GenAIUse(BaseModel):
+    """生成AIの使い方（AI-BIC 3.4）。「生成AI活用」の案の中身、または別の案に併用できる作業として示す。
+
+    AI-BIC は使い方の提案と試行計画までを行い、提案先の生成AIサービスへの接続や業務の実行はしない。
+    """
+
+    target_step: str  # 対象工程（例：週次報告の前に、問い合わせの自由記述を分類する）
+    ai_input: str  # AIに入れるもの（例：匿名化した問い合わせメモ）
+    ai_output: str  # AIが出すもの（例：分類候補と代表例）
+    human_check: str  # 人が確認すること（例：担当者が原文と照らし合わせ、誤分類を直す）
+    effect: str  # 効果の見込み。分からなければ、その旨と測り方（確認・修正の時間も含めて測る）
+    conditions: list[str]  # 着手条件（例：利用承認、入力できるデータの範囲）
+    risks: list[str]  # 主なリスク（例：誤分類、原文にない内容の追加）
+    first_trial: str  # 最初に試す範囲（例：匿名化した過去20件で、人手とAI補助ありを比べる）
+    # 業務情報・回答で、社内で承認された生成AIが使えると述べられているか。プログラムが入力の文で確かめ、
+    # 根拠となる文がなければ False に戻す（genai.normalize）
+    approved: bool = False
+
+
 class Proposal(BaseModel):
     """改善案。"""
 
@@ -238,6 +258,8 @@ class Proposal(BaseModel):
     effect_inputs: list[str] = Field(default_factory=list)
     # 小さく試すときに測る項目の候補（AI-BIC 3.3）。古い保存データやAIが書かなかったときは空（effect_metric から1件作る）
     trial_metrics: list[TrialMetricPlan] = Field(default_factory=list)
+    # 生成AIの使い方（AI-BIC 3.4）。種類が「生成AI活用」なら必須。ほかの種類なら、併用できる作業（なければ null）
+    genai: GenAIUse | None = None
     category: ProposalCategory
     description: str
     target_issue_ids: list[str]

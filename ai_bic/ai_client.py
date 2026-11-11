@@ -15,6 +15,7 @@ import anthropic
 from pydantic import BaseModel, ValidationError
 
 from ai_bic import config
+from ai_bic import genai
 from ai_bic.errors import AIError
 from ai_bic.flow_ai import check_flow_result
 from ai_bic.models import (
@@ -107,7 +108,8 @@ class ClaudeClient:
             system_name="proposal_system",
             user_input=build_proposal_input(info, state, analysis),
             output_format=ProposalResult,
-            check=lambda r: check_proposals(r, analysis),
+            # 生成AIの案（AI-BIC 3.4）：使い方の欄がそろっているか、クラウド不可の案件で根拠なく最初の案にしていないか
+            check=lambda r: check_proposals(r, analysis) + genai.problems(r, genai.input_text(info, state)),
         )
 
     def make_flows(

@@ -12,6 +12,7 @@
 import re
 from dataclasses import dataclass, field
 
+from ai_bic import genai
 from ai_bic import config
 from ai_bic.models import DiagnosisResult, Framework, HearingState, Issue, Proposal, ProposalRelation
 from ai_bic.item_rules import is_unknown_answer, planned_turn
@@ -298,6 +299,10 @@ class CompareRow:
     check_before: str  # 着手前に確認すること（前提条件の1つ目）
     more_checks: int  # ほかの前提条件の数
     relations: list[RelationTag]
+    genai_label: str = ""  # 生成AI活用・生成AIを併用（生成AIを使わない案は空。AI-BIC 3.4）
+    genai_step: str = ""  # 生成AIの対象工程
+    genai_effect: str = ""  # 生成AIの効果の見込み
+    genai_condition: str = ""  # 利用条件（承認の確認が必要か）
 
 
 def compare_rows(result: DiagnosisResult) -> list[CompareRow]:
@@ -312,10 +317,13 @@ def compare_rows(result: DiagnosisResult) -> list[CompareRow]:
         from_issues = not reduces
         if from_issues:
             reduces = "、".join(issues[i].title for i in p.target_issue_ids if i in issues) or "—"
+        g = p.genai
         rows.append(CompareRow(
             no=no, name=tab_name(p), title=p.title, category=p.category, reduces=reduces, reduces_from_issues=from_issues,
             check_before=p.prerequisites[0] if p.prerequisites else "特になし",
-            more_checks=max(len(p.prerequisites) - 1, 0), relations=tags[no]))
+            more_checks=max(len(p.prerequisites) - 1, 0), relations=tags[no],
+            genai_label=genai.label(p), genai_step=g.target_step if g else "", genai_effect=g.effect if g else "",
+            genai_condition=genai.condition_text(p)))
     return rows
 
 

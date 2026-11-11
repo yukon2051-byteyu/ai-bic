@@ -12,7 +12,7 @@ AIの評価だけに頼らない（指示書 5.3）。
 
 from datetime import datetime
 
-from ai_bic import config
+from ai_bic import config, genai
 from ai_bic import project as pj
 from ai_bic import simulation as sim
 from ai_bic.errors import AIError
@@ -289,6 +289,7 @@ def revise(client, project: Project, pid: str, with_answers: bool = False) -> No
     original = _proposal(project, pid)
     no = pj.proposal_ids(project).index(pid) + 1
     revised = client.revise(project.business_info, project.hearing, project.diagnosis.analysis, no, original, adopted)
+    genai.normalize_one(revised.proposal, genai.allowed(genai.input_text(project.business_info, project.hearing)))
     project.proposal_history.setdefault(pid, []).append(original)
     project.diagnosis.proposals.proposals[no - 1] = revised.proposal
     project.revision_notes[pid] = revised.changes

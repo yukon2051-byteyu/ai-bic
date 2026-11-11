@@ -17,6 +17,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from ai_bic import genai
 from ai_bic import simulation as sim
 from ai_bic.flow import Flow, compare_flows
 from ai_bic.models import BusinessInfo, DiagnosisResult, Framework, HearingState
@@ -162,6 +163,7 @@ def _proposals_sheet(ws, result: DiagnosisResult) -> None:
         "No", "改善案", "種類", "導入難易度", "対応する課題", "内容", "BEFORE（今）", "AFTER（改善後・想定）",
         "期待できる効果（想定）", "最初の一歩（今週から始められること）", "推奨理由",
         "より簡単な方法では不十分な理由", "想定リスク", "実施前に確認すべき事項", "主に減らすもの", "ほかの案との関係",
+        "生成AIの使い方（AI-BIC 3.4）",
     ]
     rows = []
     proposals = result.proposals.proposals if result.proposals else []
@@ -184,10 +186,24 @@ def _proposals_sheet(ws, result: DiagnosisResult) -> None:
             _bullets(p.prerequisites),
             p.reduces or "",
             _bullets([f"{tag.text}：{tag.reason}" for tag in tags.get(no, [])]),
+            genai_text(p),
         ])
     if not rows:
         rows.append(["", "課題が確認できなかったため、改善案は作成していません。"] + [""] * (len(headers) - 2))
-    _table(ws, headers, rows, [5, 28, 14, 8, 10, 40, 40, 40, 40, 40, 35, 30, 30, 30, 24, 40])
+    _table(ws, headers, rows, [5, 28, 14, 8, 10, 40, 40, 40, 40, 40, 35, 30, 30, 30, 24, 40, 50])
+
+
+def genai_text(p) -> str:
+    """生成AIの使い方（画面と同じ項目と利用条件）。生成AIを使わない案は空。"""
+    g = p.genai
+    if g is None:
+        return ""
+    return _bullets([
+        f"{genai.label(p)}：{genai.condition_text(p)}", f"対象工程：{g.target_step}",
+        f"AIへの入力と出力：{g.ai_input} → {g.ai_output}", f"人が確認すること：{g.human_check}",
+        f"効果の見込み：{g.effect}（AIの出力を確認・修正する時間も含めて測る）",
+        f"着手条件：{'／'.join(g.conditions) or '特になし'}", f"主なリスク：{'／'.join(g.risks) or '特になし'}",
+        f"最初に試す範囲：{g.first_trial}"])
 
 
 # ---------------------------------------------------------------

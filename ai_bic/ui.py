@@ -12,6 +12,7 @@ AIの回答や利用者の入力をHTMLに埋め込むため、すべて esc() �
 
 import html
 
+from ai_bic import genai
 from ai_bic import config
 from ai_bic.models import Evidence, HearingItem, HearingTurn, Issue, ItemStatus, Proposal
 
@@ -413,6 +414,8 @@ a.bic-brand:hover {{ opacity: .7; }}
 .bic-badge {{ display: inline-block; font-size: .72rem; letter-spacing: .06em; padding: .18rem .6rem;
   border-radius: 2px; margin: 0 .35rem .3rem 0; border: 1px solid var(--accent); color: var(--accent); }}
 .bic-badge.fill {{ background: var(--accent); color: var(--gold); border-color: var(--accent); font-weight: 700; }}
+.bic-badge.ai {{ border-color: var(--accent); color: var(--accent); font-weight: 700; margin: .15rem .3rem 0 0; }}
+.bic-compare .ai {{ font-size: .85rem; margin-top: .2rem; }}
 .bic-badge.gray {{ border-color: var(--line); color: var(--sub); }}
 .bic-badge.gold {{ border-color: var(--gold-deep); color: var(--gold-deep); font-weight: 700; }}
 .bic-quote {{ border-left: 2px solid var(--accent); padding: .2rem 0 .2rem .9rem; margin: .45rem 0;
@@ -662,9 +665,14 @@ def compare_table(rows) -> str:
         chips = "".join(f'<span class="bic-badge rel" title="{esc(t.reason)}">{esc(t.text)}</span>' for t in r.relations)
         reduces = esc(r.reduces) + ('<small>（対象の課題から）</small>' if r.reduces_from_issues else "")
         checks = esc(r.check_before) + (f"<small>（ほか{r.more_checks}件）</small>" if r.more_checks else "")
+        if r.genai_label:  # 生成AIの案は、対象工程・期待効果・利用条件を同じ列で比べられるようにする（AI-BIC 3.4）
+            reduces += (f'<div class="ai">生成AIの対象工程：{esc(r.genai_step)}</div>'
+                        f'<div class="ai">効果の見込み：{esc(r.genai_effect)}</div>')
+            checks = f'<div class="ai"><b>{esc(r.genai_condition)}</b></div>' + checks
+        ai = f'<span class="bic-badge ai">◆ {esc(r.genai_label)}</span>' if r.genai_label else ""
         body.append(
             f'<tr><td data-label="改善案"><div class="no">案{r.no}</div><div class="nm">{esc(r.name)}</div>'
-            f'<div class="cat">{esc(r.category)}</div>{chips}</td>'
+            f'<div class="cat">{esc(r.category)}</div>{ai}{chips}</td>'
             f'<td data-label="主に減らすもの">{reduces}</td>'
             f'<td data-label="着手前に確認すること">{checks}</td></tr>'
         )
@@ -725,6 +733,25 @@ def issue_card(no: int, issue: Issue, viewpoints: str, sources: list[str], downg
     )
 
 
+def genai_rows(p: Proposal) -> list[tuple[str, str]]:
+    """生成AIの使い方の6項目と利用条件（AI-BIC 3.4）。生成AIを使わない案は空。"""
+    g = p.genai
+    if g is None:
+        return []
+    head = "生成AIの使い方" if genai.uses_genai(p) else "生成AIを併用できる作業"
+    cond = "／".join(esc(c) for c in g.conditions) or "特になし"
+    risks = "／".join(esc(r) for r in g.risks) or "特になし"
+    return [
+        (head, f'<span class="bic-badge ai">◆ {esc(genai.label(p))}</span><b>{esc(genai.condition_text(p))}</b>'),
+        ("対象工程", esc(g.target_step)),
+        ("AIへの入力と出力", f"{esc(g.ai_input)} → {esc(g.ai_output)}"),
+        ("人が確認すること", esc(g.human_check)),
+        ("効果の見込み", esc(g.effect) + "<small>（AIの出力を確認・修正する時間も含めて測ります）</small>"),
+        ("着手条件と主なリスク", f"着手条件：{cond}<br>リスク：{risks}"),
+        ("最初に試す範囲", esc(g.first_trial)),
+    ]
+
+
 def proposal_brief(no: int, p: Proposal, issue_titles: list[str]) -> str:
     """選んだ案の要点（AI-BIC 3.2）：目的・変更内容・期待する効果・着手前の条件・主なリスク。詳しい説明は別に開く。"""
     def first(values: list[str], n: int = 2) -> str:
@@ -737,6 +764,7 @@ def proposal_brief(no: int, p: Proposal, issue_titles: list[str]) -> str:
             ("着手前の条件", first(p.prerequisites)), ("主なリスク", first(p.risks))]
     if p.effect_metric:
         rows.insert(3, ("効果を測る指標", esc(p.effect_metric)))
+    rows += genai_rows(p)
     body = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows)
     return (f'<div class="bic-brief"><div class="head"><span class="no">案{no}</span><b>{esc(p.title)}</b>'
             f'<span class="bic-badge">{esc(p.category)}</span><span class="bic-badge gray">導入難易度 {esc(p.difficulty)}</span></div>'
@@ -760,6 +788,7 @@ def proposal_card(no: int, p: Proposal) -> str:
         rows.append(("想定リスク", f"<ul>{items(p.risks)}</ul>"))
     if p.prerequisites:
         rows.append(("実施前に確認すべき事項", f"<ul>{items(p.prerequisites)}</ul>"))
+    rows += genai_rows(p)
     details = "".join(f"<dt>{name}</dt><dd>{value}</dd>" for name, value in rows)
 
     return (

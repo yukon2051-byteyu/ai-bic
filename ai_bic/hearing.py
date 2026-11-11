@@ -12,6 +12,7 @@ AIClient の3つの関数だけを使う（基本設計の方針P4）。
 
 from typing import Protocol
 
+from ai_bic import genai
 from ai_bic.config import MAX_EXTRA_QUESTIONS, MAX_HEARING_TURNS
 from ai_bic.item_rules import askable_item_ids, is_planned_answer, is_unknown_answer
 from ai_bic.models import (
@@ -275,6 +276,8 @@ def run_diagnosis(
 
     # 課題が0件なら改善提案のAIを呼ばない（費用削減・課題の捏造防止）
     proposals = client.propose(info, state, checked) if checked.issues else None
+    if proposals is not None:  # 「社内で承認された生成AIがある」は、入力の文に根拠があるときだけ認める（AI-BIC 3.4）
+        genai.normalize(proposals, genai.input_text(info, state, "\n".join(a.text for a in attachments)))
 
     return DiagnosisResult(
         attachment_names=[a.name for a in attachments],
