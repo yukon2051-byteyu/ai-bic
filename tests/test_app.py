@@ -309,8 +309,20 @@ def test_1日の上限に達していればAI診断を始められない(secrets
 # ---------------------------------------------------------------
 # 改善効果の試算（AI-BIC 2.0 機能A。B06 を置き換え）
 # ---------------------------------------------------------------
-def result_screen(secrets, at: AppTest | None = None) -> AppTest:
-    """デモで結果画面まで進める。at を渡すと、その画面（トップ）から続けて進める。"""
+def work(at: AppTest, area: str) -> AppTest:
+    """「改善案を選ぶ」タブの作業領域を開く（AI-BIC 3.2）。area：brief・flows・sim・review"""
+    at.session_state["result_tab"] = "改善案を選ぶ"
+    at.session_state["work_area"] = area
+    at.run()
+    assert not at.exception
+    return at
+
+
+def result_screen(secrets, at: AppTest | None = None, area: str | None = "sim") -> AppTest:
+    """デモで結果画面まで進める。at を渡すと、その画面（トップ）から続けて進める。
+
+    area：最後に開いておく作業領域（試算のテストが多いため、既定は試算。None なら初期表示のまま）。
+    """
     at = at or new_app(secrets)
     at.button(key="start_demo").click().run()
     at.button(key="submit_info").click().run()
@@ -320,7 +332,7 @@ def result_screen(secrets, at: AppTest | None = None) -> AppTest:
         at.button(key="extra_skip").click().run()
     at.button(key="diagnose").click().run()
     assert not at.exception
-    return at
+    return work(at, area) if area else at
 
 
 
@@ -616,9 +628,9 @@ def test_デモの初期表示は製造業で_業務フロー_試算_レビュ�
     overview = next(df.value for df in at.dataframe if "改善案" in df.value.columns)
     assert overview.loc[1, "年間削減時間"] == "120時間"
     # 業務フロー → 試算への反映 → レビュー → 作り直し
-    at.button(key="flow_generate").click().run()
+    work(at, "flows").button(key="flow_generate").click().run()
     assert len([h for h in at.get("html") if "bicflow" in h.proto.body]) == 1
-    at.selectbox(key="review_pid").set_value("P2").run()
+    work(at, "review").selectbox(key="review_pid").set_value("P2").run()
     at.button(key="review_run_P2").click().run()
     assert "△ 条件付き推奨" in all_text(at)
     assert at.session_state.project.ai_calls == {}  # APIは呼んでいない
@@ -684,7 +696,7 @@ def test_追加確認をせずに重要な不足があれば_主ボタンは不�
     at = production_result(secrets, extra="skip")
     assert at.button(key="go_gaps").proto.type == "primary"
     assert at.button(key="go_compare").proto.type == "secondary"
-    text = all_text(at)
+    text = all_text(open_tab(at, "不足情報を確認"))
     assert "不足情報の確認" in text and "データの取得（Power Query）" in text
 
 
@@ -698,15 +710,19 @@ def test_比較で選んだ案は_業務フロー_試算_レビューに引き�
         assert not at.exception
         s = at.session_state
         assert (s.compare_plan, s.sim_plan, s.flow_pid, s.review_pid) == ("P2", "P2", "P2", "P2"), key
-    assert at.radio(key="sim_plan").value == "P2"  # 試算の画面でも、選び直さずに案2が選ばれている
+        assert s.work_area == key[3:]  # 押した作業領域だけをその場に出す（AI-BIC 3.2）
+        if key == "go_sim":
+            assert at.radio(key="sim_plan").value == "P2"  # 試算の画面でも、選び直さずに案2が選ばれている
     assert at.selectbox(key="review_pid").value == "P2"
+    at.button(key="back_to_compare").click().run()  # 比較表へ戻る
+    assert at.session_state.work_area == "brief" and at.radio(key="compare_plan").value == "P2"
 
 
 def test_業務フローを見るでは_選んだ案の改善後を現状と並べて表示する(secrets):
     at = production_result(secrets)
-    at.button(key="flow_generate").click().run()
     at.radio(key="compare_plan").set_value("P3").run()
     at.button(key="go_flows").click().run()
+    at.button(key="flow_generate").click().run()
     assert at.radio(key="flow_view").value == "左右に並べて比較"
     assert at.selectbox(key="flow_pid").value == "P3"
 
@@ -856,6 +872,7 @@ def test_回答で前提が変わると_対象案の過去のレビューは再�
 def test_確定した案は_確定後に前提が変わると再確認が必要と表示し_確定時点の内容を残す(secrets):
     at = production_result(secrets, extra="skip")
     at.radio(key="compare_plan").set_value("P2").run()
+    at.button(key="go_review").click().run()
     at.button(key="review_decide_P2").click().run()
     project = at.session_state.project
     assert project.decision.pid == "P2"
@@ -910,3 +927,33 @@ def test_タブを切り替えても_送信前の回答と選んだ案は消え�
     open_tab(at, "不足情報を確認")
     assert at.text_area(key="gap_answer_item_H6").value == "書きかけの回答"
     assert "item:H6" not in at.session_state.project.gap_answers  # 送信していないので、記録はしない
+
+
+# ---------------------------------------------------------------
+# 改善案を選ぶタブの作業領域（AI-BIC 3.2）
+# ---------------------------------------------------------------
+def test_最初は比較表と選んだ案の要点だけで_フロー_試算_レビューは下に並ばない(secrets):
+    at = production_result(secrets)
+    text = all_text(at)
+    assert 'class="bic-brief"' in text
+    for label in ("目的", "変更内容", "期待する効果（想定）", "着手前の条件", "主なリスク"):
+        assert f"<dt>{label}</dt>" in text
+    assert all(f'id="sec-{s}"' not in text for s in ("flows", "sim", "review"))
+    assert "詳しい説明を読む（導入前後・最初の一歩・推奨理由など）" in [e.label for e in at.expander]
+
+
+def test_作業領域を切り替えても_試算の値とレビューの採否は残る(secrets):
+    at = production_result(secrets)
+    at.radio(key="compare_plan").set_value("P2").run()
+    at.button(key="go_sim").click().run()
+    at.number_input(key="sim_P2_hourly_cost").set_value(4200.0).run()
+    at.button(key="go_review").click().run()
+    assert 'id="sec-sim"' not in all_text(at) and 'id="sec-review"' in all_text(at)
+    at.button(key="review_run_P2").click().run()
+    key = next(r.key for r in at.radio if r.key and r.key.startswith("review_decision_P2_"))
+    at.radio(key=key).set_value("採用").run()
+    at.button(key="go_sim").click().run()
+    assert at.number_input(key="sim_P2_hourly_cost").value == 4200
+    at.button(key="go_review").click().run()
+    assert at.radio(key=key).value == "採用"
+    assert "review_decide_P2" in [b.key for b in at.button]  # 確定は、レビューの判定・採否と同じ場所

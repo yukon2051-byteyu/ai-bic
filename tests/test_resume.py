@@ -9,7 +9,7 @@ from streamlit.testing.v1 import AppTest
 
 from ai_bic import project as pj
 from ai_bic import review as rv
-from tests.test_app import all_text, new_app, open_tab, result_screen  # noqa: F401
+from tests.test_app import all_text, new_app, open_tab, result_screen, work  # noqa: F401
 from tests.test_app import secrets  # noqa: F401（フィクスチャ）
 from tests.test_review import demo
 
@@ -40,9 +40,9 @@ def test_デモの案件は再開しても_業務フロー_試算_レビュー�
     at = resumed(secrets, project, client.scenario)
     restored = at.session_state.project
     assert restored.as_is == project.as_is and restored.reviews["P1"].decisions == {0: "採用"}
-    assert at.number_input(key="sim_P1_hourly_cost").value == 4000
-    assert len([h for h in at.get("html") if "bicflow" in h.proto.body]) == 1  # 業務フローの図
-    at.button(key="review_revise_P1").click().run()  # デモはAIを使わないので、続きの操作ができる
+    assert work(at, "sim").number_input(key="sim_P1_hourly_cost").value == 4000
+    assert len([h for h in work(at, "flows").get("html") if "bicflow" in h.proto.body]) == 1  # 業務フローの図
+    work(at, "review").button(key="review_revise_P1").click().run()  # デモはAIを使わないので、続きの操作ができる
     assert restored.proposal_history["P1"]
 
 
@@ -50,12 +50,12 @@ def test_読み込んだAI診断の案件では_AIを使う操作ができない
     project, _ = demo(mode="ai")
     project.as_is, project.to_be = None, {}
     at = resumed(secrets, project, None)
-    text = all_text(at)
-    assert "読み込んだAI診断の案件です" in text
-    assert "AIで業務フローを作れません" in text and "AIでレビューできません" in text
+    assert "読み込んだAI診断の案件です" in all_text(at)
+    assert "AIで業務フローを作れません" in all_text(work(at, "flows"))
     keys = [b.key for b in at.button]
-    assert "flow_generate" not in keys and "review_run_P1" not in keys
-    assert "flow_blank" in keys  # 自分で作ることはできる
+    assert "flow_generate" not in keys and "flow_blank" in keys  # 自分で作ることはできる
+    assert "AIでレビューできません" in all_text(work(at, "review"))
+    assert "review_run_P1" not in [b.key for b in at.button]
 
 
 @pytest.mark.parametrize("data, message", [
@@ -77,6 +77,7 @@ def test_製造部デモで_案2の確定_試行_実測_再試行の判断_保�
 
     at = production_result(secrets)
     at.radio(key="compare_plan").set_value("P2").run()
+    at.button(key="go_review").click().run()
     at.button(key="review_decide_P2").click().run()
     at.button(key="review_trial_P2").click().run()  # 確定のあとに「この案を小さく試す」
     s = at.session_state
@@ -117,6 +118,7 @@ def test_試行の測定結果は画面で入力して保存でき_必須が未�
 
     at = production_result(secrets)
     at.radio(key="compare_plan").set_value("P1").run()
+    at.button(key="go_review").click().run()
     at.button(key="review_decide_P1").click().run()
     at.button(key="review_trial_P1").click().run()
     assert at.button(key="trial_decide").disabled
@@ -140,6 +142,7 @@ def test_確定のあとの主ボタンは1つだけで_計画を作ったあと
 
     at = production_result(secrets)
     at.radio(key="compare_plan").set_value("P2").run()
+    at.button(key="go_review").click().run()
     at.button(key="review_decide_P2").click().run()
     labels = [b.label for b in at.button]
     assert labels.count("この案を小さく試す") == 1 and "trial_start" not in [b.key for b in at.button]

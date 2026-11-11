@@ -82,6 +82,8 @@ def go(section: str, pid: str | None = None) -> None:
         if section == "flows":
             s["flow_view"] = flows.VIEWS[2]  # 選んだ案の改善後を、現状と並べて見せる
     s[TAB_KEY] = TABS[TAB_OF[section]]  # 対応するタブを開く
+    if section in ("flows", "sim", "review"):
+        s[WORK_KEY] = section  # 作業領域を切り替える（その場に出す）
     # タブの先頭（compare・gaps・evidence・trial）なら、タブの並びが上に来るように。それ以外はその見出しへ
     request_scroll(TAB_BAR if section in ("compare", "gaps", "evidence", "trial") else "#" + SECTIONS[section])
 
@@ -94,7 +96,7 @@ def request_scroll(selector: str) -> None:
 
 
 # 画面を動かす処理（ブラウザで動く）。見出しの上端を、固定のヘッダーがあればその直下14px、なければ上端から20pxに合わせる。
-# 見出しの上の余白（margin）は位置に含めない。Streamlit が描き直して位置がずれることがあるため、少し待ってもう一度合わせる。
+# 見出しの上の余白（margin）は位置に含めない。Streamlit が描き直して位置がずれることがあるため、少し待って何回か合わせる。
 # 注意：Streamlit の安全チェックで消されないよう、この中に「<英字」「</」を書かない
 SCROLL_JS = """
 (function () {
@@ -126,8 +128,8 @@ SCROLL_JS = """
       if (sc) sc.scrollTop += delta; else window.scrollBy(0, delta);
     }
   }
-  setTimeout(align, 120);
-  setTimeout(align, 700);
+  // 図などを描き終えると位置がずれるため、少し間を空けて何回か合わせる（合っていれば動かさない）
+  [120, 450, 900, 1600].forEach(function (ms) { setTimeout(align, ms); });
 })();
 """
 
@@ -466,9 +468,37 @@ def render_compare(project: Project) -> None:
                        format_func=lambda x: f"案{numbers[x]}",
                        captions=[ui.md_text(overview.tab_name(by_pid[x])) for x in pids],
                        on_change=lambda: focus(st.session_state[COMPARE_KEY]))
-    html(ui.proposal_card(numbers[pid], by_pid[pid]))
-    st.markdown(f"**案{numbers[pid]}で次にすること**")
+    # 選んだ案の要点（目的・変更内容・期待する効果・着手前の条件・主なリスク）。詳しい説明は開いて読む（AI-BIC 3.2）
+    issues = {i.issue_id: i for i in result.analysis.issues}
+    html(ui.proposal_brief(numbers[pid], by_pid[pid], [issues[i].title for i in by_pid[pid].target_issue_ids if i in issues]))
+    with st.expander("詳しい説明を読む（導入前後・最初の一歩・推奨理由など）"):
+        html(ui.proposal_card(numbers[pid], by_pid[pid]))
+    # 作業領域：業務フロー・試算・レビューは、選んだ1つだけをその場に出す（全部を縦に並べない）
+    st.markdown(f'<div id="{SECTIONS["work"]}" class="bic-work-title">案{numbers[pid]}で次にすること</div>',
+                unsafe_allow_html=True)
+    area = st.session_state.get(WORK_KEY, "brief")
     c1, c2, c3 = st.columns(3)
-    c1.button("業務フローを見る", key="go_flows", on_click=go, args=("flows", pid), width="stretch")
-    c2.button("効果を試算する", key="go_sim", on_click=go, args=("sim", pid), width="stretch")
-    c3.button("この案の弱点を確認する", key="go_review", on_click=go, args=("review", pid), width="stretch")
+    for col, (key, label, section) in zip((c1, c2, c3), WORK_BUTTONS):
+        col.button(label, key=key, on_click=go, args=(section, pid), width="stretch",
+                   type="primary" if area == section else "secondary")
+
+
+WORK_KEY = "work_area"  # 改善案を選ぶタブの作業領域（brief：要点だけ・flows・sim・review）
+WORK_BUTTONS = [("go_flows", "業務フローを見る", "flows"), ("go_sim", "効果を試算する", "sim"),
+                ("go_review", "この案の弱点を確認する", "review")]
+WORK_NAMES = {"flows": "業務フロー", "sim": "効果の試算", "review": "弱点の確認と確定"}
+
+
+def work_area() -> str:
+    """いま開いている作業領域（brief・flows・sim・review）。"""
+    return st.session_state.get(WORK_KEY, "brief")
+
+
+def render_back() -> None:
+    """作業領域から比較表へ戻る。作業領域は閉じるが、入力した値や選んだ案はそのまま残る。"""
+    st.button("比較表へ戻る", key="back_to_compare", on_click=_back)
+
+
+def _back() -> None:
+    st.session_state[WORK_KEY] = "brief"
+    request_scroll(TAB_BAR)

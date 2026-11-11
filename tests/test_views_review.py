@@ -7,7 +7,7 @@ from tests.test_app import secrets  # noqa: F401（フィクスチャ）
 
 
 def reviewed(secrets, pid="P1") -> AppTest:  # noqa: F811
-    at = result_screen(secrets)
+    at = result_screen(secrets, area="review")
     at.selectbox(key="review_pid").set_value(pid).run()
     at.button(key=f"review_run_{pid}").click().run()
     assert not at.exception
@@ -31,7 +31,7 @@ def test_デモではAIを使わずにレビューを表示し_判定と注意�
 def test_AIの判定をプログラムが上書きした場合は_理由を表示する(secrets):  # noqa: F811
     at = new_app(secrets)
     at.selectbox(key="demo_scenario").set_value("修理依頼の受付・手配（お客様相談室）").run()
-    at = result_screen(secrets, at)
+    at = result_screen(secrets, at, area="review")
     at.selectbox(key="review_pid").set_value("P3").run()
     at.button(key="review_run_P3").click().run()
     text = texts(at)
@@ -69,6 +69,6 @@ def test_改善案を確定できる(secrets):  # noqa: F811
 
 
 def test_レビュー前にプログラムの検証結果を見られる(secrets):  # noqa: F811
-    at = result_screen(secrets)
+    at = result_screen(secrets, area="review")
     at.selectbox(key="review_pid").set_value("P3").run()
     assert "プログラムの検証で見つかった問題" in "\n".join(e.label for e in at.expander)

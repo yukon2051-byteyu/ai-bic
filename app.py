@@ -609,10 +609,12 @@ def render_result() -> None:
                 html(ui.note("課題が確認できなかったため、改善案は作成していません。"))
             else:
                 result_top.render_compare(s.project)
-                # 業務フロー → 改善効果の試算 → 改善案チャレンジレビューと確定
-                flows.render(s.project, get_client)
-                simulator.render(s.project)
-                review.render(s.project, get_client)
+                # 作業領域：業務フロー・試算・レビュー（と確定）のうち、選んだ1つだけをその場に出す（AI-BIC 3.2）
+                area = result_top.work_area()
+                if area != "brief":
+                    {"flows": lambda: flows.render(s.project, get_client), "sim": lambda: simulator.render(s.project),
+                     "review": lambda: review.render(s.project, get_client)}[area]()
+                    result_top.render_back()
     with tabs["gaps"]:
         if tabs["gaps"].open:
             assumptions = overview.open_assumptions(s.hearing_state, s.project.gap_answers)

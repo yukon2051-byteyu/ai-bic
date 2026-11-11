@@ -70,10 +70,11 @@ def render(project: Project, get_client) -> None:
             # 元にした改善後フロー・試算が古いだけなら、レビューし直しても解決しない。先にそちらの更新を案内する
             st.info(f"{'・'.join(reasons)}。改善後フロー（業務フローの「確認した」または編集）と効果試算の値を見直してから、"
                     "レビューし直してください。")
-        _render_record(project, pid, record)
+        _render_record(project, pid, record, titles[pid])
         _render_revision(project, pid, get_client)
     _render_history(project, pid)
-    _render_decide(project, pid, titles[pid])
+    if record is None:
+        _render_decide(project, pid, titles[pid])  # レビュー前でも確定はできる（確定の前のレビューをすすめる）
 
 
 def _review_button(project: Project, pid: str, get_client, label: str) -> None:
@@ -119,7 +120,7 @@ def _render_start(project: Project, pid: str, get_client) -> None:
     _review_button(project, pid, get_client, "改善案をレビューする")
 
 
-def _render_record(project: Project, pid: str, record) -> None:
+def _render_record(project: Project, pid: str, record, title: str) -> None:
     result = record.result
     # 1. 結論
     color = {"推奨": "#137333", "条件付き推奨": "#B06000", "再検討": "#C5221F"}[record.verdict]
@@ -139,6 +140,11 @@ def _render_record(project: Project, pid: str, record) -> None:
         st.error(f"試行の前に対応すべき指摘（{len(high)}件）\n\n" + "\n\n".join(f"- {ui.esc(h)}" for h in high))
     else:
         st.success("試行の前に対応すべき重大な指摘はありません。")
+    # 確定は、判定と「試行の前に対応すべき指摘」・指摘の対応状況を見ながら行う（下まで読まなくてよい位置。AI-BIC 3.2）
+    counts = {d: sum(1 for i in range(len(result.findings)) if record.decisions.get(i, "保留") == d) for d in ("採用", "保留", "却下")}
+    st.caption("指摘の対応状況：" + "・".join(f"{d} {n}件" for d, n in counts.items())
+               + "（下の指摘事項で、採用・保留・却下を選べます）")
+    _render_decide(project, pid, title)
     # 3. 要点
     st.markdown(f"**評価の要約**　{ui.esc(result.summary)}")
 

@@ -17,7 +17,7 @@ from ai_bic import flow as fl
 from ai_bic.views import flow_canvas
 from ai_bic.views import flows as view
 from ai_bic.views import simulator
-from tests.test_app import new_app, result_screen  # noqa: F401
+from tests.test_app import new_app, result_screen, work  # noqa: F401
 from tests.test_app import secrets  # noqa: F401（フィクスチャ）
 from tests.test_project import make_project
 
@@ -145,14 +145,14 @@ def test_フローから月の件数が分からなければ_件数は変えな�
 # 画面（AppTest）
 # ---------------------------------------------------------------
 def flow_screen(secrets) -> AppTest:  # noqa: F811
-    at = result_screen(secrets)
+    at = result_screen(secrets, area="flows")
     at.button(key="flow_generate").click().run()
     assert not at.exception
     return at
 
 
 def test_デモではAIを使わずにサンプルの業務フローを表示できる(secrets):  # noqa: F811
-    at = result_screen(secrets)
+    at = result_screen(secrets, area="flows")
     assert "サンプルの業務フローを表示する" in [b.label for b in at.button]
     at = flow_screen(secrets)
     assert len([h for h in at.get("html") if "bicflow" in h.proto.body]) == 1  # 図の表示部品（flow_canvas.py）
@@ -241,11 +241,11 @@ def test_フローの時間を効果試算に反映できる(secrets):  # noqa: 
     at.button(key="flow_to_sim_P1").click().run()
     assert not at.exception
     assert any("効果試算に反映しました" in s.value for s in at.success)
-    assert at.number_input(key="sim_P1_minutes_per_case").value == 185  # 現状フローの1件あたりの時間
+    assert work(at, "sim").number_input(key="sim_P1_minutes_per_case").value == 185  # 現状フローの1件あたりの時間
 
 
 def test_自分で作る場合は空のフローから始められる(secrets):  # noqa: F811
-    at = result_screen(secrets)
+    at = result_screen(secrets, area="flows")
     at.button(key="flow_blank").click().run()
     assert not at.exception
     assert "工程がありません" in "\n".join(m.value for m in at.markdown)

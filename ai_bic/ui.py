@@ -328,6 +328,14 @@ a.bic-brand:hover {{ opacity: .7; }}
 .bic-relations {{ margin: .2rem 0 .6rem; padding-left: 1.2rem; font-size: .86rem; line-height: 1.7; color: var(--ink); }}
 .bic-relations b {{ color: var(--accent); }}
 
+/* 選んだ案の要点と作業領域（AI-BIC 3.2） */
+.bic-brief {{ background: var(--card); border: 1px solid var(--line-blue); border-left: 4px solid var(--accent); border-radius: 6px;
+  padding: .8rem 1rem; margin: .5rem 0; }}
+.bic-brief .head {{ display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; margin-bottom: .3rem; color: var(--accent); }}
+.bic-brief .head .no {{ font-size: .78rem; color: var(--sub); }}
+.bic-brief small {{ color: var(--sub); }}
+.bic-work-title {{ font-weight: 700; color: var(--accent); margin: .9rem 0 .2rem; }}
+
 /* 分かっている数値と計算する値（AI-BIC 3.1） */
 .bic-quantities {{ background: var(--card); border: 1px solid var(--line-blue); border-radius: 6px; padding: .6rem .9rem; margin: .4rem 0 .6rem; }}
 .bic-quantities .k {{ font-weight: 700; color: var(--accent); font-size: .9rem; }}
@@ -459,7 +467,7 @@ def md_text(text: str) -> str:
 
 # 結果画面の中の移動先（見出しそのものに付ける id。空の要素を置くと、見出しの上の余白が画面の上に残ったため）
 SECTIONS = {"gaps": "sec-gaps", "compare": "sec-compare", "flows": "sec-flows", "sim": "sec-sim", "review": "sec-review",
-            "trial": "sec-trial", "evidence": "sec-evidence"}
+            "trial": "sec-trial", "evidence": "sec-evidence", "work": "sec-work"}
 
 
 def label(en: str, ja: str, tight: bool = False, anchor: str | None = None, first: bool = False) -> str:
@@ -664,6 +672,24 @@ def issue_card(no: int, issue: Issue, viewpoints: str, sources: list[str], downg
         f'<div class="k">判断根拠（ご本人の発言・添付資料）</div>{quotes}'
         f'<dl class="bic-dl">{details}</dl></div></div></div>'
     )
+
+
+def proposal_brief(no: int, p: Proposal, issue_titles: list[str]) -> str:
+    """選んだ案の要点（AI-BIC 3.2）：目的・変更内容・期待する効果・着手前の条件・主なリスク。詳しい説明は別に開く。"""
+    def first(values: list[str], n: int = 2) -> str:
+        shown = "／".join(esc(v) for v in values[:n])
+        return shown + (f"<small>（ほか{len(values) - n}件）</small>" if len(values) > n else "") if values else "特になし"
+    purpose = esc(p.reduces) + "を減らす" if p.reduces else ""
+    if issue_titles:
+        purpose += ("（" if purpose else "") + "対象の課題：" + "、".join(esc(x) for x in issue_titles) + ("）" if purpose else "")
+    rows = [("目的", purpose or "—"), ("変更内容", esc(p.description)), ("期待する効果（想定）", esc(p.expected_effect)),
+            ("着手前の条件", first(p.prerequisites)), ("主なリスク", first(p.risks))]
+    if p.effect_metric:
+        rows.insert(3, ("効果を測る指標", esc(p.effect_metric)))
+    body = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows)
+    return (f'<div class="bic-brief"><div class="head"><span class="no">案{no}</span><b>{esc(p.title)}</b>'
+            f'<span class="bic-badge">{esc(p.category)}</span><span class="bic-badge gray">導入難易度 {esc(p.difficulty)}</span></div>'
+            f'<dl class="bic-dl">{body}</dl></div>')
 
 
 def proposal_card(no: int, p: Proposal) -> str:
