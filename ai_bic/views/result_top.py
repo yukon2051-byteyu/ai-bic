@@ -8,6 +8,8 @@
 「業務フローを見る」などのボタンは、案をそろえたうえで、その見出しまで画面を動かす（go）。
 """
 
+import json
+
 import streamlit as st
 
 from ai_bic import config, facts, overview, ui
@@ -20,18 +22,12 @@ from ai_bic.project import Project
 from ai_bic.views import flows, simulator
 from ai_bic.views.simulator import PLAN_KEY as SIM_PLAN_KEY
 
-# 移動先（見出しの前に置く目印の id）
-SECTIONS = {"gaps": "sec-gaps", "compare": "sec-compare", "flows": "sec-flows", "sim": "sec-sim", "review": "sec-review",
-            "trial": "sec-trial"}
+SECTIONS = ui.SECTIONS  # 移動先（見出しに付けた id）
 COMPARE_KEY = "compare_plan"  # 比較で選んでいる案（P1 など）
 
 
 def html(text: str) -> None:
     st.markdown(text, unsafe_allow_html=True)
-
-
-def anchor(section: str) -> None:
-    html(f'<div id="{SECTIONS[section]}"></div>')
 
 
 def focus(pid: str) -> None:
@@ -58,18 +54,54 @@ def request_scroll(selector: str) -> None:
     s["scroll_count"] = s.get("scroll_count", 0) + 1
 
 
+# 画面を動かす処理（ブラウザで動く）。見出しの上端を、固定のヘッダーがあればその直下14px、なければ上端から20pxに合わせる。
+# 見出しの上の余白（margin）は位置に含めない。Streamlit が描き直して位置がずれることがあるため、少し待ってもう一度合わせる。
+# 注意：Streamlit の安全チェックで消されないよう、この中に「<英字」「</」を書かない
+SCROLL_JS = """
+(function () {
+  var target = TARGET;
+  function offset() {
+    var h = document.querySelector('header[data-testid="stHeader"]');
+    if (h) {
+      var cs = getComputedStyle(h), r = h.getBoundingClientRect();
+      var fixed = cs.position === 'fixed' || cs.position === 'sticky';
+      if (fixed && r.height > 0 && r.bottom > 0 && cs.visibility !== 'hidden' && cs.display !== 'none') return r.bottom + 14;
+    }
+    return 20;
+  }
+  function scroller(el) {
+    var p = el.parentElement;
+    while (p && p !== document.body && p !== document.documentElement) {
+      var o = getComputedStyle(p).overflowY;
+      if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+      p = p.parentElement;
+    }
+    return null;
+  }
+  function align() {
+    var el = document.querySelector(target);
+    if (!el) return;
+    var delta = el.getBoundingClientRect().top - offset();
+    if (Math.abs(delta) > 1) {
+      var sc = scroller(el);
+      if (sc) sc.scrollTop += delta; else window.scrollBy(0, delta);
+    }
+  }
+  setTimeout(align, 120);
+  setTimeout(align, 700);
+})();
+"""
+
+
 def render_scroll() -> None:
-    """request_scroll で頼まれた要素まで画面を動かす（ページの最後に置く。描き終わるのを少し待つ）。"""
+    """request_scroll で頼まれた要素まで画面を動かす（ページの最後に置く）。"""
     target = st.session_state.pop("scroll_to", None)
     if not target:
         return
     count = st.session_state.get("scroll_count", 0)
     # 回数を入れて毎回違う中身にする（同じ中身だと、2回目に同じ移動先を押したとき動かないため）
-    st.html(
-        f'<span data-scroll="{count}"></span><script>setTimeout(function () {{'
-        f' var el = document.querySelector("{target}"); if (el) el.scrollIntoView({{block: "start"}}); }}, 250);</script>',
-        unsafe_allow_javascript=True,
-    )
+    script = SCROLL_JS.replace("TARGET", json.dumps(target))
+    st.html(f'<span data-scroll="{count}"></span><script>{script}</script>', unsafe_allow_javascript=True)
 
 
 # ---------------------------------------------------------------
@@ -96,8 +128,7 @@ def render_decision(ov: Overview, has_proposals: bool) -> None:
 # ---------------------------------------------------------------
 def render_gaps(project: Project, ov: Overview, assumptions: list[str], get_client) -> None:
     """不足情報の確認（AI-BIC 3.0）：重要なものから示し、その場で答えて関係する結果だけを更新する。"""
-    anchor("gaps")
-    html(ui.label("Check", "不足情報の確認"))
+    html(ui.label("Check", "不足情報の確認", anchor="gaps"))
     st.caption("次の判断に必要なのに、まだ確認できていない情報です（重要なものから）。その場で答えると、関係する結果だけを更新します。"
                "あとで確認する項目は、答えずにそのままにしてください（「要確認」のまま残ります）。")
     s = st.session_state
@@ -261,8 +292,7 @@ def render_compare(project: Project) -> None:
     result = project.diagnosis
     proposals = result.proposals.proposals
     pids = pj.proposal_ids(project)
-    anchor("compare")
-    html(ui.label("Compare", "改善案の比較"))
+    html(ui.label("Compare", "改善案の比較", anchor="compare"))
     html(ui.compare_table(overview.compare_rows(result)))
     relations = overview.valid_relations(result.proposals.relations, len(proposals))
     if relations:

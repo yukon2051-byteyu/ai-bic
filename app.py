@@ -642,15 +642,11 @@ def render_result() -> None:
 
     if result.proposals is not None:
         # STEP 2〜4：業務フロー（現状と改善後）→ 改善効果の試算（指示書 6章の順）
-        result_top.anchor("flows")
         flows.render(s.project, get_client)
-        result_top.anchor("sim")
         simulator.render(s.project)
         # STEP 5〜6：改善案チャレンジレビュー → 改善案の確定（AI-BIC 2.0 機能D）
-        result_top.anchor("review")
         review.render(s.project, get_client)
         # 確定した案を小さく試し、測った結果から次の判断をする（AI-BIC 3.0。AIは使わない）
-        result_top.anchor("trial")
         trial_view.render(s.project)
 
     html(ui.footnote(ui.DISCLAIMER))

@@ -336,7 +336,7 @@ a.bic-brand:hover {{ opacity: .7; }}
 
 /* ヒアリングの現在の質問カード（AI-BIC 3.1）：質問番号・進み具合 → 質問文 → 回答欄 → 回答例 → ボタン */
 .st-key-hearing_card {{ background: #EFF6FF; border: 1px solid #CBDCF3; border-radius: 12px; padding: 1.1rem 1.3rem 1.2rem;
-  gap: .55rem; scroll-margin-top: 72px; }}
+  gap: .55rem; }}
 .st-key-hearing_card .bic-qhead {{ font-size: .8rem; letter-spacing: .04em; color: #44546F; }}
 .st-key-hearing_card .bic-question {{ color: #172B4D; font-weight: 700; font-size: 22px; line-height: 1.6; margin: .2rem 0 .6rem; }}
 .st-key-hearing_card .bic-preparing {{ color: #172B4D; font-weight: 600; padding: .6rem 0; }}
@@ -352,8 +352,6 @@ a.bic-brand:hover {{ opacity: .7; }}
   .st-key-hearing_card .bic-question {{ font-size: 19px; }}
 }}
 
-/* 結果画面の中の移動先（固定のヘッダーに隠れないよう、少し上で止める） */
-[id^="sec-"] {{ scroll-margin-top: 72px; }}
 
 /* 課題・改善案のカード
    読む順番：太字（タイトル・要点）→ 根拠や改善後の姿 → 小さく薄い補足（表形式） */
@@ -441,10 +439,19 @@ def md_text(text: str) -> str:
     return "".join("\\" + c if c in "\\`*_{}[]()#+-.!|~<>$" else c for c in str(text))
 
 
-def label(en: str, ja: str, tight: bool = False) -> str:
-    """英字の小さなラベル＋日本語の見出し。tight=True は余白を詰めた版（トップページ用）。"""
+# 結果画面の中の移動先（見出しそのものに付ける id。空の要素を置くと、見出しの上の余白が画面の上に残ったため）
+SECTIONS = {"gaps": "sec-gaps", "compare": "sec-compare", "flows": "sec-flows", "sim": "sec-sim", "review": "sec-review",
+            "trial": "sec-trial"}
+
+
+def label(en: str, ja: str, tight: bool = False, anchor: str | None = None) -> str:
+    """英字の小さなラベル＋日本語の見出し。tight=True は余白を詰めた版（トップページ用）。
+
+    anchor：SECTIONS のキー。見出しに移動先の id を付ける（画面を動かすと、この見出しが上に来る）。
+    """
     extra = " tight" if tight else ""
-    return f'<div class="bic-label{extra}">{esc(en)}</div><div class="bic-h2{extra}">{esc(ja)}</div>'
+    id_attr = f' id="{SECTIONS[anchor]}"' if anchor else ""
+    return f'<div class="bic-label{extra}"{id_attr}>{esc(en)}</div><div class="bic-h2{extra}">{esc(ja)}</div>'
 
 
 def hero() -> str:

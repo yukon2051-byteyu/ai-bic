@@ -144,7 +144,7 @@ def render(project: Project) -> None:
     proposals = project.diagnosis.proposals.proposals
     pids = pj.proposal_ids(project)
 
-    html(ui.label("Estimate", "改善効果の試算"))
+    html(ui.label("Estimate", "改善効果の試算", anchor="sim"))
     st.caption("計算はプログラムが行います（AIは計算していません）。入力を変えると、すぐに計算し直します。")
     _render_overview(project, pids, proposals)
 

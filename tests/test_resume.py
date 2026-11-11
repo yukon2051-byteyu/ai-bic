@@ -128,3 +128,20 @@ def test_試行の測定結果は画面で入力して保存でき_必須が未�
     assert metrics[0].actual == 200 and metrics[0].estimate == 255 and metrics[0].target == 255
     assert "判定の目安　展開する" in all_text(at)
     assert not at.button(key="trial_decide").disabled
+
+
+def test_確定のあとの主ボタンは1つだけで_計画を作ったあとは試行計画を開くになる(secrets):  # noqa: F811
+    from tests.test_app import production_result
+
+    at = production_result(secrets)
+    at.radio(key="compare_plan").set_value("P2").run()
+    at.button(key="review_decide_P2").click().run()
+    labels = [b.label for b in at.button]
+    assert labels.count("この案を小さく試す") == 1 and "trial_start" not in [b.key for b in at.button]
+    assert at.session_state.project.trial is None  # 押すまで計画は作らない
+    at.button(key="review_trial_P2").click().run()
+    assert at.session_state.project.trial.pid == "P2"
+    labels = [b.label for b in at.button]
+    assert "この案を小さく試す" not in labels and labels.count("試行計画を開く") == 1
+    at.button(key="review_trial_P2").click().run()  # 開き直しても、計画は作り直さない
+    assert at.session_state.project.trial.pid == "P2"

@@ -34,7 +34,7 @@ def html(text: str) -> None:
 
 
 def render(project: Project, get_client) -> None:
-    html(ui.label("Review", "改善案チャレンジレビュー"))
+    html(ui.label("Review", "改善案チャレンジレビュー", anchor="review"))
     st.caption("改善案を作ったAIとは別の指示文で、改善案の弱点や不足情報を批判的に評価します。"
                "試算・業務フロー・情報の充足度はプログラムでも確かめ、AIの判定が甘い場合は上書きします。")
     pids = pj.proposal_ids(project)
@@ -42,8 +42,17 @@ def render(project: Project, get_client) -> None:
     titles = {pid: f"案{no}：{p.title}" for no, (pid, p) in enumerate(zip(pids, proposals), start=1)}
     pid = st.selectbox("レビューする改善案", pids, format_func=titles.get, key="review_pid")
 
+    # レビュー中（AI-BIC 3.1）：ボタンを押した次の表示で、ボタンと確定の操作を出さずにAIを呼ぶ（二重実行・処理中の確定を防ぐ）
+    pending = st.session_state.pop("review_pending", None)
+    if pending == pid:
+        html(f'<div class="bic-gap"><b>状態：レビュー中</b>　{ui.esc(titles[pid])}を評価しています。'
+             "終わるまで、レビューと確定の操作はできません。</div>")
+        _run(lambda: rv.generate_review(get_client(), project, pid), "レビュー中です…（1分ほどかかることがあります）")
+        return
+
     if error := st.session_state.get("review_error"):
-        st.error(user_message(error))
+        # 失敗しても、直前のレビューの結果と採否はそのまま残る（成功したときだけ記録を置き換える）
+        st.error(user_message(error) + "　直前の結果は残っています。もう一度試せます。")
     record = project.reviews.get(pid)
     if record is None:
         _render_start(project, pid, get_client)
@@ -69,8 +78,7 @@ def render(project: Project, get_client) -> None:
 
 def _review_button(project: Project, pid: str, get_client, label: str) -> None:
     if project.mode == "demo":
-        if st.button(label.replace("（AI）", ""), key=f"review_run_{pid}", type="primary"):
-            _run(lambda: rv.generate_review(get_client(), project, pid))
+        st.button(label.replace("（AI）", ""), key=f"review_run_{pid}", type="primary", on_click=_request, args=(pid,))
         st.caption("デモ：事前に作った架空のレビューです（AIは使いません）。プログラムの検証と判定の上書きは本物と同じく行います。")
         return
     if st.session_state.get("loaded"):
@@ -79,17 +87,22 @@ def _review_button(project: Project, pid: str, get_client, label: str) -> None:
     left = rv.calls_left(project, "review")
     error = st.session_state.get("review_error")
     if left > 0 and (not error or is_retryable(error)):
-        if st.button(f"{label}（AI）", key=f"review_run_{pid}", type="primary"):
-            _run(lambda: rv.generate_review(get_client(), project, pid))
+        st.button(f"{label}（AI）", key=f"review_run_{pid}", type="primary", on_click=_request, args=(pid,))
         st.caption(f"AIを1回呼びます（この案件で残り{left}回。失敗した回は数えません）。1分ほどかかることがあります。")
     elif left <= 0:
         html(ui.note("この案件では、AIでレビューできる回数の上限に達しました。"))
 
 
-def _run(action) -> None:
+def _request(pid: str) -> None:
+    """レビューのボタン：次の表示で「レビュー中」にしてから実行する。"""
+    st.session_state["review_pending"] = pid
+    st.session_state.pop("review_error", None)
+
+
+def _run(action, message: str = "AIが処理しています…（1分ほどかかることがあります）") -> None:
     st.session_state.pop("review_error", None)
     try:
-        with st.spinner("AIが処理しています…（1分ほどかかることがあります）"):
+        with st.spinner(message):
             action()
     except AIError as e:
         st.session_state["review_error"] = e.kind
@@ -119,11 +132,15 @@ def _render_record(project: Project, pid: str, record) -> None:
     if record.verdict != record.ai_verdict:
         st.info(f"AIの判定は「{record.ai_verdict}」でしたが、プログラムの検証により「{record.verdict}」としました。\n\n"
                 + "\n\n".join(record.override_reasons))
-    # 2. 要点
-    st.markdown(f"**評価の要約**　{ui.esc(result.summary)}")
-    high = [f.title for f in result.findings if f.severity == "高"] + [r.message for r in record.rule_findings if r.severity == "高"]
+    # 2. 試行の前に対応すべき指摘（重要度「高」のAIの指摘と、プログラムの検証）を、判定のすぐ後に出す（AI-BIC 3.1）
+    high = [f"{f.title}　→ {f.suggestion}" for f in result.findings if f.severity == "高"]
+    high += [f"{r.message}（プログラムの検証）" for r in record.rule_findings if r.severity == "高"]
     if high:
-        st.error("重大な懸念事項\n\n" + "\n\n".join(f"- {ui.esc(h)}" for h in high))
+        st.error(f"試行の前に対応すべき指摘（{len(high)}件）\n\n" + "\n\n".join(f"- {ui.esc(h)}" for h in high))
+    else:
+        st.success("試行の前に対応すべき重大な指摘はありません。")
+    # 3. 要点
+    st.markdown(f"**評価の要約**　{ui.esc(result.summary)}")
 
     st.markdown(f"**指摘事項（{len(result.findings)}件）**　採用した指摘だけを反映して、改善案を作り直せます。")
     version = pj.version(project, "review", pid)
@@ -214,8 +231,12 @@ def _render_decide(project: Project, pid: str, title: str) -> None:
         decision = project.decision
         when = f"（{decision.decided_at:%Y-%m-%d %H:%M}）" if decision else ""
         st.success(f"{title} を確定しました{when}。")
-        # 確定のあとは、この案を小さく試す（AI-BIC 3.0）。押すと計画を作り、試行の見出しへ移動する
-        st.button("この案を小さく試す", key=f"review_trial_{pid}", type="primary", on_click=_go_trial, args=(project,))
+        # 確定のあとの主ボタンは1つだけ（AI-BIC 3.1）。計画がなければ作って移動し、あれば開いて続ける
+        has_plan = project.trial is not None and project.trial.pid == pid
+        if project.trial is not None and not has_plan:
+            st.caption(f"前に確定した案{project.trial.pid[1:]}の試行の記録があります。この案で試すと置き換わります。")
+        st.button("試行計画を開く" if has_plan else "この案を小さく試す", key=f"review_trial_{pid}", type="primary",
+                  on_click=_go_trial, args=(project,))
         if changed := facts.decision_changes(project):
             st.warning(f"確定したあとに{'・'.join(changed)}が変わりました。再確認が必要です。"
                        f"確定した時点の内容（案名：{decision.proposal.title}）は記録に残しています。")

@@ -52,25 +52,18 @@ def _start_demo(project: Project) -> None:
 # 表示
 # ---------------------------------------------------------------
 def render(project: Project) -> None:
+    """試行の画面。計画を作るまでは表示しない（作る操作は、確定の欄の「この案を小さく試す」1つだけ。AI-BIC 3.1）。"""
     pid = project.selected_proposal
-    if pid is None or project.diagnosis.proposals is None:
+    plan = project.trial
+    if pid is None or project.diagnosis.proposals is None or plan is None or plan.pid != pid:
         return
     no = pj.proposal_ids(project).index(pid) + 1
-    html(ui.label("Trial", "この案を小さく試す"))
+    html(ui.label("Trial", "この案を小さく試す", anchor="trial"))
     title = project.decision.proposal.title if project.decision else project.diagnosis.proposals.proposals[no - 1].title
     st.caption(f"確定した案：案{no}「{title}」。小さく試して測った結果から、展開するか・直して試すか・見送るかを決めます。"
                "計算と判定の目安はプログラムが行います（AIは使いません）。")
     if changed := facts.decision_changes(project):
         st.warning(f"確定したあとに{'・'.join(changed)}が変わっています。試行は確定した時点の内容をもとにしています。")
-
-    plan = project.trial
-    if plan is None or plan.pid != pid:
-        if plan is not None:
-            html(ui.note(f"前に確定した案{plan.pid[1:]}の試行の記録があります。新しく作ると置き換わります。"))
-        st.button("この案を小さく試す", key="trial_start", type="primary", on_click=start, args=(project,))
-        if demo_sample(project):
-            st.button("デモ：1台分のCSVで試したサンプルを入れる", key="trial_demo", on_click=_start_demo, args=(project,))
-        return
 
     if plan.sample:
         html(ui.note("デモ用の数値です（架空のサンプル）。1台分のCSVで試した場合の例を入れています。"))

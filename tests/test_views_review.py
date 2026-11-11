@@ -37,7 +37,7 @@ def test_AIの判定をプログラムが上書きした場合は_理由を表�
     text = texts(at)
     assert "✕ 再検討" in text
     assert "AIの判定は「条件付き推奨」でしたが、プログラムの検証により「再検討」としました" in text
-    assert "重大な懸念事項" in text
+    assert "試行の前に対応すべき指摘（" in text
 
 
 def test_採用した指摘だけで作り直すと_変更前後と要更新の状態を表示する(secrets):  # noqa: F811

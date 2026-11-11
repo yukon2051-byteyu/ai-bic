@@ -67,7 +67,7 @@ def _key(target: str, project: Project, name: str) -> str:
 # 表示
 # ---------------------------------------------------------------
 def render(project: Project, get_client) -> None:
-    html(ui.label("Flow", "業務フロー（現状と改善後）"))
+    html(ui.label("Flow", "業務フロー（現状と改善後）", anchor="flows"))
     if project.diagnosis.proposals is None:
         html(ui.note("改善案がないため、業務フローは作成していません。"))
         return
