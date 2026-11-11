@@ -171,7 +171,7 @@ def from_candidate(project: Project | None, c: TrialMetricPlan, time: TrialMetri
         unit, per = src.unit, per or src.per
     m = TrialMetric(name=name, unit=unit, per=per, required=c.required, purpose=purpose, target=c.target,
                     direction=c.direction, checked_basis=basis_text(unit, per) if unit and per else None)
-    if c.target is None and c.pass_condition.strip():
+    if c.pass_condition.strip():  # 目標値があっても、AIが書いた合格条件の文は残す（例：導入前より少ない（できれば0日））
         m.note = f"合格条件の目安：{c.pass_condition.strip()}"
     if src is None:
         return m
