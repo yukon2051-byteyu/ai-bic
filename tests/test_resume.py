@@ -124,21 +124,18 @@ def test_試行の測定結果は画面で入力して保存でき_必須が未�
     at.button(key="review_trial_P1").click().run()
     assert at.button(key="trial_decide").disabled
     metrics = at.session_state.project.trial.metrics
-    # 案1は作業時間の短縮が直接の目的ではないため、案の指標（集計の誤りの件数）が先頭の必須の項目、作業時間は参考（AI-BIC 3.1）
-    # 作業時間は、診断の数値（設備1台分の集計時間・分／台）の名前と単位を引き継ぐ（AI-BIC 3.3）
-    assert [m.name for m in metrics] == ["集計の誤りの件数", "設備1台分の集計時間", "例外の処理（想定外の形式など）"]
-    assert tr.basis_of(metrics[1]) == "分／台" and metrics[1].baseline == 300
-    assert metrics[0].required and not metrics[1].required
-    assert tr.evaluate(metrics[0]).status == "単位を確認"  # 案の指標に単位がない間は判定に使わない
-    at.text_input(key="trial_m0_unit").set_value("件")
-    at.text_input(key="trial_m0_per").set_value("試行期間")
-    at.number_input(key="trial_m0_target").set_value(0.0)
+    # 案1（変換表と手順）に合う項目だけ。一般的な項目（例外の処理・作業時間）は入れない（AI-BIC 3.3）
+    assert [m.name for m in metrics] == ["転記漏れの件数", "4設備の書き方をすべて変換表で読み替えられるか"]
+    assert tr.basis_of(metrics[0]) == "件／月" and metrics[0].baseline == 1 and metrics[0].source == "添付ファイル"
+    assert all(m.required for m in metrics)
+    text = all_text(at)
+    assert "必須の測定が未入力です（転記漏れの件数（件／月）・4設備の書き方をすべて変換表で読み替えられるか）" in text
+    assert "確かめること：変換表と手順で転記漏れが減るかを確かめる" in text
     at.number_input(key="trial_m0_actual").set_value(0.0)
-    at.number_input(key="trial_m1_actual").set_value(200.0)
-    at.radio(key="trial_m2_check_result").set_value("成功")
+    at.radio(key="trial_m1_check_result").set_value("成功")
     at.button(key="trial_metrics_save").click().run()
     metrics = at.session_state.project.trial.metrics
-    assert metrics[1].actual == 200 and metrics[1].estimate == 255 and metrics[1].target == 255
+    assert metrics[0].actual == 0 and metrics[0].target == 0
     assert "判定の目安　展開する" in all_text(at)
     assert not at.button(key="trial_decide").disabled
 
@@ -171,16 +168,16 @@ def test_値のある項目の単位を変えると再確認が必要になり_�
     at.button(key="go_review").click().run()
     at.button(key="review_decide_P1").click().run()
     at.button(key="review_trial_P1").click().run()
-    at.number_input(key="trial_m1_actual").set_value(200.0)
+    at.number_input(key="trial_m0_actual").set_value(0.0)
     at.button(key="trial_metrics_save").click().run()
-    assert tr.evaluate(at.session_state.project.trial.metrics[1]).status == "達成"
-    at.text_input(key="trial_m1_per").set_value("件").run()
+    assert tr.evaluate(at.session_state.project.trial.metrics[0]).status == "達成"
+    at.text_input(key="trial_m0_per").set_value("週").run()
     at.button(key="trial_metrics_save").click().run()
-    m = at.session_state.project.trial.metrics[1]
+    m = at.session_state.project.trial.metrics[0]
     r = tr.evaluate(m)
-    assert r.status == "単位を確認" and "分／台 → 分／件" in r.diff_text and m.actual == 200
+    assert r.status == "単位を確認" and "件／月 → 件／週" in r.diff_text and m.actual == 0
     assert any("再確認が必要" in w.value for w in at.warning)
-    at.checkbox(key="trial_m1_basis_ok").check().run()
+    at.checkbox(key="trial_m0_basis_ok").check().run()
     at.button(key="trial_metrics_save").click().run()
-    m = at.session_state.project.trial.metrics[1]
-    assert m.checked_basis == "分／件" and tr.evaluate(m).status == "達成"
+    m = at.session_state.project.trial.metrics[0]
+    assert m.checked_basis == "件／週" and tr.evaluate(m).status == "達成"

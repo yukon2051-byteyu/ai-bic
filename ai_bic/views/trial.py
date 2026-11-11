@@ -116,7 +116,11 @@ def _render_metrics(project: Project) -> None:
     with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
         for i, m in enumerate(plan.metrics):
             k = f"trial_m{i}_"
-            st.markdown(f"**{i + 1}. {ui.esc(tr.metric_label(m))}**（{m.kind}）")
+            st.markdown(f"**{i + 1}. {ui.esc(tr.metric_label(m))}**（{m.kind}・{'必須' if m.required else '参考'}）")
+            if m.purpose:
+                st.caption(f"確かめること：{m.purpose}")
+            s.setdefault(k + "name", m.name)
+            st.text_input("項目の名前", key=k + "name", max_chars=60)
             s.setdefault(k + "required", m.required)
             s.setdefault(k + "note", m.note)
             if m.kind == "数値":
@@ -172,7 +176,7 @@ def _save_metrics(project: Project) -> None:
     updated = []
     for i, m in enumerate(plan.metrics):
         k = f"trial_m{i}_"
-        values = {"required": s[k + "required"], "note": s[k + "note"].strip()}
+        values = {"required": s[k + "required"], "note": s[k + "note"].strip(), "name": s[k + "name"].strip() or m.name}
         if m.kind == "数値":
             values.update({name: s[k + name] for name in ("baseline", "target", "actual", "direction")})
             unit, per = s[k + "unit"].strip(), s[k + "per"].strip()

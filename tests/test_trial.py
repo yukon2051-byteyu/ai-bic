@@ -31,7 +31,8 @@ def test_計画は確定した案のリスクと_確定時点の試算の前提�
     assert "1件あたりの作業時間（分）：300（デモ値）" in plan.assumptions  # 確定した時点の値
     time = plan.metrics[0]
     assert (time.baseline, time.estimate, time.target, time.actual) == (300, 240, 240, None)  # 20%削減の試算値
-    assert [m.kind for m in plan.metrics] == ["数値", "数値", "確認"]
+    # 測定項目の候補がない古い案は、作業時間の1件だけ（どの案にも同じ一般的な項目は入れない。AI-BIC 3.3）
+    assert [m.kind for m in plan.metrics] == ["数値"] and time.required
 
 
 def test_確定していなければ計画を作れない():

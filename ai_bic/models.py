@@ -207,6 +207,21 @@ class AnalysisResult(BaseModel):
 # ---------------------------------------------------------------
 # AIの出力③：改善提案（F04）
 # ---------------------------------------------------------------
+class TrialMetricPlan(BaseModel):
+    """改善案ごとの、小さく試すときに測る項目の候補（AI-BIC 3.3）。プログラムが単位と数値の一覧との対応を確かめる。"""
+
+    name: str  # 何を測るか（例：記録漏れがあった日数）
+    kind: Literal["数値", "確認"]  # 数値：日数・時間など／確認：できたか・できなかったか
+    unit: str | None  # 数値の単位（日・分・件など）。確認なら null
+    per: str | None  # 何あたりか（月・稼働日・試行期間など）。確認なら null
+    required: bool  # その案の成否を決める項目なら true
+    purpose: str  # 何を確かめるための項目か（短い1文）
+    pass_condition: str  # 合格条件（例：0日、すべて区別できる）
+    target: float | None = None  # 数値の合格条件の値（分かれば）
+    direction: Literal["以下", "以上"] = "以下"
+    quantity_ref: str | None = None  # 改善前の値に当たる、数値の一覧の番号（Q1・D1）。なければ null
+
+
 class Proposal(BaseModel):
     """改善案。"""
 
@@ -221,6 +236,8 @@ class Proposal(BaseModel):
     effect_metric: str | None = None
     # 効果を判断するのに必要な数値（課題分析の数値の一覧の Q／D の番号）。不足情報欄では、これだけを確認する
     effect_inputs: list[str] = Field(default_factory=list)
+    # 小さく試すときに測る項目の候補（AI-BIC 3.3）。古い保存データやAIが書かなかったときは空（effect_metric から1件作る）
+    trial_metrics: list[TrialMetricPlan] = Field(default_factory=list)
     category: ProposalCategory
     description: str
     target_issue_ids: list[str]

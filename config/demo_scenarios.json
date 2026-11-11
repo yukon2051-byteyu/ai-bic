@@ -267,7 +267,7 @@
           },
           {
             "qid": "Q5",
-            "name": "転記漏れの件数（10月）",
+            "name": "10月の転記漏れの件数",
             "value": 1,
             "unit": "件",
             "status": "確認済み",
@@ -276,7 +276,7 @@
             "file_no": 1,
             "quote": "10月は組立ラインの数量の転記漏れが1件あった",
             "sim_field": null,
-            "per": null
+            "per": "月"
           }
         ],
         "derived": [
@@ -334,6 +334,32 @@
             "first_steps": [
               "4台の設備のデータの書き方を一覧にする",
               "集計表への転記の手順を書き出す"
+            ],
+            "trial_metrics": [
+              {
+                "name": "転記漏れの件数",
+                "kind": "数値",
+                "unit": "件",
+                "per": "月",
+                "required": true,
+                "purpose": "変換表と手順で転記漏れが減るかを確かめる",
+                "pass_condition": "0件",
+                "target": 0,
+                "direction": "以下",
+                "quantity_ref": "Q5"
+              },
+              {
+                "name": "4設備の書き方をすべて変換表で読み替えられるか",
+                "kind": "確認",
+                "unit": null,
+                "per": null,
+                "required": true,
+                "purpose": "変換表に漏れがないかを確かめる",
+                "pass_condition": "すべての書き方を読み替えられる",
+                "target": null,
+                "direction": "以下",
+                "quantity_ref": null
+              }
             ]
           },
           {
@@ -367,6 +393,44 @@
             "first_steps": [
               "情報システム担当に、データの取得機能が使えるか確認する",
               "1台分のCSVで取り込みを試す"
+            ],
+            "trial_metrics": [
+              {
+                "name": "1台分の転記・照合の時間",
+                "kind": "数値",
+                "unit": "分",
+                "per": "台（月次）",
+                "required": true,
+                "purpose": "取り込みで手作業の時間が減るかを確かめる",
+                "pass_condition": "30分以下",
+                "target": 30,
+                "direction": "以下",
+                "quantity_ref": null
+              },
+              {
+                "name": "手作業の集計との数量差",
+                "kind": "数値",
+                "unit": "件",
+                "per": "台（10月分）",
+                "required": true,
+                "purpose": "取り込んだ数量が正しいかを確かめる",
+                "pass_condition": "0件",
+                "target": 0,
+                "direction": "以下",
+                "quantity_ref": null
+              },
+              {
+                "name": "日付の書き方の違いを取り込めるか",
+                "kind": "確認",
+                "unit": null,
+                "per": null,
+                "required": true,
+                "purpose": "設備ごとに形式が違うCSVを取り込めるか（成否を左右する）",
+                "pass_condition": "すべての日付の書き方を取り込める",
+                "target": null,
+                "direction": "以下",
+                "quantity_ref": null
+              }
             ]
           },
           {
@@ -397,6 +461,32 @@
             "after": "週ごとに集計しておき、会議前日に工場長が確認することで、誤りを事前に見つける想定。",
             "first_steps": [
               "週ごとに集計する曜日を決める"
+            ],
+            "trial_metrics": [
+              {
+                "name": "会議で見つかる誤りの件数",
+                "kind": "数値",
+                "unit": "件",
+                "per": "月",
+                "required": true,
+                "purpose": "前日の確認で会議前に誤りを直せるかを確かめる",
+                "pass_condition": "0件",
+                "target": 0,
+                "direction": "以下",
+                "quantity_ref": null
+              },
+              {
+                "name": "会議の前日までに確認を終えられたか",
+                "kind": "確認",
+                "unit": null,
+                "per": null,
+                "required": true,
+                "purpose": "締めの前倒しが守れるかを確かめる",
+                "pass_condition": "前日までに終えられる",
+                "target": null,
+                "direction": "以下",
+                "quantity_ref": null
+              }
             ]
           }
         ],

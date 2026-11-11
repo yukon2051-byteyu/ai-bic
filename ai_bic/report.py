@@ -194,7 +194,7 @@ def _proposals_sheet(ws, result: DiagnosisResult) -> None:
 # 試行・判定（AI-BIC 3.0）：採用理由・試算・合格条件・実測・判断を1枚で追えるようにする
 # ---------------------------------------------------------------
 TRIAL_HEADERS = ["測定項目", "種類", "必須", "単位の確認", "改善前", "改善前の出どころ", "試算値（参考）", "目標値（合格条件）",
-                 "実測値", "差", "状態", "メモ"]
+                 "実測値", "差", "状態", "確かめること", "メモ"]
 
 
 def _trial_sheet(ws, project: Project) -> None:
@@ -258,10 +258,10 @@ def _trial_sheet(ws, project: Project) -> None:
                           "計算しない（単位を確認）" if skipped else res.diff_text]
             else:
                 values = ["", "", "", "", m.check_target or "未設定", m.check_result or "未測定", ""]
-            row = [metric_label(m), m.kind, "必須" if m.required else "参考", *values, res.status, m.note]
+            row = [metric_label(m), m.kind, "必須" if m.required else "参考", *values, res.status, m.purpose, m.note]
             for c, value in enumerate(row, start=1):
                 _put(ws, start + i, c, value)
-    _format(ws, [22, 60, 8, 30, 10, 16, 12, 16, 10, 22, 10, 30])
+    _format(ws, [22, 60, 8, 30, 10, 16, 12, 16, 10, 22, 10, 30, 30])
 
 
 def quantity_rows(project: Project) -> list[tuple[str, str]]:

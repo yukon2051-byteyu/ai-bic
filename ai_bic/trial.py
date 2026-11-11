@@ -17,6 +17,7 @@ from ai_bic import project as pj
 from ai_bic import simulation as sim
 from ai_bic.output_check import similarity
 from ai_bic.overview import signature
+from ai_bic.models import TrialMetricPlan
 from ai_bic.project import Project, TrialMetric, TrialPlan
 from ai_bic.quantities import basis_text
 from ai_bic.quantities import label as qlabel
@@ -61,8 +62,9 @@ def has_values(m: TrialMetric) -> bool:
 # ---------------------------------------------------------------
 @dataclass
 class SourceValue:
-    """試算の元の値に当たる、診断の数値（名前・単位・何あたり・値・出どころ）。"""
+    """数値の一覧の1つの値（番号・名前・単位・何あたり・値・出どころ）。"""
 
+    qid: str
     name: str
     unit: str
     per: str
@@ -71,21 +73,30 @@ class SourceValue:
     status: str
 
 
+def _values(project: Project | None) -> list[tuple[str | None, SourceValue]]:
+    """数値の一覧と計算する値（試算のどの値に当たるか, 値）。一覧がない古い案件は空。"""
+    if project is None or not project.diagnosis.analysis.quantities:
+        return []
+    known = facts.known_values(project)
+    result = []
+    for q in project.diagnosis.analysis.quantities:
+        k = known[q.qid]
+        result.append((q.sim_field, SourceValue(q.qid, q.name, q.unit, q.per or "", k.value, k.source, k.status)))
+    for d in facts.derived_values(project):
+        ok = d.calc.value is not None
+        result.append((d.sim_field, SourceValue(d.qid, d.name, d.unit, d.per or "", round(d.calc.value, 1) if ok else None,
+                                                f"計算：{d.calc.text}" if ok else "", "確認済み" if ok else "未確定")))
+    return result
+
+
 def source_value(project: Project | None, field: str) -> SourceValue | None:
     """試算の入力値（例：minutes_per_case）の元になった、数値の一覧の値。一覧がない古い案件は None。"""
-    if project is None or not project.diagnosis.analysis.quantities:
-        return None
-    known = facts.known_values(project)
-    for q in project.diagnosis.analysis.quantities:
-        if q.sim_field == field:
-            k = known[q.qid]
-            return SourceValue(q.name, q.unit, q.per or "", k.value, k.source, k.status)
-    for d in facts.derived_values(project):
-        if d.sim_field == field:
-            ok = d.calc.value is not None
-            return SourceValue(d.name, d.unit, d.per or "", round(d.calc.value, 1) if ok else None,
-                               f"計算：{d.calc.text}" if ok else "", "確認済み" if ok else "未確定")
-    return None
+    return next((v for f, v in _values(project) if f == field), None)
+
+
+def ref_value(project: Project | None, ref: str | None) -> SourceValue | None:
+    """数値の一覧の番号（Q1・D1）の値。一覧にない番号は None（AIが書いた番号をそのまま信じない）。"""
+    return next((v for _, v in _values(project) if ref and v.qid == ref.strip()), None)
 
 
 def assumptions_of(inputs: sim.SimulationInputs | None, project: Project | None = None) -> list[str]:
@@ -130,7 +141,7 @@ def time_metric(project: Project | None, inputs: sim.SimulationInputs | None) ->
         return TrialMetric(name="1件あたりの作業時間", unit="分", per="件", baseline=minutes, estimate=estimate,
                            target=estimate, source=inputs.source_of("minutes_per_case") if minutes is not None else "",
                            checked_basis="分／件")
-    m = TrialMetric(name=src.name, unit=src.unit, per=src.per, baseline=src.value, source=src.source,
+    m = TrialMetric(name=src.name, unit=src.unit, per=src.per, baseline=src.value, source=src.source, ref=src.qid,
                     checked_basis=basis_text(src.unit, src.per) if src.per else None)
     if src.value is None:
         m.note = f"改善前の値は{src.status}です"
@@ -142,21 +153,67 @@ def time_metric(project: Project | None, inputs: sim.SimulationInputs | None) ->
     return m
 
 
-def default_metrics(project: Project | None, inputs: sim.SimulationInputs | None,
-                    effect_metric: str | None = None) -> list[TrialMetric]:
-    """最初の測定項目：その案の効果を測る指標（あれば）、作業時間（改善前・試算値つき）、誤りの件数、例外処理の確認。
+def from_candidate(project: Project | None, c: TrialMetricPlan, time: TrialMetric) -> TrialMetric:
+    """AIが書いた測定項目の候補を、試行の測定項目にする。単位と、数値の一覧との対応はプログラムが確かめる。
 
-    作業時間の短縮を直接の目的としない案（例：記入漏れを減らす）は、その案の指標を先頭の必須の項目にし、
-    作業時間は参考の項目にする（AI-BIC 3.1）。
+    - 数値の一覧の番号（quantity_ref）が一覧にあり、単位と何あたりが同じなら、改善前の値と出どころを引き継ぐ
+      （違えば値は入れず、理由をメモに残す。単位を書かなかった候補は、一覧の値の単位を使う）
+    - 試算の作業時間と同じ数値を測る項目には、試算値（参考）も入れる
+    - 単位と何あたりがそろっていない数値は、利用者が単位を確かめるまで判定に使わない
+    """
+    name, purpose = c.name.strip(), c.purpose.strip()
+    if c.kind == "確認":
+        return TrialMetric(name=name, kind="確認", required=c.required, purpose=purpose,
+                           check_target=c.pass_condition.strip() or "成功する")
+    unit, per = (c.unit or "").strip(), (c.per or "").strip()
+    src = ref_value(project, c.quantity_ref)
+    if src and not unit:
+        unit, per = src.unit, per or src.per
+    m = TrialMetric(name=name, unit=unit, per=per, required=c.required, purpose=purpose, target=c.target,
+                    direction=c.direction, checked_basis=basis_text(unit, per) if unit and per else None)
+    if c.target is None and c.pass_condition.strip():
+        m.note = f"合格条件の目安：{c.pass_condition.strip()}"
+    if src is None:
+        return m
+    m.ref = src.qid
+    if src.per and basis_text(src.unit, src.per) == basis_of(m):
+        m.baseline, m.source = src.value, src.source if src.value is not None else ""
+        if src.value is None:
+            m.note = "　".join(x for x in (m.note, f"改善前の値は{src.status}です") if x)
+        if time.ref == src.qid and time.estimate is not None:
+            m.estimate = time.estimate
+            m.target = m.target if m.target is not None else time.estimate
+    else:
+        value = f"{sim.fmt(src.value)}{src.unit}" if src.value is not None else src.status
+        m.note = "　".join(x for x in (m.note, f"改善前の値（{qlabel(src.name, src.unit, src.per)}：{value}）は、"
+                                               "単位か何あたりが違うため入れていません") if x)
+    return m
+
+
+def default_metrics(project: Project | None, inputs: sim.SimulationInputs | None, proposal) -> list[TrialMetric]:
+    """最初の測定項目。その案に合う項目だけを入れる（どの案にも同じ一般的な項目は入れない。AI-BIC 3.3）。
+
+    - 改善案に測定項目の候補（trial_metrics）があれば、それを使う。同じものを指す候補は1つにまとめる。
+      効果の指標が時間で、時間を測る候補がなければ、作業時間を参考の項目として足す
+    - 候補がない（古い保存データ・AIが書かなかった）ときは、その案の指標（effect_metric）を1件と、
+      指標が作業時間でなければ作業時間を参考として1件
     """
     time = time_metric(project, inputs)
-    rest = [TrialMetric(name="誤り・差異の件数", unit="件", per="試行期間", target=0, checked_basis="件／試行期間"),
-            TrialMetric(name="例外の処理（想定外の形式など）", kind="確認", check_target="すべて処理できる")]
-    metric = (effect_metric or "").strip()
-    if not metric or "作業時間" in metric:
-        return [time] + rest
-    # その案の指標を必須に、作業時間は参考にする（誤りの件数の一般的な項目は、指標と重なりやすいので入れない）
-    return [TrialMetric(name=metric), time.model_copy(update={"required": False}), rest[1]]
+    effect = (getattr(proposal, "effect_metric", None) or "").strip()
+    candidates = [c for c in getattr(proposal, "trial_metrics", []) if c.name.strip()]
+    if candidates:
+        plan = TrialPlan(pid="", created_at=pj.now())
+        for c in candidates:
+            add_metric_unique(plan, from_candidate(project, c, time))
+        timed = any(m.unit in ("分", "時間") or (time.ref and m.ref == time.ref) for m in plan.metrics)
+        if "時間" in effect and not timed:
+            plan.metrics.append(time.model_copy(update={"required": False, "purpose": "作業時間が変わるかを参考に見る"}))
+        return plan.metrics
+    if not effect or "作業時間" in effect:
+        return [time.model_copy(update={"purpose": "この案で作業時間が減るかを確かめる"})]
+    # その案の指標を必須に、作業時間は参考にする
+    return [TrialMetric(name=effect, purpose="この案の効果を確かめる"),
+            time.model_copy(update={"required": False, "purpose": "作業時間が変わるかを参考に見る"})]
 
 
 def same_metric(a: str, b: str) -> bool:
@@ -180,14 +237,21 @@ def add_metric_unique(plan: TrialPlan, metric: TrialMetric) -> bool:
 
     何あたりが両方にあって違う（例：日／月 と 日／週）なら、別の項目として追加する。
     """
-    twin = next((m for m in plan.metrics if same_metric(m.name, metric.name)
-                 and not (m.per and metric.per and m.per != metric.per)), None)
+    def same(m: TrialMetric) -> bool:
+        if m.ref and metric.ref:  # 同じ数値の一覧の番号を測る項目は同じ。番号が違えば別
+            return m.ref == metric.ref
+        return same_metric(m.name, metric.name) and not (m.per and metric.per and m.per != metric.per)
+
+    twin = next((m for m in plan.metrics if same(m)), None)
     if twin is None:
         plan.metrics.append(metric)
         return True
     i = plan.metrics.index(twin)
     note = twin.note if not metric.note or metric.note in twin.note else "　".join(x for x in (twin.note, metric.note) if x)
     update: dict = {"note": note}
+    for name in ("ref", "purpose"):
+        if not getattr(twin, name) and getattr(metric, name):
+            update[name] = getattr(metric, name)
     if not twin.unit and metric.unit:  # 単位のない項目に、確認予定の値の単位と何あたりを引き継ぐ
         update.update(unit=metric.unit, per=twin.per or metric.per,
                       checked_basis=twin.checked_basis if has_values(twin) else metric.checked_basis)
@@ -197,7 +261,8 @@ def add_metric_unique(plan: TrialPlan, metric: TrialMetric) -> bool:
 
 def planned_metrics(project: Project) -> list[TrialMetric]:
     """「確認予定」の値を、試行で測る項目にする（例：記入漏れの月間発生日数を、1か月記録して確かめる。AI-BIC 3.2）。"""
-    metrics = [TrialMetric(name=n.name, unit=n.unit, per=n.per or "", note=f"確認予定：{n.detail}",
+    metrics = [TrialMetric(name=n.name, unit=n.unit, per=n.per or "", note=f"確認予定：{n.detail}", ref=n.key,
+                           purpose="確認予定の値を、試行の期間に確かめる",
                            checked_basis=basis_text(n.unit, n.per) if n.per else None)
                for n in facts.needs(project) if n.status == "確認予定"]
     metrics += [TrialMetric(name=a.question, kind="確認", check_target="確かめた結果を記録する", note=f"確認予定：{a.answer}")
@@ -214,7 +279,7 @@ def new_plan(project: Project) -> TrialPlan:
     proposal = d.proposal if d else project.diagnosis.proposals.proposals[pj.proposal_ids(project).index(pid)]
     inputs = d.simulation if d else project.simulations.get(pid)
     plan = TrialPlan(pid=pid, risks=list(proposal.risks), assumptions=assumptions_of(inputs, project),
-                     metrics=default_metrics(project, inputs, proposal.effect_metric), created_at=pj.now())
+                     metrics=default_metrics(project, inputs, proposal), created_at=pj.now())
     for metric in planned_metrics(project):  # 確認予定の値も、試行で測る（既にある項目とは重ねない）
         add_metric_unique(plan, metric)
     return plan
@@ -225,10 +290,13 @@ def demo_plan(project: Project, sample: dict) -> TrialPlan:
     plan = new_plan(project)
     plan.scope, plan.owner = sample["scope"], sample["owner"]
     plan.due = pj.now().date() + timedelta(days=sample.get("due_days", 14))
+    planned = {m.name: m for m in plan.metrics}
     plan.metrics = [TrialMetric(**m) for m in sample["metrics"]]
-    for m in plan.metrics:  # デモのサンプルの単位は、確かめた値として扱う
+    for m in plan.metrics:
         if m.kind == "数値" and m.unit and m.checked_basis is None:
-            m.checked_basis = basis_of(m)
+            m.checked_basis = basis_of(m)  # デモのサンプルの単位は、確かめた値として扱う
+        if (p := planned.get(m.name)) and not m.purpose:
+            m.purpose, m.required = p.purpose, p.required  # 案の測定項目の候補の「確かめること」と必須を引き継ぐ
     plan.sample = True
     return plan
 

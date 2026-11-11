@@ -136,6 +136,8 @@ class TrialMetric(BaseModel):
     per: str = ""  # 何あたりの値か（稼働日・発生日・月・試行期間など）
     source: str = ""  # 改善前の値の出どころ（例：2問目の回答）
     checked_basis: str | None = None  # 値を確かめた単位（例：分／稼働日）。None は未確認
+    purpose: str = ""  # 何を確かめるための項目か（AI-BIC 3.3）
+    ref: str | None = None  # 改善前の値に当たる、数値の一覧の番号（Q1・D1）。同じ数値を測る項目を重ねないため
     required: bool = True  # 必須の測定（未入力なら判定保留）
     baseline: float | None = None  # 改善前の値
     estimate: float | None = None  # 試算値（効果試算から。参考）
