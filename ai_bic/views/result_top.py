@@ -21,6 +21,7 @@ from ai_bic import simulation as sim
 from ai_bic.errors import AIError, user_message
 from ai_bic.overview import Overview
 from ai_bic.project import Project
+from ai_bic.quantities import label as qlabel
 from ai_bic.views import flows, simulator
 from ai_bic.views.simulator import PLAN_KEY as SIM_PLAN_KEY
 
@@ -252,17 +253,17 @@ def quantity_panel(project: Project, compact: bool = False) -> str:
         for q in project.diagnosis.analysis.quantities:
             k = facts.known_values(project)[q.qid]
             if k.value is not None:
-                rows.append(("✓", q.name, f"{sim.fmt(k.value)}{q.unit}（{k.source}）"))
+                rows.append(("✓", facts.prose_name(q.name, q.unit, q.per), f"{sim.fmt(k.value)}{q.unit}（{k.source}）"))
             else:
                 state = "申告と資料が食い違い（" + k.source + "）" if k.status == "食い違い" else k.status
-                rows.append(("？", q.name, state))
+                rows.append(("？", facts.prose_name(q.name, q.unit, q.per), state))
     for d in facts.derived_values(project):
         if d.calc.value is not None:
-            rows.append(("✓", d.name, d.calc.text))
+            rows.append(("✓", facts.prose_name(d.name, d.unit, d.per), d.calc.text))
         elif d.calc.error:
-            rows.append(("？", d.name, d.calc.error))
+            rows.append(("？", facts.prose_name(d.name, d.unit, d.per), d.calc.error))
         else:
-            rows.append(("？", d.name, f"未確定（{'・'.join(d.missing_names)}が分かるまで）"))
+            rows.append(("？", facts.prose_name(d.name, d.unit, d.per), f"未確定（{'・'.join(d.missing_names)}が分かるまで）"))
     if not rows:
         return ""
     body = "".join(f"<dt>{ui.esc(m)} {ui.esc(n)}</dt><dd>{ui.esc(v)}</dd>" for m, n, v in rows)
@@ -273,7 +274,7 @@ def quantity_panel(project: Project, compact: bool = False) -> str:
 def render_fix_form(project: Project) -> None:
     """分かっている数値を直す（例：資料で確かめたら値が違った）。関係する計算・試算だけを更新する。"""
     quantities = project.diagnosis.analysis.quantities
-    names = {q.qid: f"{q.name}（{q.unit}）" for q in quantities}
+    names = {q.qid: qlabel(q.name, q.unit, q.per) for q in quantities}
     with st.expander("分かっている数値を直す・確かめた値を入れる"):
         with st.container(border=True):  # フォームにしない（タブを切り替えても書きかけの値が残るように。AI-BIC 3.2）
             st.selectbox("数値", list(names), key="qfix_qid", format_func=names.get)

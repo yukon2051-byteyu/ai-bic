@@ -7,6 +7,7 @@
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from ai_bic import trial as tr
 from ai_bic import project as pj
 from ai_bic import review as rv
 from tests.test_app import all_text, new_app, open_tab, result_screen, work  # noqa: F401
@@ -124,8 +125,13 @@ def test_試行の測定結果は画面で入力して保存でき_必須が未�
     assert at.button(key="trial_decide").disabled
     metrics = at.session_state.project.trial.metrics
     # 案1は作業時間の短縮が直接の目的ではないため、案の指標（集計の誤りの件数）が先頭の必須の項目、作業時間は参考（AI-BIC 3.1）
-    assert [m.name for m in metrics] == ["集計の誤りの件数", "1件あたりの作業時間", "例外の処理（想定外の形式など）"]
+    # 作業時間は、診断の数値（設備1台分の集計時間・分／台）の名前と単位を引き継ぐ（AI-BIC 3.3）
+    assert [m.name for m in metrics] == ["集計の誤りの件数", "設備1台分の集計時間", "例外の処理（想定外の形式など）"]
+    assert tr.basis_of(metrics[1]) == "分／台" and metrics[1].baseline == 300
     assert metrics[0].required and not metrics[1].required
+    assert tr.evaluate(metrics[0]).status == "単位を確認"  # 案の指標に単位がない間は判定に使わない
+    at.text_input(key="trial_m0_unit").set_value("件")
+    at.text_input(key="trial_m0_per").set_value("試行期間")
     at.number_input(key="trial_m0_target").set_value(0.0)
     at.number_input(key="trial_m0_actual").set_value(0.0)
     at.number_input(key="trial_m1_actual").set_value(200.0)
@@ -154,3 +160,27 @@ def test_確定のあとの主ボタンは1つだけで_計画を作ったあと
     assert "この案を小さく試す" not in labels and labels.count("試行計画を開く") == 1
     at.button(key="review_trial_P2").click().run()  # 開き直しても、計画は作り直さない
     assert at.session_state.project.trial.pid == "P2"
+
+
+def test_値のある項目の単位を変えると再確認が必要になり_確かめると判定に使える(secrets):  # noqa: F811
+    """AI-BIC 3.3：単位を変えて実測結果と合わなくなったら再確認が必要と示し、確かめるまで差と判定を出さない。"""
+    from tests.test_app import production_result
+
+    at = production_result(secrets)
+    at.radio(key="compare_plan").set_value("P1").run()
+    at.button(key="go_review").click().run()
+    at.button(key="review_decide_P1").click().run()
+    at.button(key="review_trial_P1").click().run()
+    at.number_input(key="trial_m1_actual").set_value(200.0)
+    at.button(key="trial_metrics_save").click().run()
+    assert tr.evaluate(at.session_state.project.trial.metrics[1]).status == "達成"
+    at.text_input(key="trial_m1_per").set_value("件").run()
+    at.button(key="trial_metrics_save").click().run()
+    m = at.session_state.project.trial.metrics[1]
+    r = tr.evaluate(m)
+    assert r.status == "単位を確認" and "分／台 → 分／件" in r.diff_text and m.actual == 200
+    assert any("再確認が必要" in w.value for w in at.warning)
+    at.checkbox(key="trial_m1_basis_ok").check().run()
+    at.button(key="trial_metrics_save").click().run()
+    m = at.session_state.project.trial.metrics[1]
+    assert m.checked_basis == "分／件" and tr.evaluate(m).status == "達成"

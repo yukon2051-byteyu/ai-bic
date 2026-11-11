@@ -170,9 +170,10 @@ class Quantity(BaseModel):
     """
 
     qid: str  # Q1, Q2 …（計算式や改善案から参照する）
-    name: str  # 何の数値か（範囲が分かる名前。例：通常の照合の作業時間（1日あたり））
+    name: str  # 何の数値か（範囲が分かる名前。例：閉館前の照合時間）
     value: float | None
     unit: str  # 分・時間・日・人・件・円・% など
+    per: str | None = None  # 何あたりの値か（稼働日・発生日・月・件・台など。合計や人数なら null。AI-BIC 3.3）
     status: QuantityStatus
     source: Literal["業務情報", "回答", "添付ファイル"] | None
     turn_no: int | None
@@ -188,6 +189,7 @@ class DerivedQuantity(BaseModel):
     name: str
     formula: str  # Q の番号・数・+ - * / ( ) だけを使う式
     unit: str
+    per: str | None = None  # 何あたりの値か（例：月）
     sim_field: SimField | None = None
 
 

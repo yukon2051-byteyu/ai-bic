@@ -215,7 +215,7 @@
         "quantities": [
           {
             "qid": "Q1",
-            "name": "月次集計の作業時間（月の合計、2人分）",
+            "name": "2人分の月次集計の作業時間",
             "value": 20,
             "unit": "時間",
             "status": "確認済み",
@@ -223,11 +223,12 @@
             "turn_no": 1,
             "file_no": null,
             "quote": "合計で20時間くらいかかります",
-            "sim_field": null
+            "sim_field": null,
+            "per": "月"
           },
           {
             "qid": "Q2",
-            "name": "転記の作業時間（月）",
+            "name": "転記の作業時間",
             "value": 12,
             "unit": "時間",
             "status": "確認済み",
@@ -235,7 +236,8 @@
             "turn_no": 2,
             "file_no": null,
             "quote": "品番ごとの数量を集計表に転記する作業が一番長く、12時間ほどです",
-            "sim_field": null
+            "sim_field": null,
+            "per": "月"
           },
           {
             "qid": "Q3",
@@ -247,7 +249,8 @@
             "turn_no": 1,
             "file_no": null,
             "quote": "私と後輩の2人で作業しています",
-            "sim_field": null
+            "sim_field": null,
+            "per": null
           },
           {
             "qid": "Q4",
@@ -259,7 +262,8 @@
             "turn_no": null,
             "file_no": null,
             "quote": "工場の4台の設備から出力される日々の生産実績",
-            "sim_field": "cases_per_month"
+            "sim_field": "cases_per_month",
+            "per": null
           },
           {
             "qid": "Q5",
@@ -271,7 +275,8 @@
             "turn_no": null,
             "file_no": 1,
             "quote": "10月は組立ラインの数量の転記漏れが1件あった",
-            "sim_field": null
+            "sim_field": null,
+            "per": null
           }
         ],
         "derived": [
@@ -280,14 +285,16 @@
             "name": "集計作業のうち転記の割合",
             "formula": "Q2 / Q1 * 100",
             "unit": "%",
-            "sim_field": null
+            "sim_field": null,
+            "per": null
           },
           {
             "qid": "D2",
             "name": "設備1台分の集計時間",
             "formula": "Q1 * 60 / Q4",
             "unit": "分",
-            "sim_field": "minutes_per_case"
+            "sim_field": "minutes_per_case",
+            "per": "台"
           }
         ]
       },
@@ -1455,7 +1462,8 @@
             "target": 30,
             "direction": "以下",
             "actual": 25,
-            "note": "取り込みの設定は除いた、月次の作業時間。試算値は試算の想定削減率50%から"
+            "note": "取り込みの設定は除いた、月次の作業時間。試算値は試算の想定削減率50%から",
+            "per": "台（月次）"
           },
           {
             "name": "手作業の集計との数量差",
@@ -1465,7 +1473,8 @@
             "target": 0,
             "direction": "以下",
             "actual": 0,
-            "note": "10月分の品番ごとの数量を、手作業の集計と突き合わせた"
+            "note": "10月分の品番ごとの数量を、手作業の集計と突き合わせた",
+            "per": "台（10月分）"
           },
           {
             "name": "日付の書き方の違いを取り込めるか",
@@ -1726,7 +1735,7 @@
         "quantities": [
           {
             "qid": "Q1",
-            "name": "月次集計の作業時間（月の合計）",
+            "name": "月次集計の作業時間",
             "value": 12,
             "unit": "時間",
             "status": "確認済み",
@@ -1734,7 +1743,8 @@
             "turn_no": 2,
             "file_no": null,
             "quote": "合計で12時間くらいです",
-            "sim_field": null
+            "sim_field": null,
+            "per": "月"
           },
           {
             "qid": "Q2",
@@ -1746,7 +1756,8 @@
             "turn_no": null,
             "file_no": null,
             "quote": "5つの営業所から届く売上Excel",
-            "sim_field": "cases_per_month"
+            "sim_field": "cases_per_month",
+            "per": null
           },
           {
             "qid": "Q3",
@@ -1758,7 +1769,8 @@
             "turn_no": 2,
             "file_no": null,
             "quote": "私1人で作業しています",
-            "sim_field": null
+            "sim_field": null,
+            "per": null
           },
           {
             "qid": "Q4",
@@ -1770,7 +1782,8 @@
             "turn_no": 1,
             "file_no": null,
             "quote": "原因を探すのに毎回3時間ほどかかります",
-            "sim_field": null
+            "sim_field": null,
+            "per": "回"
           },
           {
             "qid": "Q5",
@@ -1782,7 +1795,8 @@
             "turn_no": null,
             "file_no": null,
             "quote": null,
-            "sim_field": null
+            "sim_field": null,
+            "per": "月"
           }
         ],
         "derived": [
@@ -1791,14 +1805,16 @@
             "name": "営業所1か所分の集計時間",
             "formula": "Q1 * 60 / Q2",
             "unit": "分",
-            "sim_field": "minutes_per_case"
+            "sim_field": "minutes_per_case",
+            "per": "営業所"
           },
           {
             "qid": "D2",
             "name": "原因調査を含む月の作業時間",
             "formula": "Q1 + Q4 * Q5",
             "unit": "時間",
-            "sim_field": null
+            "sim_field": null,
+            "per": "月"
           }
         ]
       },
@@ -3199,7 +3215,8 @@
             "turn_no": 3,
             "file_no": null,
             "quote": "1日に40件ほどを4人で受けています",
-            "sim_field": null
+            "sim_field": null,
+            "per": "日"
           },
           {
             "qid": "Q2",
@@ -3211,7 +3228,8 @@
             "turn_no": 3,
             "file_no": null,
             "quote": "1日に40件ほどを4人で受けています",
-            "sim_field": null
+            "sim_field": null,
+            "per": null
           },
           {
             "qid": "Q3",
@@ -3223,7 +3241,8 @@
             "turn_no": 3,
             "file_no": null,
             "quote": "お客様からの状況確認の電話も1日に10件以上あります",
-            "sim_field": null
+            "sim_field": null,
+            "per": "日"
           },
           {
             "qid": "Q4",
@@ -3235,7 +3254,8 @@
             "turn_no": null,
             "file_no": null,
             "quote": null,
-            "sim_field": null
+            "sim_field": null,
+            "per": "月"
           },
           {
             "qid": "Q5",
@@ -3247,7 +3267,8 @@
             "turn_no": null,
             "file_no": null,
             "quote": null,
-            "sim_field": "minutes_per_case"
+            "sim_field": "minutes_per_case",
+            "per": "件"
           }
         ],
         "derived": [
@@ -3256,7 +3277,8 @@
             "name": "月の修理依頼の受付件数",
             "formula": "Q1 * Q4",
             "unit": "件",
-            "sim_field": "cases_per_month"
+            "sim_field": "cases_per_month",
+            "per": "月"
           }
         ]
       },
@@ -4526,7 +4548,8 @@
             "turn_no": null,
             "file_no": null,
             "quote": "社員約120名が、毎月末に紙の精算書へ交通費を記入し",
-            "sim_field": "cases_per_month"
+            "sim_field": "cases_per_month",
+            "per": "月"
           },
           {
             "qid": "Q2",
@@ -4538,11 +4561,12 @@
             "turn_no": null,
             "file_no": null,
             "quote": "総務部の2名が内容と金額を確認し",
-            "sim_field": null
+            "sim_field": null,
+            "per": null
           },
           {
             "qid": "Q3",
-            "name": "確認・入力にかかる日数（月）",
+            "name": "確認・入力にかかる日数",
             "value": 3,
             "unit": "日",
             "status": "確認済み",
@@ -4550,11 +4574,12 @@
             "turn_no": null,
             "file_no": null,
             "quote": "毎月の締め後3日間ほど、2名で確認と入力にかかりきりになる",
-            "sim_field": null
+            "sim_field": null,
+            "per": "月"
           },
           {
             "qid": "Q4",
-            "name": "確認・入力の1日あたりの作業時間（1人）",
+            "name": "確認・入力の作業時間",
             "value": null,
             "unit": "時間",
             "status": "未確認",
@@ -4562,7 +4587,8 @@
             "turn_no": null,
             "file_no": null,
             "quote": null,
-            "sim_field": null
+            "sim_field": null,
+            "per": "人・日"
           },
           {
             "qid": "Q5",
@@ -4574,7 +4600,8 @@
             "turn_no": 1,
             "file_no": null,
             "quote": "毎月20件くらいです",
-            "sim_field": null
+            "sim_field": null,
+            "per": "月"
           }
         ],
         "derived": [
@@ -4583,14 +4610,16 @@
             "name": "月の確認・入力の時間",
             "formula": "Q2 * Q3 * Q4",
             "unit": "時間",
-            "sim_field": null
+            "sim_field": null,
+            "per": "月"
           },
           {
             "qid": "D2",
             "name": "精算書1枚あたりの作業時間",
             "formula": "D1 * 60 / Q1",
             "unit": "分",
-            "sim_field": "minutes_per_case"
+            "sim_field": "minutes_per_case",
+            "per": "枚"
           }
         ]
       },

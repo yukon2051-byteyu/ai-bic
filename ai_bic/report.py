@@ -20,10 +20,11 @@ from openpyxl.worksheet.worksheet import Worksheet
 from ai_bic import simulation as sim
 from ai_bic.flow import Flow, compare_flows
 from ai_bic.models import BusinessInfo, DiagnosisResult, Framework, HearingState
-from ai_bic.facts import assumption_lines, decision_changes, derived_values, known_values, needs
+from ai_bic.facts import assumption_lines, decision_changes, derived_values, known_values, needs, prose_name
 from ai_bic.overview import open_assumptions, relation_tags
 from ai_bic.project import Project, proposal_ids
 from ai_bic.trial import assumptions_of as trial_assumptions
+from ai_bic.trial import UNCONFIRMED, metric_label
 from ai_bic.trial import evaluate as evaluate_metric
 from ai_bic.trial import guide as trial_guide
 from ai_bic.readiness import assumptions
@@ -192,7 +193,8 @@ def _proposals_sheet(ws, result: DiagnosisResult) -> None:
 # ---------------------------------------------------------------
 # 試行・判定（AI-BIC 3.0）：採用理由・試算・合格条件・実測・判断を1枚で追えるようにする
 # ---------------------------------------------------------------
-TRIAL_HEADERS = ["測定項目", "種類", "必須", "改善前", "試算値（参考）", "目標値（合格条件）", "実測値", "差", "状態", "メモ"]
+TRIAL_HEADERS = ["測定項目", "種類", "必須", "単位の確認", "改善前", "改善前の出どころ", "試算値（参考）", "目標値（合格条件）",
+                 "実測値", "差", "状態", "メモ"]
 
 
 def _trial_sheet(ws, project: Project) -> None:
@@ -218,7 +220,7 @@ def _trial_sheet(ws, project: Project) -> None:
         rows.append(("確定後の変更", f"確定したあとに{'・'.join(changed)}が変わりました。再確認が必要です（ここは確定した時点の内容）"))
     if inputs:
         r = sim.simulate(inputs)
-        rows.append(("試算（確定した時点）", _bullets(trial_assumptions(inputs) + [
+        rows.append(("試算（確定した時点）", _bullets(trial_assumptions(inputs, project) + [
             f"年間削減時間：{_text(r.annual_saved_hours, '時間')}", f"年間削減効果額：{_text(r.annual_saved_yen, '円')}",
             f"投資回収期間：{sim.payback_text(r) if r.payback_status != '未入力' else '—'}"])))
     plan = project.trial
@@ -246,16 +248,20 @@ def _trial_sheet(ws, project: Project) -> None:
             cell.font, cell.fill = BOLD, HEADER_FILL
         for i, m in enumerate(plan.metrics, start=1):
             res = evaluate_metric(m)
+            # 画面と同じ名前（単位／何あたり付き）・単位の確認状態・状態を出す（AI-BIC 3.3）
             if m.kind == "数値":
-                values = [_num(m.baseline), _num(m.estimate),
+                skipped = res.status == UNCONFIRMED
+                check = res.diff_text if skipped else "確認済み"
+                values = [check, _num(m.baseline), m.source, _num(m.estimate),
                           f"{sim.fmt(m.target)}{m.unit}{m.direction}" if m.target is not None else "未設定",
-                          _num(m.actual) if m.actual is not None else "未測定", res.diff_text]
+                          _num(m.actual) if m.actual is not None else "未測定",
+                          "計算しない（単位を確認）" if skipped else res.diff_text]
             else:
-                values = ["", "", m.check_target or "未設定", m.check_result or "未測定", ""]
-            row = [m.name, m.kind, "必須" if m.required else "参考", *values, res.status, m.note]
+                values = ["", "", "", "", m.check_target or "未設定", m.check_result or "未測定", ""]
+            row = [metric_label(m), m.kind, "必須" if m.required else "参考", *values, res.status, m.note]
             for c, value in enumerate(row, start=1):
                 _put(ws, start + i, c, value)
-    _format(ws, [22, 60, 8, 10, 12, 16, 10, 22, 10, 30])
+    _format(ws, [22, 60, 8, 30, 10, 16, 12, 16, 10, 22, 10, 30])
 
 
 def quantity_rows(project: Project) -> list[tuple[str, str]]:
@@ -264,14 +270,15 @@ def quantity_rows(project: Project) -> list[tuple[str, str]]:
     lines = []
     for q in project.diagnosis.analysis.quantities:
         k = known[q.qid]
-        lines.append(f"✓ {q.name}：{sim.fmt(k.value)}{q.unit}（{k.source}）" if k.value is not None
-                     else f"？ {q.name}：{k.status}")
+        name = prose_name(q.name, q.unit, q.per)
+        lines.append(f"✓ {name}：{sim.fmt(k.value)}{q.unit}（{k.source}）" if k.value is not None
+                     else f"？ {name}：{k.status}")
     calcs = []
     for d in derived_values(project):
         if d.calc.value is not None:
-            calcs.append(f"✓ {d.name}：{d.calc.text}")
+            calcs.append(f"✓ {prose_name(d.name, d.unit, d.per)}：{d.calc.text}")
         else:
-            calcs.append(f"？ {d.name}：" + (d.calc.error or f"未確定（{'・'.join(d.missing_names)}が分かるまで）"))
+            calcs.append(f"？ {prose_name(d.name, d.unit, d.per)}：" + (d.calc.error or f"未確定（{'・'.join(d.missing_names)}が分かるまで）"))
     rows = [("分かっている数値", _bullets(lines))]
     if calcs:
         rows.append(("計算する値", _bullets(calcs)))

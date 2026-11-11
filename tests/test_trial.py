@@ -41,13 +41,14 @@ def test_確定していなければ計画を作れない():
 
 # --- 測定の評価 ---
 def test_数値は改善前との差と_目標への到達を計算し_未測定は未測定と示す():
-    m = TrialMetric(name="時間", unit="分", baseline=60, target=30, actual=25)
+    m = TrialMetric(name="時間", unit="分", baseline=60, target=30, actual=25, checked_basis="分")
     r = tr.evaluate(m)
     assert r.status == "達成" and r.diff == -35 and r.diff_text == "25 − 60 = -35分（-58.3%）"
     assert tr.evaluate(m.model_copy(update={"actual": 31})).status == "未達"
     assert tr.evaluate(m.model_copy(update={"actual": None})).status == "未測定"
     assert tr.evaluate(m.model_copy(update={"target": None})).status == "目標未設定"
-    assert tr.evaluate(TrialMetric(name="件数", target=10, direction="以上", actual=12)).status == "達成"
+    assert tr.evaluate(TrialMetric(name="件数", unit="件", target=10, direction="以上", actual=12,
+                                   checked_basis="件")).status == "達成"
 
 
 def test_確認の項目は成功で達成_失敗で未達_未確認なら未測定():

@@ -125,11 +125,17 @@ class TrialMetric(BaseModel):
 
     数値：時間などの数値。改善前の値・試算値・目標値・実測値。direction で「以下なら合格／以上なら合格」
     確認：例外処理の成功・失敗など。合格条件の文と、確認した結果（成功・失敗）
+
+    数値の値は、すべて「単位／何あたり」（例：分／稼働日）で記録する。checked_basis は、値がその単位で
+    正しいと確かめた時点の「単位／何あたり」。今の単位と違う・未確認（古い案件など）なら、差も判定も計算しない（AI-BIC 3.3）
     """
 
     name: str
     kind: Literal["数値", "確認"] = "数値"
     unit: str = ""
+    per: str = ""  # 何あたりの値か（稼働日・発生日・月・試行期間など）
+    source: str = ""  # 改善前の値の出どころ（例：2問目の回答）
+    checked_basis: str | None = None  # 値を確かめた単位（例：分／稼働日）。None は未確認
     required: bool = True  # 必須の測定（未入力なら判定保留）
     baseline: float | None = None  # 改善前の値
     estimate: float | None = None  # 試算値（効果試算から。参考）

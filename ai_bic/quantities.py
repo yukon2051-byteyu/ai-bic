@@ -6,9 +6,28 @@ AIは「Q1 * Q2 / 60」のような式だけを書く。ここで式を確かめ
 """
 
 import ast
+import re
 from dataclasses import dataclass, field
 
 from ai_bic.simulation import fmt
+
+def basis_text(unit: str | None, per: str | None) -> str:
+    """単位と集計期間（何あたり）を1つの文にする。例：分／稼働日。何あたりがなければ単位だけ（AI-BIC 3.3）。"""
+    unit, per = (unit or "").strip(), (per or "").strip()
+    return f"{unit}／{per}" if unit and per else unit
+
+
+def label(name: str, unit: str | None, per: str | None) -> str:
+    """画面・Excel で使う数値の名前。例：閉館前の照合時間（分／稼働日）。
+
+    何あたりが別にあるときは、名前の末尾の「（1日あたり）」のような書き方を外して重ねない。
+    """
+    name = name.strip()
+    if per:
+        name = re.sub(r"[（(][^（）()]*あたり[）)]$", "", name).strip() or name
+    b = basis_text(unit, per)
+    return f"{name}（{b}）" if b else name
+
 
 _OPS = {ast.Add: ("＋", lambda a, b: a + b), ast.Sub: ("−", lambda a, b: a - b),
         ast.Mult: ("×", lambda a, b: a * b), ast.Div: ("÷", lambda a, b: a / b)}

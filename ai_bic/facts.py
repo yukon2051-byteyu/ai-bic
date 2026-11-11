@@ -24,6 +24,7 @@ from ai_bic.item_rules import is_planned_answer
 from ai_bic.project import DecisionRecord, FactEntry, GapAnswer, Project, Source
 from ai_bic.quantities import Calc as QCalc
 from ai_bic.quantities import evaluate as evaluate_formula
+from ai_bic.quantities import label as qlabel
 
 # 確認する数値：名前 → (画面の名前, 単位, 上限)
 FACTS = {
@@ -190,6 +191,11 @@ class DerivedValue:
     missing_names: list[str]
     sim_field: str | None
     sim_source: str | None
+    per: str | None = None  # 何あたりの値か（例：月。AI-BIC 3.3）
+
+    @property
+    def label(self) -> str:
+        return qlabel(self.name, self.unit, self.per)
 
 
 def derived_values(project: Project) -> list[DerivedValue]:
@@ -211,7 +217,7 @@ def derived_values(project: Project) -> list[DerivedValue]:
         sim_source = None if calc.value is None else (
             "本人の申告" if "本人の申告" in weak else "ヒアリング" if "ヒアリング" in weak else "添付資料")
         result.append(DerivedValue(d.qid, d.name, d.unit, calc, [names.get(m, m) for m in calc.missing],
-                                   d.sim_field, sim_source))
+                                   d.sim_field, sim_source, d.per))
         values[d.qid], units[d.qid], names[d.qid], sources[d.qid] = calc.value, d.unit, d.name, sim_source
     return result
 
@@ -248,15 +254,20 @@ def assumption_lines(project: Project) -> list[str]:
     for q in project.diagnosis.analysis.quantities:  # 確認予定の値（例：月間発生日数は未集計。1か月記録して確認する予定）
         k = known[q.qid]
         if k.status == "確認予定":
-            lines.append(f"{q.name}は{k.base}。確認予定：{k.plan}")
+            lines.append(f"{prose_name(q.name, q.unit, q.per)}は{k.base}。確認予定：{k.plan}")
     for d in derived_values(project):
         if d.calc.value is not None:
-            lines.append(f"{d.name}は{sim.fmt(d.calc.value)}{d.unit}（{d.calc.text}）")
+            lines.append(f"{prose_name(d.name, d.unit, d.per)}は{sim.fmt(d.calc.value)}{d.unit}（{d.calc.text}）")
         elif d.calc.error:
-            lines.append(f"{d.name}は計算できません（{d.calc.error}）")
+            lines.append(f"{prose_name(d.name, d.unit, d.per)}は計算できません（{d.calc.error}）")
         else:
-            lines.append(f"{d.name}は、{'・'.join(d.missing_names)}が不明のため未確定")
+            lines.append(f"{prose_name(d.name, d.unit, d.per)}は、{'・'.join(d.missing_names)}が不明のため未確定")
     return lines
+
+
+def prose_name(name: str, unit: str, per: str | None) -> str:
+    """文の中の数値の名前。何あたりがある値だけ「（時間／月）」を付ける（単位だけなら値の側で分かる）。"""
+    return qlabel(name, unit, per) if per else name
 
 
 @dataclass
@@ -271,6 +282,7 @@ class Need:
     proposals: list[str]  # この値を使う改善案（案1 など）
     blocked: list[str]  # この値が分かるまで未確定の、計算する値の名前
     for_simulation: bool  # 試算の入力値に使う
+    per: str | None = None  # 何あたりの値か（例：月。AI-BIC 3.3）
 
 
 def needs(project: Project) -> list[Need]:
@@ -304,7 +316,7 @@ def needs(project: Project) -> list[Need]:
             continue
         detail = k.source if k.status == "食い違い" else k.plan if k.status == "確認予定" else ""
         result.append(Need(q.qid, q.name, q.unit, k.status, detail,
-                           used_by.get(q.qid, []), blocked_by.get(q.name, []), q.qid in sim_ids))
+                           used_by.get(q.qid, []), blocked_by.get(q.name, []), q.qid in sim_ids, q.per))
     if "hourly_cost" not in quantity_basis(project):
         result.append(Need("hourly_cost", "時間あたり人件費", "円", "未確認", "", [], [], True))
     return result
