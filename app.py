@@ -348,7 +348,19 @@ def render_hearing() -> None:
     current = state.turns[-1] if state.turns and state.turns[-1].answer is None else None
     preparing = s.get("hearing_pending") or (current is None and not s.error_kind)
     with st.container(key="hearing_card"):
-        html(f'<div class="bic-qhead">{ui.esc(_progress_text(state, current))}</div>')
+        # 途中で終える・中止する操作は、カードの右上に置く（「回答して次へ」の近くに置かず、押し間違いを防ぐ。AI-BIC 3.4）
+        head, exits = st.columns([2, 3], vertical_alignment="center")
+        head.markdown(f'<div class="bic-qhead">{ui.esc(_progress_text(state, current))}</div>', unsafe_allow_html=True)
+        if not preparing:
+            with exits.container(key="hearing_exit", horizontal=True, horizontal_alignment="right"):
+                if st.button("ヒアリングを終了して資料添付へ", key="finish",
+                             help="残りの質問をせずに、資料の添付に進みます。資料の添付は任意です。未確認の項目は結果画面に表示します"):
+                    finish_by_user(state)
+                    s.stage = "attach"
+                    st.rerun()
+                if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
+                    reset()
+                    st.rerun()
         st.progress(_progress_value(state))
         if s.error_kind:
             render_error(retry=_retry_question)
@@ -362,18 +374,6 @@ def render_hearing() -> None:
         else:
             _render_question(current)
 
-    # 途中で終える・中止する操作は、質問カードの外に置く
-    col_finish, col_cancel = st.columns(2)
-    with col_finish:
-        if st.button("ヒアリングを終了して資料添付へ", key="finish", help="残りの質問をせずに、資料の添付に進みます"):
-            finish_by_user(state)
-            s.stage = "attach"
-            st.rerun()
-        st.caption("資料の添付は任意です。未確認の項目は結果画面に表示します。")
-    with col_cancel:
-        if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
-            reset()
-            st.rerun()
 
     answered = [turn for turn in state.turns if turn.answer is not None]
     if answered:
@@ -494,6 +494,11 @@ def render_readiness() -> None:
 def render_attach() -> None:
     s = st.session_state
     html(ui.label("Step 03", "資料の添付（任意）"))
+    # 中止の操作は右上に置く（「この資料で診断する」の真下に置かず、押し間違いを防ぐ。AI-BIC 3.4）
+    with st.container(key="attach_exit", horizontal=True, horizontal_alignment="right"):
+        if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
+            reset()
+            st.rerun()
     st.markdown(
         "業務で使っている集計表・記録・手順書などがあれば添付してください。"
         "AIが課題分析の根拠として使います。添付しなくても診断できます。"
@@ -546,10 +551,6 @@ def render_attach() -> None:
                 s.attachments, s.attach_errors = [], []
                 diagnose()
                 st.rerun()
-
-    if st.button("診断を中止する", key="cancel", help="入力内容を消してトップに戻ります"):
-        reset()
-        st.rerun()
 
 
 # ---------------------------------------------------------------
