@@ -112,6 +112,10 @@ header[data-testid="stHeader"] {{ display: none; }}
 .st-key-result_tab [data-testid="stTab"] {{ padding: .55rem 1.1rem; border: 1px solid transparent; border-bottom: none;
   border-radius: 6px 6px 0 0; }}
 .st-key-result_tab [data-testid="stTab"] p {{ font-size: .98rem; font-weight: 600; color: var(--sub); }}
+/* 画面を動かすときは、どの画面でも一瞬で切り替えず、なめらかにスクロールする（上下どちらへ動いたか分かるように） */
+html, [data-testid="stMain"] {{ scroll-behavior: smooth; }}
+/* タブの中身が短くても、タブの並びを画面の上端まで動かせるよう、画面1枚分の高さを確保する */
+.st-key-result_tab [data-testid="stTabPanel"] {{ min-height: calc(100vh - 90px); }}
 .st-key-result_tab [data-testid="stTab"][aria-selected="true"] {{ background: var(--card); border-color: var(--line-blue);
   box-shadow: inset 0 -3px 0 var(--gold); }}
 .st-key-result_tab [data-testid="stTab"][aria-selected="true"] p {{ color: var(--accent); }}

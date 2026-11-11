@@ -59,8 +59,13 @@ def render_tabs() -> dict:
     labels = list(TABS.values())
     if st.session_state.get(TAB_KEY) not in labels:
         st.session_state[TAB_KEY] = labels[0]
-    containers = st.tabs(labels, key=TAB_KEY, on_change="rerun")
+    containers = st.tabs(labels, key=TAB_KEY, on_change=on_tab_change)
     return dict(zip(TABS, containers))
+
+
+def on_tab_change() -> None:
+    """タブを押して切り替えたとき：タブの並びを画面の上端近くに合わせる（開いたタブの中身が先頭から見えるように）。"""
+    request_scroll(TAB_BAR)
 COMPARE_KEY = "compare_plan"  # 比較で選んでいる案（P1 など）
 
 
@@ -86,7 +91,10 @@ def go(section: str, pid: str | None = None) -> None:
     if section in ("flows", "sim", "review"):
         s[WORK_KEY] = section  # 作業領域を切り替える（その場に出す）
     # タブの先頭（compare・gaps・evidence・trial）なら、タブの並びが上に来るように。それ以外はその見出しへ
-    request_scroll(TAB_BAR if section in ("compare", "gaps", "evidence", "trial") else "#" + SECTIONS[section])
+    # タブを開くときは、タブの並びを上端近くへなめらかに動かす。作業領域（業務フロー・試算・レビュー）は、
+    # 押したボタンのすぐ下に出るので、画面は動かさない（開発者の指示で動きを統一。AI-BIC 3.2）
+    if section in ("compare", "gaps", "evidence", "trial"):
+        request_scroll(TAB_BAR)
 
 
 def request_scroll(selector: str) -> None:
@@ -97,7 +105,7 @@ def request_scroll(selector: str) -> None:
 
 
 # 画面を動かす処理（ブラウザで動く）。見出しの上端を、固定のヘッダーがあればその直下14px、なければ上端から20pxに合わせる。
-# 見出しの上の余白（margin）は位置に含めない。Streamlit が描き直して位置がずれることがあるため、少し待って何回か合わせる。
+# 見出しの上の余白（margin）は位置に含めない。なめらかにスクロールし、Streamlit が描き直して位置がずれたら、少し待って合わせ直す。
 # 注意：Streamlit の安全チェックで消されないよう、この中に「<英字」「</」を書かない
 SCROLL_JS = """
 (function () {
@@ -124,13 +132,14 @@ SCROLL_JS = """
     var el = document.querySelector(target);
     if (!el) return;
     var delta = el.getBoundingClientRect().top - offset();
-    if (Math.abs(delta) > 1) {
+    if (Math.abs(delta) > 4) {
+      // なめらかに動かし、上下どちらへ移動したかが分かるようにする（瞬間的に切り替えない）
       var sc = scroller(el);
-      if (sc) sc.scrollTop += delta; else window.scrollBy(0, delta);
+      if (sc) sc.scrollBy({top: delta, behavior: 'smooth'}); else window.scrollBy({top: delta, behavior: 'smooth'});
     }
   }
-  // 図などを描き終えると位置がずれるため、少し間を空けて何回か合わせる（合っていれば動かさない）
-  [120, 450, 900, 1600].forEach(function (ms) { setTimeout(align, ms); });
+  // 最初になめらかに移動し、図などを描き終えて位置がずれていたら、もう一度なめらかに合わせる
+  [150, 1000, 1800].forEach(function (ms) { setTimeout(align, ms); });
 })();
 """
 
