@@ -742,8 +742,8 @@ def genai_rows(p: Proposal) -> list[tuple[str, str]]:
     if g is None:
         return []
     head = "生成AIの使い方" if genai.uses_genai(p) else "生成AIを併用できる作業"
-    cond = "／".join(esc(c) for c in g.conditions) or "特になし"
-    risks = "／".join(esc(r) for r in g.risks) or "特になし"
+    cond = esc(g.conditions.strip()) or "特になし"
+    risks = esc(g.risks.strip()) or "特になし"
     return [
         (head, f'<span class="bic-badge ai">◆ {esc(genai.label(p))}</span><b>{esc(genai.condition_text(p))}</b>'),
         ("対象工程", esc(g.target_step)),

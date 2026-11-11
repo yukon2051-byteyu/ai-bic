@@ -202,7 +202,7 @@ def genai_text(p) -> str:
         f"{genai.label(p)}：{genai.condition_text(p)}", f"対象工程：{g.target_step}",
         f"AIへの入力と出力：{g.ai_input} → {g.ai_output}", f"人が確認すること：{g.human_check}",
         f"効果の見込み：{g.effect}（AIの出力を確認・修正する時間も含めて測る）",
-        f"着手条件：{'／'.join(g.conditions) or '特になし'}", f"主なリスク：{'／'.join(g.risks) or '特になし'}",
+        f"着手条件：{g.conditions.strip() or '特になし'}", f"主なリスク：{g.risks.strip() or '特になし'}",
         f"最初に試す範囲：{g.first_trial}"])
 
 

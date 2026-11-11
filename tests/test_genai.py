@@ -18,7 +18,7 @@ from tests.test_project import make_project
 USE = dict(target_step="週次報告の前に、問い合わせの自由記述を分類する", ai_input="匿名化した問い合わせメモ",
            ai_output="分類候補と代表例", human_check="担当者が原文と照らし合わせ、誤分類を直す",
            effect="分類から集計までの時間が減る可能性。確認・修正の時間も含めて測る",
-           conditions=["利用承認", "入力できるデータの範囲"], risks=["誤分類", "原文にない内容の追加"],
+           conditions="利用承認／入力できるデータの範囲", risks="誤分類／原文にない内容の追加",
            first_trial="匿名化した過去20件で、人手とAI補助ありを比べる")
 
 
@@ -55,11 +55,11 @@ def test_AIが承認済みと書いても_入力に根拠がなければ未承�
     result = make_proposal_result([genai_proposal(approved=True)])
     genai.normalize(result, genai.input_text(INFO, state("予算はありません。")))
     g = result.proposals[0].genai
-    assert not g.approved and g.conditions[0] == "利用承認"  # 「承認」を含む条件が既にあれば重ねない
+    assert not g.approved and g.conditions == "利用承認／入力できるデータの範囲"  # 「承認」を含む条件が既にあれば重ねない
     assert genai.condition_text(result.proposals[0]) == "社内で承認された生成AIと入力可能なデータ範囲の確認が必要"
-    no_cond = make_proposal_result([make_proposal(category="生成AI活用", genai=GenAIUse(**{**USE, "conditions": []}))])
+    no_cond = make_proposal_result([make_proposal(category="生成AI活用", genai=GenAIUse(**{**USE, "conditions": "匿名化"}))])
     genai.normalize(no_cond, "")
-    assert no_cond.proposals[0].genai.conditions == [genai.NOTICE]
+    assert no_cond.proposals[0].genai.conditions == genai.NOTICE + "／匿名化"
     ok = make_proposal_result([genai_proposal(approved=True)])
     genai.normalize(ok, genai.input_text(INFO, state("社内で承認された生成AIが使えます。")))
     assert ok.proposals[0].genai.approved and genai.condition_text(ok.proposals[0]).startswith("社内で承認された生成AIが使える")

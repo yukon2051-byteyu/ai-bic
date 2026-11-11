@@ -85,8 +85,8 @@ def normalize_one(p: Proposal, ok: bool) -> None:
     if p.genai is None:
         return
     p.genai.approved = p.genai.approved and ok
-    if not p.genai.approved and not any("承認" in c for c in p.genai.conditions):
-        p.genai.conditions.insert(0, NOTICE)
+    if not p.genai.approved and "承認" not in p.genai.conditions:
+        p.genai.conditions = "／".join(x for x in (NOTICE, p.genai.conditions.strip()) if x)
 
 
 def problems(result: ProposalResult, text: str) -> list[str]:
