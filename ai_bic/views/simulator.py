@@ -163,6 +163,8 @@ def render(project: Project) -> None:
                        format_func=lambda x: f"案{numbers[x]}",
                        captions=[ui.md_text(tab_name(by_pid[x])) for x in pids])
     html(f'<div class="bic-plan-title">案{numbers[pid]}：{ui.esc(by_pid[pid].title)}</div>')
+    if by_pid[pid].genai is not None:  # 生成AIを使う案（AI-BIC 3.4）：下書きの時間だけでなく、確認・修正の時間と利用料を含める
+        html(ui.note(GENAI_NOTE))
     _render_one(project, pid)
 
     created_at = datetime.now(config.JST)
@@ -177,6 +179,9 @@ def render(project: Project) -> None:
 
 
 PLAN_KEY = "sim_plan"  # 試算で選んでいる改善案（P1 など）
+GENAI_NOTE = ("生成AIを使う案です。想定削減率には、AIの出力を確認・修正する時間を差し引いた正味の値を入れてください"
+              "（下書きの時間だけが短くなっても、確認を含めた総作業時間が減るとは限りません）。"
+              "AIの利用料は月額の運用費用に入れてください。分からない場合は、小さく試して確認込みの総作業時間を測ってから入れます。")
 
 
 

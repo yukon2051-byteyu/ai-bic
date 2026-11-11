@@ -1,13 +1,1375 @@
 {
   "scenarios": [
     {
+      "id": "inquiry_report",
+      "title": "問い合わせメモの分類と週次報告（カスタマーサポート）",
+      "business_info": {
+        "company_name": "ひかり住設サービス株式会社（架空）",
+        "department": "カスタマーサポート課",
+        "task_name": "問い合わせメモの分類と週次報告",
+        "overview": "電話とメールで受けた問い合わせを、担当者が自由記述のメモに残している。毎週月曜に、前週のメモ（約60件）を読んで内容ごとに分類し、件数と代表的な声を週次報告にまとめて品質管理課へ送っている。",
+        "pain_points": "メモの書き方が担当者ごとに違い、読んで分類するのに時間がかかる。分類の基準が人によってずれ、先週と比べにくい。"
+      },
+      "attachments": [
+        {
+          "name": "問い合わせメモ_抜粋（匿名化済み）.csv",
+          "text": "受付日,受付方法,メモ\n10/6,電話,給湯器のお湯がぬるい。設定温度は60度のまま。先月も同じ症状とのこと\n10/6,メール,リモコンの表示が消えた。電池を替えても直らない\n10/7,電話,請求書の金額が先月より高い。点検費の内訳を知りたい\n10/8,電話,浴室の換気扇から異音。使い方の問題か故障か判断がつかない"
+        }
+      ],
+      "turns": [
+        {
+          "statuses": {
+            "H1": "不十分",
+            "H2": "不十分",
+            "H3": "未確認",
+            "H4": "不十分",
+            "H5": "充足",
+            "H6": "未確認"
+          },
+          "next_item_id": "H3",
+          "question_type": "新規",
+          "question": "メモを読んで分類する作業は、毎週いつ、誰が、どれくらいの時間をかけていますか？",
+          "answer_example": "例：毎週月曜の朝に、私1人で1時間ほど",
+          "demo_answer": "毎週月曜の午前中、私が2時間ほどかけてメモを読み、分類しています。件数の集計はExcelのピボットテーブルで10分ほどです。"
+        },
+        {
+          "statuses": {
+            "H1": "不十分",
+            "H2": "不十分",
+            "H3": "充足",
+            "H4": "充足",
+            "H5": "充足",
+            "H6": "未確認"
+          },
+          "next_item_id": "H2",
+          "question_type": "確認",
+          "question": "分類はどのような手順で行っていますか？迷うメモはどう扱っていますか？",
+          "answer_example": "例：1件ずつ読んで分類を入力し、迷うものは上長に聞く",
+          "demo_answer": "メモを1件ずつ読み、「故障」「使い方」「料金」「その他」のどれかに分けて、Excelの一覧に分類を入力します。迷うメモは同僚に相談します。最後に代表的な声を3件ほど選んで報告書に書いています。"
+        },
+        {
+          "statuses": {
+            "H1": "不十分",
+            "H2": "充足",
+            "H3": "充足",
+            "H4": "充足",
+            "H5": "充足",
+            "H6": "未確認"
+          },
+          "next_item_id": "H1",
+          "question_type": "新規",
+          "question": "週次報告は、誰が何のために使っていますか？",
+          "answer_example": "例：品質管理課が不具合の傾向をつかむために使う",
+          "demo_answer": "品質管理課が、製品の不具合の傾向を早めにつかむために使っています。"
+        },
+        {
+          "statuses": {
+            "H1": "充足",
+            "H2": "充足",
+            "H3": "充足",
+            "H4": "充足",
+            "H5": "充足",
+            "H6": "未確認"
+          },
+          "next_item_id": "H6",
+          "question_type": "新規",
+          "question": "改善にあたって、予算や使えるツール、社内ルールなどの制約はありますか？",
+          "answer_example": "例：新しいソフトは買えない。社内で使ってよいツールが決まっている",
+          "demo_answer": "社内で承認された生成AI（社内向けのチャット）は使えますが、お客様の氏名や電話番号は入力してはいけない決まりです。新しいソフトを買う予算はありません。"
+        }
+      ],
+      "analysis": {
+        "business_summary": "カスタマーサポート課で、毎週約60件の問い合わせメモ（自由記述）を担当者が読んで分類し、件数と代表的な声を週次報告にまとめて品質管理課へ送っている業務です。",
+        "issues": [
+          {
+            "issue_id": "I1",
+            "title": "メモを読んで分類する作業に、毎週2時間かかっている",
+            "summary": "約60件の自由記述のメモを1件ずつ読んで分類しており、毎週月曜の午前中がこの作業で埋まっています。",
+            "viewpoint_ids": [
+              "V1",
+              "V3"
+            ],
+            "evidence_type": "本人の申告",
+            "evidences": [
+              {
+                "source": "回答",
+                "turn_no": 1,
+                "file_no": null,
+                "quote": "2時間ほどかけてメモを読み、分類しています",
+                "supports": "分類の作業に毎週2時間ほどかかっている"
+              },
+              {
+                "source": "業務情報",
+                "turn_no": null,
+                "file_no": null,
+                "quote": "前週のメモ（約60件）を読んで内容ごとに分類し",
+                "supports": "毎週約60件のメモを読んで分類している"
+              }
+            ],
+            "calculation": null,
+            "assumed_cause": "メモの書き方がそろっていないため、1件ごとに内容を読み取る必要があると考えられます（推測）。",
+            "impact": "週の始めに担当者の時間が取られ、報告が遅れると品質管理課が不具合の傾向に気づくのも遅れます。",
+            "severity": "中",
+            "severity_reason": "毎週続く作業で、報告を使う部署の判断の早さにも影響するためです。",
+            "followup_questions": [
+              "1件のメモを分類するのに、迷わない場合と迷う場合でどれくらい時間が違いますか？"
+            ]
+          },
+          {
+            "issue_id": "I2",
+            "title": "分類の基準が人によってずれ、週ごとに比べにくい",
+            "summary": "誰が分類するかで同じ内容のメモの分け方が変わり、週ごとの件数の増減が実際の変化なのか分かりにくくなっています。",
+            "viewpoint_ids": [
+              "V2",
+              "V5"
+            ],
+            "evidence_type": "本人の申告",
+            "evidences": [
+              {
+                "source": "業務情報",
+                "turn_no": null,
+                "file_no": null,
+                "quote": "分類の基準が人によってずれ、先週と比べにくい",
+                "supports": "分類の基準が人によって違い、週ごとに比べにくい"
+              },
+              {
+                "source": "回答",
+                "turn_no": 2,
+                "file_no": null,
+                "quote": "迷うメモは同僚に相談します",
+                "supports": "判断に迷うメモがあり、相談して決めている"
+              },
+              {
+                "source": "添付ファイル",
+                "turn_no": null,
+                "file_no": 1,
+                "quote": "使い方の問題か故障か判断がつかない",
+                "supports": "メモの中に、どの分類に入れるか判断に迷う記述がある"
+              }
+            ],
+            "calculation": null,
+            "assumed_cause": "「故障」と「使い方」の境目など、分類の定義が文章になっていない可能性があります（推測）。",
+            "impact": "不具合の傾向を見誤り、品質管理課の対応が遅れたり、不要な調査が増えたりするおそれがあります。",
+            "severity": "高",
+            "severity_reason": "報告の目的（不具合の傾向を早めにつかむ）そのものに関わるためです。",
+            "followup_questions": [
+              "分類の定義を書いた資料はありますか？"
+            ]
+          },
+          {
+            "issue_id": "I3",
+            "title": "メモの書き方が担当者ごとに違う",
+            "summary": "メモが自由記述で、症状・製品・お客様の要望の書き方が担当者ごとに違うため、読み取りに時間がかかります。",
+            "viewpoint_ids": [
+              "V2",
+              "V4"
+            ],
+            "evidence_type": "本人の申告",
+            "evidences": [
+              {
+                "source": "業務情報",
+                "turn_no": null,
+                "file_no": null,
+                "quote": "メモの書き方が担当者ごとに違い",
+                "supports": "メモの書き方が担当者ごとに違う"
+              }
+            ],
+            "calculation": null,
+            "assumed_cause": "受付時に書く項目が決まっていないためと考えられます（推測）。",
+            "impact": "分類だけでなく、あとから同じお客様の問い合わせを探すときにも時間がかかります。",
+            "severity": "中",
+            "severity_reason": "分類の時間と分類のずれの両方の原因になっているためです。",
+            "followup_questions": [
+              "受付時にメモへ必ず書く項目はありますか？"
+            ]
+          }
+        ],
+        "no_issue_viewpoints": [
+          "V6",
+          "V7"
+        ],
+        "quantities": [
+          {
+            "qid": "Q1",
+            "name": "メモを読んで分類する時間",
+            "value": 2,
+            "unit": "時間",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 1,
+            "file_no": null,
+            "quote": "2時間ほどかけてメモを読み、分類しています",
+            "sim_field": null,
+            "per": "週"
+          },
+          {
+            "qid": "Q2",
+            "name": "前週の問い合わせメモの件数",
+            "value": 60,
+            "unit": "件",
+            "status": "確認済み",
+            "source": "業務情報",
+            "turn_no": null,
+            "file_no": null,
+            "quote": "前週のメモ（約60件）",
+            "sim_field": null,
+            "per": "週"
+          },
+          {
+            "qid": "Q3",
+            "name": "件数の集計の時間",
+            "value": 10,
+            "unit": "分",
+            "status": "確認済み",
+            "source": "回答",
+            "turn_no": 1,
+            "file_no": null,
+            "quote": "件数の集計はExcelのピボットテーブルで10分ほどです",
+            "sim_field": null,
+            "per": "週"
+          }
+        ],
+        "derived": [
+          {
+            "qid": "D1",
+            "name": "メモ1件あたりの分類時間",
+            "formula": "Q1 * 60 / Q2",
+            "unit": "分",
+            "sim_field": "minutes_per_case",
+            "per": "件"
+          }
+        ]
+      },
+      "proposals": {
+        "summary": {
+          "headline": "最大の課題は、分類の基準が人によってずれ、不具合の傾向を見誤りやすいことです。基準表をそろえたうえで、社内の生成AIで分類を補助し、確認込みの時間を測って判断します。",
+          "top_issue_id": "I2",
+          "first_action": "今週中に、4つの分類の定義と例を1枚の基準表にまとめ、先週分のメモ20件を匿名化して試す準備をする。"
+        },
+        "proposals": [
+          {
+            "title": "社内の生成AIでメモの分類候補と代表例を出し、担当者が原文と照らして確定する",
+            "short_title": "生成AIで分類を補助",
+            "reduces": "メモを読んで分類する時間",
+            "effect_metric": "確認・修正込みの総作業時間",
+            "effect_inputs": [
+              "Q1",
+              "D1"
+            ],
+            "category": "生成AI活用",
+            "description": "氏名・電話番号を消したメモを社内で承認された生成AIに入れ、分類の候補と、分類ごとの代表的な声の候補を出させます。担当者は候補を原文と照らし合わせて確定し、件数の集計は今までどおりExcelで行います。",
+            "target_issue_ids": [
+              "I1",
+              "I2"
+            ],
+            "expected_effect": "メモを読んで分類する時間が減る可能性があります（想定）。ただしAIの出力を確認・修正する時間がかかるため、確認込みの総作業時間で効果を確かめます。",
+            "difficulty": "中",
+            "risks": [
+              "AIが誤って分類したまま報告に載る",
+              "メモにない内容をAIが書き足す",
+              "氏名や電話番号を消し忘れて入力する"
+            ],
+            "prerequisites": [
+              "社内向けのチャットに入力してよいデータの範囲（社内規程）の確認",
+              "分類の基準（故障・使い方・料金・その他）の定義を文章にしておく"
+            ],
+            "reason": "毎週の分類の時間と、分類のずれの両方に効く可能性があり、すでに社内で承認された生成AIを使えるため新しい購入が不要です。ただし効果は未測定なので、20件で試してから広げます。",
+            "why_not_simpler": null,
+            "before": "毎週月曜の午前中、担当者が約60件のメモを1件ずつ読んで分類し、迷うメモは同僚に相談している。",
+            "after": "生成AIが出した分類候補と代表例の候補を、担当者が原文と照らして確定する想定。迷うメモだけに時間を使える見込み。",
+            "first_steps": [
+              "分類の基準（4つの分類の定義と例）を1枚の文章にする",
+              "先週分のメモから20件を選び、氏名・電話番号を消す"
+            ],
+            "trial_metrics": [
+              {
+                "name": "確認・修正込みの総作業時間",
+                "kind": "数値",
+                "unit": "分",
+                "per": "20件",
+                "required": true,
+                "purpose": "AIの補助で、確認を含めた時間が本当に減るかを確かめる",
+                "pass_condition": "人手だけの時間より短い",
+                "target": null,
+                "direction": "以下",
+                "quantity_ref": null
+              },
+              {
+                "name": "誤分類の件数",
+                "kind": "数値",
+                "unit": "件",
+                "per": "20件",
+                "required": true,
+                "purpose": "AIの分類候補の誤りがどれだけあるかを確かめる",
+                "pass_condition": "担当者の分類と比べて2件以下",
+                "target": 2,
+                "direction": "以下",
+                "quantity_ref": null
+              },
+              {
+                "name": "原文で裏付けられない記述の件数",
+                "kind": "数値",
+                "unit": "件",
+                "per": "20件",
+                "required": true,
+                "purpose": "代表例や要約に、メモにない内容が入らないかを確かめる",
+                "pass_condition": "0件",
+                "target": 0,
+                "direction": "以下",
+                "quantity_ref": null
+              },
+              {
+                "name": "判断が難しいメモを担当者が見分けられたか",
+                "kind": "確認",
+                "unit": null,
+                "per": null,
+                "required": true,
+                "purpose": "迷うメモを確認の対象として拾えるかを確かめる",
+                "pass_condition": "迷うメモをすべて確認の対象にできる",
+                "target": null,
+                "direction": "以下",
+                "quantity_ref": null
+              }
+            ],
+            "genai": {
+              "target_step": "週次報告の前に、問い合わせメモの自由記述を分類し、代表的な声を選ぶ",
+              "ai_input": "氏名・電話番号を消した問い合わせメモと、分類の基準の文章",
+              "ai_output": "メモごとの分類候補と、分類ごとの代表的な声の候補（元のメモの受付日つき）",
+              "human_check": "担当者が分類候補を原文と照らし合わせ、誤分類や判断が難しいメモを直す。代表例は元のメモで確かめる",
+              "effect": "分類の時間（週2時間）が減る可能性。確認・修正の時間を含めた総作業時間はまだ分からないため、20件で人手だけとAI補助ありを比べて測る",
+              "conditions": [
+                "お客様の氏名・電話番号をメモから消してから入力する",
+                "入力してよいデータの範囲を社内規程で確かめる"
+              ],
+              "risks": [
+                "誤分類",
+                "原文にない内容の追加",
+                "確認を省いて誤りがそのまま報告に載る"
+              ],
+              "first_trial": "匿名化した先週分のメモ20件で、人手だけとAI補助ありの総作業時間と誤分類の件数を比べる",
+              "approved": true
+            }
+          },
+          {
+            "title": "分類の基準表と、メモの書き方の型をそろえる",
+            "short_title": "基準表とメモの型",
+            "reduces": "分類のずれと読み取りの手間",
+            "effect_metric": "分類のずれの件数",
+            "effect_inputs": [],
+            "category": "業務標準化",
+            "description": "4つの分類それぞれの定義と例を1枚の基準表にまとめ、受付時のメモに「製品・症状・お客様の要望」の3項目を必ず書く型を決めます。",
+            "target_issue_ids": [
+              "I2",
+              "I3"
+            ],
+            "expected_effect": "分類のずれが減り、メモを読み取る時間も短くなる見込みです（想定）。",
+            "difficulty": "低",
+            "risks": [
+              "忙しいときに型どおりに書かれない",
+              "基準表が更新されず実態とずれる"
+            ],
+            "prerequisites": [
+              "課の担当者全員が型に合意できるかの確認"
+            ],
+            "reason": "費用をかけずにすぐ始められ、生成AIを使う場合も基準表がそのまま指示に使えるため、案1の前提にもなります。",
+            "why_not_simpler": null,
+            "before": "メモは自由記述で、書き方は担当者ごとに違う。分類の定義は文章になっていない。",
+            "after": "基準表とメモの型がそろい、誰が分類しても同じ分け方になる想定。",
+            "first_steps": [
+              "先週分のメモから、分類に迷った例を5件集める",
+              "4つの分類の定義と例を1枚の表にまとめる"
+            ],
+            "trial_metrics": [
+              {
+                "name": "2人で分類したときに分け方が違ったメモの件数",
+                "kind": "数値",
+                "unit": "件",
+                "per": "20件",
+                "required": true,
+                "purpose": "基準表で分類のずれが減るかを確かめる",
+                "pass_condition": "2件以下",
+                "target": 2,
+                "direction": "以下",
+                "quantity_ref": null
+              },
+              {
+                "name": "型どおりに書かれたメモの割合",
+                "kind": "数値",
+                "unit": "%",
+                "per": "試行期間",
+                "required": true,
+                "purpose": "メモの型が守られるかを確かめる",
+                "pass_condition": "80%以上",
+                "target": 80,
+                "direction": "以上",
+                "quantity_ref": null
+              }
+            ],
+            "genai": null
+          },
+          {
+            "title": "Excelの入力規則で分類を選ぶ形にし、ピボットテーブルで週ごとの比較を自動で出す",
+            "short_title": "Excelで週次比較",
+            "reduces": "集計と比較の手間",
+            "effect_metric": "件数の集計と比較の時間",
+            "effect_inputs": [
+              "Q3"
+            ],
+            "category": "既存ツールの活用",
+            "description": "メモの一覧に分類を選ぶリスト（入力規則）を付け、ピボットテーブルで先週との比較を自動で出す表を作ります。数値の集計はルールで行い、生成AIは使いません。",
+            "target_issue_ids": [
+              "I2"
+            ],
+            "expected_effect": "件数の集計と先週との比較が、毎週同じ形で出せる見込みです（想定）。",
+            "difficulty": "低",
+            "risks": [
+              "分類そのもののずれは、この案だけでは減らない"
+            ],
+            "prerequisites": [
+              "今のExcelの一覧の項目が、毎週同じ並びになっているかの確認"
+            ],
+            "reason": "件数の集計と比較はルールが明確な作業なので、生成AIではなくExcelの機能で確実に自動化できます。",
+            "why_not_simpler": null,
+            "before": "分類を手で入力し、ピボットテーブルで件数を数えたあと、先週の報告と見比べている。",
+            "after": "分類はリストから選び、先週との比較の表が自動で更新される想定。",
+            "first_steps": [
+              "分類の一覧（4つ）を入力規則のリストにする",
+              "先週と今週を並べるピボットテーブルを1つ作る"
+            ],
+            "trial_metrics": [
+              {
+                "name": "件数の集計と比較にかかる時間",
+                "kind": "数値",
+                "unit": "分",
+                "per": "週",
+                "required": true,
+                "purpose": "集計と比較の手間が減るかを確かめる",
+                "pass_condition": "5分以下",
+                "target": 5,
+                "direction": "以下",
+                "quantity_ref": null
+              }
+            ],
+            "genai": null
+          }
+        ],
+        "relations": [
+          {
+            "kind": "順序",
+            "first": 2,
+            "second": 1,
+            "reason": "案2の基準表があると、生成AIに渡す分類の基準としてそのまま使えます。"
+          },
+          {
+            "kind": "併用",
+            "first": 1,
+            "second": 3,
+            "reason": "分類は生成AIで補助し、件数の集計と比較はExcelのルールで行う、という分担ができます。"
+          }
+        ]
+      },
+      "simulation": {
+        "note": "1件＝問い合わせメモ1件として、2分×約260件（週60件×52週÷12か月）＝月約8.7時間に合わせた架空の値です。生成AIの利用料は社内の契約に含まれるとした架空の値（0円）で、削減率は確認・修正の時間を差し引いた正味の値として置いています。人件費・費用も架空のサンプル値です。",
+        "base": {
+          "minutes_per_case": 2,
+          "cases_per_month": 260,
+          "hourly_cost": 2800
+        },
+        "proposals": [
+          {
+            "reduction_rate": 30,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 30000
+          },
+          {
+            "reduction_rate": 15,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 20000
+          },
+          {
+            "reduction_rate": 5,
+            "initial_cost": 0,
+            "monthly_running_cost": 0,
+            "other_initial_cost": 15000
+          }
+        ]
+      },
+      "flows": {
+        "case_unit": "問い合わせメモ1件",
+        "cases_per_month": null,
+        "cases_basis": "不明",
+        "cases_quote": null,
+        "as_is_steps": [
+          {
+            "ref": "S1",
+            "name": "受付時に問い合わせをメモに残す",
+            "kind": "作業",
+            "actor": "カスタマーサポート課（担当者）",
+            "description": "受付は各担当者",
+            "system": "",
+            "manual": true,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": "担当者が自由記述のメモに残している",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "書き方が担当者ごとに違う",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S2",
+            "name": "メモを1件ずつ読んで分類する",
+            "kind": "作業",
+            "actor": "カスタマーサポート課（担当者）",
+            "description": "1件＝問い合わせメモ1件。2時間÷約60件",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 2,
+            "time_basis": "ヒアリング",
+            "evidence_quote": "2時間ほどかけてメモを読み、分類しています",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "読み取りに時間がかかり、分類の基準が人によってずれる",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S3",
+            "name": "分類に迷うか",
+            "kind": "判断",
+            "actor": "カスタマーサポート課（担当者）",
+            "description": "",
+            "system": "",
+            "manual": null,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": "迷うメモは同僚に相談します",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S4",
+            "name": "迷うメモを同僚に相談する",
+            "kind": "作業",
+            "actor": "カスタマーサポート課（担当者）",
+            "description": "割合は目安",
+            "system": "",
+            "manual": true,
+            "minutes_per_case": null,
+            "time_basis": "不明",
+            "evidence_quote": "迷うメモは同僚に相談します",
+            "occurrence_rate": 15,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": true
+          },
+          {
+            "ref": "S5",
+            "name": "Excelの一覧に分類を入力する",
+            "kind": "作業",
+            "actor": "カスタマーサポート課（担当者）",
+            "description": "",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 0.5,
+            "time_basis": "AI推定",
+            "evidence_quote": "Excelの一覧に分類を入力します",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S6",
+            "name": "ピボットテーブルで件数を数える",
+            "kind": "作業",
+            "actor": "カスタマーサポート課（担当者）",
+            "description": "週10分÷約60件",
+            "system": "Excel",
+            "manual": true,
+            "minutes_per_case": 0.2,
+            "time_basis": "ヒアリング",
+            "evidence_quote": "件数の集計はExcelのピボットテーブルで10分ほどです",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          },
+          {
+            "ref": "S7",
+            "name": "代表的な声を選んで週次報告を書き、品質管理課へ送る",
+            "kind": "作業",
+            "actor": "カスタマーサポート課（担当者）",
+            "description": "週1回の作業を1件あたりに割った目安",
+            "system": "Excel・メール",
+            "manual": true,
+            "minutes_per_case": 0.5,
+            "time_basis": "AI推定",
+            "evidence_quote": "代表的な声を3件ほど選んで報告書に書いています",
+            "occurrence_rate": 100,
+            "wait_or_rework": "",
+            "problem": "",
+            "needs_confirmation": false
+          }
+        ],
+        "as_is_edges": [
+          {
+            "source": "S1",
+            "target": "S2",
+            "label": ""
+          },
+          {
+            "source": "S2",
+            "target": "S3",
+            "label": ""
+          },
+          {
+            "source": "S3",
+            "target": "S4",
+            "label": "迷う"
+          },
+          {
+            "source": "S3",
+            "target": "S5",
+            "label": "迷わない"
+          },
+          {
+            "source": "S4",
+            "target": "S5",
+            "label": ""
+          },
+          {
+            "source": "S5",
+            "target": "S6",
+            "label": ""
+          },
+          {
+            "source": "S6",
+            "target": "S7",
+            "label": ""
+          }
+        ],
+        "questions": [
+          "1件のメモを分類するのに、迷わない場合と迷う場合でどれくらい時間が違いますか？",
+          "週次報告は、品質管理課へどのように送っていますか？"
+        ],
+        "to_be": [
+          {
+            "proposal_no": 1,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "受付時に問い合わせをメモに残す",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "受付は各担当者",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "担当者が自由記述のメモに残している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "書き方が担当者ごとに違う",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S8",
+                "name": "氏名・電話番号を消したメモを社内の生成AIに入れ、分類候補と代表例の候補を出す",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "AIの出力は候補。確定は担当者",
+                "system": "社内向けの生成AI",
+                "manual": false,
+                "minutes_per_case": 0.3,
+                "time_basis": "AI推定",
+                "evidence_quote": null,
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "追加",
+                "change_note": "生成AIが分類候補と、元のメモの受付日つきの代表例の候補を出す"
+              },
+              {
+                "ref": "S2",
+                "name": "AIの分類候補を原文と照らして確定する",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "1件＝問い合わせメモ1件。2時間÷約60件",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "ヒアリング",
+                "evidence_quote": "2時間ほどかけてメモを読み、分類しています",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "読み取りに時間がかかり、分類の基準が人によってずれる",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "読んで分類する代わりに、候補を原文で確かめて直す（確認の時間は試行で測る）"
+              },
+              {
+                "ref": "S3",
+                "name": "分類に迷うか",
+                "kind": "判断",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "迷うメモは同僚に相談します",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S4",
+                "name": "迷うメモを同僚に相談する",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "割合は目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "迷うメモは同僚に相談します",
+                "occurrence_rate": 15,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "Excelの一覧に分類を入力する",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 0.5,
+                "time_basis": "AI推定",
+                "evidence_quote": "Excelの一覧に分類を入力します",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S6",
+                "name": "ピボットテーブルで件数を数える",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "週10分÷約60件",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 0.2,
+                "time_basis": "ヒアリング",
+                "evidence_quote": "件数の集計はExcelのピボットテーブルで10分ほどです",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "代表的な声を選んで週次報告を書き、品質管理課へ送る",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "週1回の作業を1件あたりに割った目安",
+                "system": "Excel・メール",
+                "manual": true,
+                "minutes_per_case": 0.5,
+                "time_basis": "AI推定",
+                "evidence_quote": "代表的な声を3件ほど選んで報告書に書いています",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "代表例の候補を、元のメモで確かめてから報告に使う"
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S8",
+                "label": ""
+              },
+              {
+                "source": "S8",
+                "target": "S2",
+                "label": ""
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": "迷う"
+              },
+              {
+                "source": "S3",
+                "target": "S5",
+                "label": "迷わない"
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "担当者が原文と照らして分類を確定する工程（AIの誤分類をそのまま報告に載せないため）",
+              "代表例を元のメモで確かめる工程（原文にない内容を報告に載せないため）"
+            ],
+            "setup_tasks": [
+              "分類の基準の文章を作る",
+              "メモから氏名・電話番号を消す手順を決める"
+            ]
+          },
+          {
+            "proposal_no": 2,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "受付時に問い合わせをメモに残す",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "受付は各担当者",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "担当者が自由記述のメモに残している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "書き方が担当者ごとに違う",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "製品・症状・お客様の要望の3項目の型で書く"
+              },
+              {
+                "ref": "S2",
+                "name": "メモを1件ずつ読んで分類する",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "1件＝問い合わせメモ1件。2時間÷約60件",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "ヒアリング",
+                "evidence_quote": "2時間ほどかけてメモを読み、分類しています",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "読み取りに時間がかかり、分類の基準が人によってずれる",
+                "needs_confirmation": false,
+                "change": "短縮",
+                "change_note": "基準表に沿って分類する"
+              },
+              {
+                "ref": "S3",
+                "name": "分類に迷うか",
+                "kind": "判断",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "迷うメモは同僚に相談します",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S4",
+                "name": "迷うメモを同僚に相談する",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "割合は目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "迷うメモは同僚に相談します",
+                "occurrence_rate": 5,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "短縮",
+                "change_note": "基準表で迷うメモが減る見込み（割合は目安）"
+              },
+              {
+                "ref": "S5",
+                "name": "Excelの一覧に分類を入力する",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 0.5,
+                "time_basis": "AI推定",
+                "evidence_quote": "Excelの一覧に分類を入力します",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S6",
+                "name": "ピボットテーブルで件数を数える",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "週10分÷約60件",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 0.2,
+                "time_basis": "ヒアリング",
+                "evidence_quote": "件数の集計はExcelのピボットテーブルで10分ほどです",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S7",
+                "name": "代表的な声を選んで週次報告を書き、品質管理課へ送る",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "週1回の作業を1件あたりに割った目安",
+                "system": "Excel・メール",
+                "manual": true,
+                "minutes_per_case": 0.5,
+                "time_basis": "AI推定",
+                "evidence_quote": "代表的な声を3件ほど選んで報告書に書いています",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": ""
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": "迷う"
+              },
+              {
+                "source": "S3",
+                "target": "S5",
+                "label": "迷わない"
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "迷うメモの相談（基準表で決まらない例を基準表に追加するため）"
+            ],
+            "setup_tasks": [
+              "基準表を作る",
+              "メモの型を課で決める"
+            ]
+          },
+          {
+            "proposal_no": 3,
+            "steps": [
+              {
+                "ref": "S1",
+                "name": "受付時に問い合わせをメモに残す",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "受付は各担当者",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "担当者が自由記述のメモに残している",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "書き方が担当者ごとに違う",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S2",
+                "name": "メモを1件ずつ読んで分類する",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "1件＝問い合わせメモ1件。2時間÷約60件",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 2,
+                "time_basis": "ヒアリング",
+                "evidence_quote": "2時間ほどかけてメモを読み、分類しています",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "読み取りに時間がかかり、分類の基準が人によってずれる",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S3",
+                "name": "分類に迷うか",
+                "kind": "判断",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "",
+                "system": "",
+                "manual": null,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "迷うメモは同僚に相談します",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S4",
+                "name": "迷うメモを同僚に相談する",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "割合は目安",
+                "system": "",
+                "manual": true,
+                "minutes_per_case": null,
+                "time_basis": "不明",
+                "evidence_quote": "迷うメモは同僚に相談します",
+                "occurrence_rate": 15,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": true,
+                "change": "変更なし",
+                "change_note": ""
+              },
+              {
+                "ref": "S5",
+                "name": "Excelの一覧に分類を入力する",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "",
+                "system": "Excel",
+                "manual": true,
+                "minutes_per_case": 0.5,
+                "time_basis": "AI推定",
+                "evidence_quote": "Excelの一覧に分類を入力します",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更",
+                "change_note": "分類をリストから選ぶ"
+              },
+              {
+                "ref": "S6",
+                "name": "ピボットテーブルで件数を数える",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "週10分÷約60件",
+                "system": "Excel",
+                "manual": false,
+                "minutes_per_case": 0.2,
+                "time_basis": "ヒアリング",
+                "evidence_quote": "件数の集計はExcelのピボットテーブルで10分ほどです",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "自動化",
+                "change_note": "ピボットテーブルで先週との比較まで自動で出す"
+              },
+              {
+                "ref": "S7",
+                "name": "代表的な声を選んで週次報告を書き、品質管理課へ送る",
+                "kind": "作業",
+                "actor": "カスタマーサポート課（担当者）",
+                "description": "週1回の作業を1件あたりに割った目安",
+                "system": "Excel・メール",
+                "manual": true,
+                "minutes_per_case": 0.5,
+                "time_basis": "AI推定",
+                "evidence_quote": "代表的な声を3件ほど選んで報告書に書いています",
+                "occurrence_rate": 100,
+                "wait_or_rework": "",
+                "problem": "",
+                "needs_confirmation": false,
+                "change": "変更なし",
+                "change_note": ""
+              }
+            ],
+            "edges": [
+              {
+                "source": "S1",
+                "target": "S2",
+                "label": ""
+              },
+              {
+                "source": "S2",
+                "target": "S3",
+                "label": ""
+              },
+              {
+                "source": "S3",
+                "target": "S4",
+                "label": "迷う"
+              },
+              {
+                "source": "S3",
+                "target": "S5",
+                "label": "迷わない"
+              },
+              {
+                "source": "S4",
+                "target": "S5",
+                "label": ""
+              },
+              {
+                "source": "S5",
+                "target": "S6",
+                "label": ""
+              },
+              {
+                "source": "S6",
+                "target": "S7",
+                "label": ""
+              }
+            ],
+            "kept_controls": [
+              "分類の確定は担当者が行う（Excelは集計だけ）"
+            ],
+            "setup_tasks": [
+              "入力規則のリストと比較の表を作る"
+            ]
+          }
+        ]
+      },
+      "reviews": [
+        {
+          "verdict": "条件付き推奨",
+          "summary": "社内で承認された生成AIを使い、分類の時間と分類のずれに取り組める案です。ただし誤分類の見つけ方と、確認を含めた総作業時間がまだ分からないため、20件の試行で確かめてから広げる必要があります。",
+          "findings": [
+            {
+              "viewpoint": "生成AIの利用",
+              "severity": "高",
+              "title": "誤分類にどう気づくかが決まっていない",
+              "detail": "AIの分類候補が誤っていても、確認の手順がなければそのまま件数に入り、不具合の傾向を見誤ります。",
+              "evidence": "分類の基準が人によってずれ、先週と比べにくい",
+              "suggestion": "試行では全件を原文と照らし、誤分類の件数を記録する。迷うメモはAIに「判断が難しい」と出させ、必ず人が見る"
+            },
+            {
+              "viewpoint": "生成AIの利用",
+              "severity": "中",
+              "title": "代表例が元のメモに裏付けられているか追えるようにする",
+              "detail": "代表的な声をAIが言い換えると、原文にない内容が報告に入るおそれがあります。",
+              "evidence": "代表的な声を3件ほど選んで報告書に書いています",
+              "suggestion": "代表例には元のメモの受付日を付けて出させ、報告には原文をそのまま使う"
+            },
+            {
+              "viewpoint": "生成AIの利用",
+              "severity": "中",
+              "title": "確認・修正の時間を含めると、時間が減るとは限らない",
+              "detail": "分類を読む時間が減っても、候補を確かめて直す時間が増えれば、総作業時間は変わらない可能性があります。",
+              "evidence": null,
+              "suggestion": "試行で、人手だけとAI補助ありの確認込みの総作業時間を同じ20件で比べる"
+            },
+            {
+              "viewpoint": "生成AIの利用",
+              "severity": "中",
+              "title": "入力するメモから個人情報を消す手順が決まっていない",
+              "detail": "メモに氏名や電話番号が書かれている場合、消し忘れると社内規程に反します。",
+              "evidence": "お客様の氏名や電話番号は入力してはいけない決まりです",
+              "suggestion": "消す手順と、入力前にもう1人が確かめる手順を決める"
+            }
+          ],
+          "strengths": [
+            "社内で承認された生成AIを使うため、新しい購入が不要",
+            "件数の集計はExcelのまま残し、AIは文章を読む工程だけに使っている"
+          ],
+          "missing_info": [
+            "確認・修正込みの総作業時間",
+            "AIの分類候補の誤りの割合"
+          ],
+          "alternatives": [
+            "案2の基準表だけで、分類のずれと時間がどれだけ減るかを先に確かめる"
+          ],
+          "next_checks": [
+            "社内向けのチャットに入力してよいデータの範囲を、社内規程で確かめる"
+          ]
+        },
+        {
+          "verdict": "推奨",
+          "summary": "費用をかけずに分類のずれとメモの読み取りの手間に取り組める案で、案1の前提にもなります。",
+          "findings": [
+            {
+              "viewpoint": "業務運用リスク",
+              "severity": "中",
+              "title": "忙しいときに型どおりに書かれないおそれ",
+              "detail": "受付が混んでいる時間帯は、型の項目が抜けやすくなります。",
+              "evidence": "メモの書き方が担当者ごとに違い",
+              "suggestion": "型の3項目のうち、最低限の1項目（製品）だけは必ず書くと決める"
+            }
+          ],
+          "strengths": [
+            "費用がかからず、すぐ始められる"
+          ],
+          "missing_info": [
+            "課の担当者が型に合意できるか"
+          ],
+          "alternatives": [],
+          "next_checks": [
+            "課の打ち合わせで、基準表の案を見せて意見を聞く"
+          ]
+        },
+        {
+          "verdict": "条件付き推奨",
+          "summary": "件数の集計と比較を確実に自動化できますが、分類そのもののずれは減らないため、案1か案2と組み合わせる必要があります。",
+          "findings": [
+            {
+              "viewpoint": "課題との整合性",
+              "severity": "中",
+              "title": "分類のずれは、この案だけでは減らない",
+              "detail": "分類を選ぶ形にしても、どれを選ぶかの判断は人によってずれます。",
+              "evidence": "分類の基準が人によってずれ",
+              "suggestion": "案2の基準表と同時に進める"
+            }
+          ],
+          "strengths": [
+            "ルールが明確な集計の作業を、生成AIを使わずにExcelで自動化している"
+          ],
+          "missing_info": [
+            "今のExcelの一覧の項目の並び"
+          ],
+          "alternatives": [],
+          "next_checks": [
+            "今のExcelの一覧を確認する"
+          ]
+        }
+      ],
+      "trial_sample": {
+        "pid": "P1",
+        "scope": "匿名化した先週分のメモ20件で、人手だけとAI補助ありを同じ担当者が比べる",
+        "owner": "カスタマーサポート課の担当者（分類の主担当）",
+        "due_days": 14,
+        "metrics": [
+          {
+            "name": "確認・修正込みの総作業時間",
+            "kind": "数値",
+            "unit": "分",
+            "per": "20件",
+            "required": true,
+            "baseline": 40,
+            "target": 30,
+            "direction": "以下",
+            "actual": 26,
+            "note": "人手だけ40分（同じ20件）。AI補助ありは、AIの出力を待つ時間と確認・修正の時間を含めて26分"
+          },
+          {
+            "name": "誤分類の件数",
+            "kind": "数値",
+            "unit": "件",
+            "per": "20件",
+            "required": true,
+            "target": 2,
+            "direction": "以下",
+            "actual": 2,
+            "note": "「故障」と「使い方」の境目で2件。担当者の確認で直した"
+          },
+          {
+            "name": "原文で裏付けられない記述の件数",
+            "kind": "数値",
+            "unit": "件",
+            "per": "20件",
+            "required": true,
+            "target": 0,
+            "direction": "以下",
+            "actual": 1,
+            "note": "代表例の1件に、メモにない「毎回」という言葉が入っていた"
+          },
+          {
+            "name": "判断が難しいメモを担当者が見分けられたか",
+            "kind": "確認",
+            "required": false,
+            "check_target": "迷うメモをすべて確認の対象にできる",
+            "check_result": "成功",
+            "note": "AIが「判断が難しい」とした3件を担当者が確認"
+          }
+        ],
+        "button": "デモ：匿名化した20件で試したサンプルを入れる",
+        "note": "匿名化したメモ20件で、人手だけとAI補助ありを比べた場合の例を入れています。"
+      }
+    },
+    {
       "id": "production_report",
       "title": "月次生産実績集計（製造部）",
       "business_info": {
         "company_name": "東和精工株式会社（架空）",
         "department": "製造部 生産管理課",
         "task_name": "月次生産実績集計",
-        "overview": "工場の4台の設備から出力される日々の生産実績を、毎月Excelに転記して集計し、品質不良の件数と合わせて月次の生産実績報告書を作成している。",
+        "overview": "工場の4台の設備から出力される日々の生産実績を、毎月Excelに転記して集計し、品質不良の件数と合わせて月次の生産実績報告書を作成している。不良が出た日は、設備担当が異常メモ（自由記述）を書いており、報告書の前に読んで原因の傾向をまとめている。",
         "pain_points": "設備ごとに出力される形式が違い、転記と確認に時間がかかる。集計の誤りが会議で見つかり、修正に追われることがある。"
       },
       "attachments": [
@@ -431,7 +1793,23 @@
                 "direction": "以下",
                 "quantity_ref": null
               }
-            ]
+            ],
+            "genai": {
+              "target_step": "月次報告の前に、異常メモの自由記述を原因の種類ごとに分類・要約する（数値の集計とは別の工程）",
+              "ai_input": "設備名と日付を伏せた異常メモ",
+              "ai_output": "原因の種類ごとの分類候補と、要約の候補",
+              "human_check": "設備担当がメモの原文と照らし合わせ、誤った分類や原文にない要約を直す",
+              "effect": "分からない（異常メモを読む時間をまだ聞いていない）。1か月分のメモで、人手だけとAI補助ありの確認込みの時間を比べて測る",
+              "conditions": [
+                "社内で承認された生成AIと入力可能なデータ範囲の確認が必要（設備のデータは社外に出せない決まり）"
+              ],
+              "risks": [
+                "誤分類",
+                "原文にない原因の書き足し"
+              ],
+              "first_trial": "設備名と日付を伏せた過去1か月分の異常メモで、人手とAI補助ありの分類を比べる",
+              "approved": false
+            }
           },
           {
             "title": "集計の締めを前倒しし、会議前日に工場長が確認する",

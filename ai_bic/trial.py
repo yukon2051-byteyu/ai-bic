@@ -12,7 +12,7 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
-from ai_bic import facts
+from ai_bic import facts, genai
 from ai_bic import project as pj
 from ai_bic import simulation as sim
 from ai_bic.output_check import similarity
@@ -23,6 +23,7 @@ from ai_bic.quantities import basis_text
 from ai_bic.quantities import label as qlabel
 
 DECISIONS = ["展開する", "修正して再試行", "見送る"]
+CANDIDATE_NOTE = "測定候補：合格基準と、必須・任意を決めてください"
 HOLD = "判定保留"
 UNCONFIRMED = "単位を確認"
 
@@ -204,7 +205,18 @@ def default_metrics(project: Project | None, inputs: sim.SimulationInputs | None
     if candidates:
         plan = TrialPlan(pid="", created_at=pj.now())
         for c in candidates:
-            add_metric_unique(plan, from_candidate(project, c, time))
+            new = from_candidate(project, c, time)
+            # AIが別々に書いた候補は、名前が似ていても別の項目（例：誤分類の件数と、原文で裏付けられない記述の件数）。
+            # 同じ数値の一覧の番号か、まったく同じ名前のときだけまとめる
+            if any((m.ref and m.ref == new.ref) or m.name == new.name for m in plan.metrics):
+                add_metric_unique(plan, new)
+            else:
+                plan.metrics.append(new)
+        if genai.uses_genai(proposal):
+            # 生成AIの案（AI-BIC 3.4）：はじめは測定候補として入れ、合格基準と必須・任意は利用者が決める
+            plan.metrics = [m.model_copy(update={"required": False, "note": "　".join(
+                x for x in (CANDIDATE_NOTE, m.note) if x)}) for m in plan.metrics]
+            return plan.metrics
         timed = any(m.unit in ("分", "時間") or (time.ref and m.ref == time.ref) for m in plan.metrics)
         if "時間" in effect and not timed:
             plan.metrics.append(time.model_copy(update={"required": False, "purpose": "作業時間が変わるかを参考に見る"}))
@@ -292,11 +304,14 @@ def demo_plan(project: Project, sample: dict) -> TrialPlan:
     plan.due = pj.now().date() + timedelta(days=sample.get("due_days", 14))
     planned = {m.name: m for m in plan.metrics}
     plan.metrics = [TrialMetric(**m) for m in sample["metrics"]]
-    for m in plan.metrics:
+    given = [("required" in m) for m in sample["metrics"]]  # サンプルが必須・任意を決めているか
+    for m, has_required in zip(plan.metrics, given):
         if m.kind == "数値" and m.unit and m.checked_basis is None:
             m.checked_basis = basis_of(m)  # デモのサンプルの単位は、確かめた値として扱う
         if (p := planned.get(m.name)) and not m.purpose:
-            m.purpose, m.required = p.purpose, p.required  # 案の測定項目の候補の「確かめること」と必須を引き継ぐ
+            m.purpose = p.purpose  # 案の測定項目の候補の「確かめること」を引き継ぐ
+            if not has_required:
+                m.required = p.required  # 必須・任意は、サンプルが決めていなければ候補に合わせる
     plan.sample = True
     return plan
 
@@ -353,6 +368,8 @@ def guide(plan: TrialPlan) -> Guide:
     unconfirmed = [metric_label(m) for m, r in results if m.required and r.status == UNCONFIRMED]
     if not plan.metrics:
         return Guide(HOLD, "測定項目がありません。測定項目を追加してください")
+    if not any(m.required for m in plan.metrics):  # 何を満たせば合格かが決まっていない（生成AIの案の測定候補など）
+        return Guide(HOLD, "必須の測定項目が決まっていません。測定候補から、合格基準と必須の項目を決めてください")
     if missing or unconfirmed:
         parts = [f"必須の測定が未入力です（{'・'.join(missing)}）"] if missing else []
         parts += [f"単位の確認が必要です（{'・'.join(unconfirmed)}）"] if unconfirmed else []

@@ -381,6 +381,8 @@ a.bic-brand:hover {{ opacity: .7; }}
 /* ヒアリングの現在の質問カード（AI-BIC 3.1）：質問番号・進み具合 → 質問文 → 回答欄 → 回答例 → ボタン */
 .st-key-hearing_card {{ background: #EFF6FF; border: 1px solid #CBDCF3; border-radius: 12px; padding: 1.1rem 1.3rem 1.2rem;
   gap: .55rem; }}
+.st-key-hearing_exit button, .st-key-attach_exit button {{ min-height: 0; padding: .25rem .7rem; }}
+.st-key-hearing_exit button p, .st-key-attach_exit button p {{ font-size: .82rem; }}
 .st-key-hearing_card .bic-qhead {{ font-size: .8rem; letter-spacing: .04em; color: #44546F; }}
 .st-key-hearing_card .bic-question {{ color: #172B4D; font-weight: 700; font-size: 22px; line-height: 1.6; margin: .2rem 0 .6rem; }}
 .st-key-hearing_card .bic-preparing {{ color: #172B4D; font-weight: 600; padding: .6rem 0; }}
@@ -672,7 +674,8 @@ def compare_table(rows) -> str:
         ai = f'<span class="bic-badge ai">◆ {esc(r.genai_label)}</span>' if r.genai_label else ""
         body.append(
             f'<tr><td data-label="改善案"><div class="no">案{r.no}</div><div class="nm">{esc(r.name)}</div>'
-            f'<div class="cat">{esc(r.category)}</div>{ai}{chips}</td>'
+            + (f'<div class="cat">{esc(r.category)}</div>' if r.category != r.genai_label else "")  # 印と同じ文字は重ねない
+            + f'{ai}{chips}</td>'
             f'<td data-label="主に減らすもの">{reduces}</td>'
             f'<td data-label="着手前に確認すること">{checks}</td></tr>'
         )

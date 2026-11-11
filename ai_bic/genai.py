@@ -25,7 +25,9 @@ _SENSITIVE = re.compile(r"個人情報|氏名|名前|住所|電話番号|社外�
 
 
 def _sentences(text: str) -> list[str]:
-    return [s for s in re.split(r"[。\n！？]", text) if s.strip()]
+    """文と、「が、」「けれど、」などでつながった節に分ける（「使えますが、氏名は入力してはいけない」の後半の否定で、
+    前半の「使えます」を打ち消さないため）。"""
+    return [s for s in re.split(r"[。\n！？]|(?<=[がど])、|ただし", text) if s.strip()]
 
 
 def input_text(info: BusinessInfo, state: HearingState, attachments_text: str = "") -> str:

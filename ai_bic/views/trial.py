@@ -73,12 +73,14 @@ def render(project: Project) -> None:
         st.warning(f"確定したあとに{'・'.join(changed)}が変わっています。試行は確定した時点の内容をもとにしています。")
 
     if plan.sample:
-        html(ui.note("デモ用の数値です（架空のサンプル）。1台分のCSVで試した場合の例を入れています。"))
+        sample = demo_sample(project) or {}
+        html(ui.note("デモ用の数値です（架空のサンプル）。" + sample.get("note", "1台分のCSVで試した場合の例を入れています。")))
     _render_plan(project)
     _render_metrics(project)
     _render_decision(project)
     if demo_sample(project) and not plan.sample:
-        st.button("デモ：1台分のCSVで試したサンプルを入れる", key="trial_demo", on_click=_start_demo, args=(project,))
+        st.button(demo_sample(project).get("button", "デモ：1台分のCSVで試したサンプルを入れる"), key="trial_demo",
+                  on_click=_start_demo, args=(project,))
 
 
 def _render_plan(project: Project) -> None:

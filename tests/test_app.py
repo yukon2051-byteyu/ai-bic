@@ -33,12 +33,14 @@ APP_PATH = str(config.BASE_DIR / "app.py")  # 相対パスはテストファイ�
 
 
 SALES = "月次売上集計（営業管理部）"
+PRODUCTION = "月次生産実績集計（製造部）"
+INQUIRY = "問い合わせメモの分類と週次報告（カスタマーサポート）"  # デモの初期表示（AI-BIC 3.4）
 
 
 def new_app(secrets, scenario: str | None = SALES) -> AppTest:
     """アプリを起動する。デモは、既存のテストが前提にしている月次売上集計を選んでおく。
 
-    デモの初期表示は製造業（月次生産実績集計）。初期表示のまま使うテストは scenario=None を渡す。
+    デモの初期表示は生成AIのデモ（問い合わせメモの分類。AI-BIC 3.4 から）。初期表示のまま使うテストは scenario=None を渡す。
     """
     at = AppTest.from_file(APP_PATH, default_timeout=60)  # 結果画面の処理が増えたため（PCの負荷で30秒を超えることがあった）
     at.run()
@@ -195,7 +197,7 @@ def test_ヒアリングの途中で_ここまでの情報で診断できる(sec
 
     finish = at.button(key="finish")
     assert finish.label == "ヒアリングを終了して資料添付へ"
-    assert "資料の添付は任意です。未確認の項目は結果画面に表示します。" in [c.value for c in at.caption]
+    assert "資料の添付は任意です" in finish.help  # 説明はボタンに重ねたときに出す（カードの右上に置いたため。AI-BIC 3.4）
     finish.click().run()
     assert at.session_state.stage == "attach"
     at.button(key="diagnose").click().run()
@@ -465,6 +467,7 @@ def test_新しい診断を始めると_前の試算は残らない(secrets):
     at = set_inputs(result_screen(secrets), "P1", hourly_cost=5000.0)
     at.button(key="new").click().run()
     assert at.session_state.stage == "top"
+    at.selectbox(key="demo_scenario").set_value(SALES).run()  # 初期表示は生成AIのデモのため、同じデモを選び直す
     at = result_screen(secrets, at)
     assert at.number_input(key="sim_P1_hourly_cost").value == 3000  # 変えた値ではなく、デモ値に戻る
 
@@ -512,7 +515,7 @@ def test_基本の質問は質問n_5で進み具合を表示する(secrets):
 # ヒアリング画面の構成（AI-BIC 3.1）
 # ---------------------------------------------------------------
 def hearing_screen(secrets, answers: int = 0) -> AppTest:
-    at = new_app(secrets, scenario=None)
+    at = new_app(secrets, scenario=PRODUCTION)
     at.button(key="start_demo").click().run()
     at.button(key="submit_info").click().run()
     for _ in range(answers):
@@ -624,7 +627,8 @@ def test_トップの注意事項は_個人情報_AIへの送信_保存しない
 # ---------------------------------------------------------------
 def test_デモの初期表示は製造業で_業務フロー_試算_レビューまでAPIなしで試せる(secrets):
     at = new_app(secrets, scenario=None)
-    assert at.selectbox(key="demo_scenario").value == "月次生産実績集計（製造部）"
+    assert at.selectbox(key="demo_scenario").value == INQUIRY  # 初期表示は生成AIのデモ（AI-BIC 3.4）
+    at.selectbox(key="demo_scenario").set_value(PRODUCTION).run()
     at = result_screen(secrets, at)
     assert at.session_state.business_info.department == "製造部 生産管理課"
     # 試算：デモ値（300分×4件＝月20時間）で、案2（データの取り込み）は転記の時間が大きく減る
@@ -667,7 +671,7 @@ def production_result(secrets, finish_after: int | None = None, extra: str = "an
     finish_after：その数だけ答えてヒアリングを途中で終える。
     extra：基本の4問のあとの追加確認（2問）を answer＝答える／skip＝このまま分析する／unknown＝「分からない」と答える。
     """
-    at = new_app(secrets, scenario=None)
+    at = new_app(secrets, scenario=PRODUCTION)
     at.button(key="start_demo").click().run()
     at.button(key="submit_info").click().run()
     answered = 0
@@ -739,7 +743,7 @@ def test_6ステップの進み具合は_作業状況を見るの中にまとめ
 # ヒアリングとデモの整合（AI-BIC 3.0 第2段階）
 # ---------------------------------------------------------------
 def test_製造部デモの追加確認は_判断できることを添えて_回答済みの内容を聞き直さない(secrets):
-    at = new_app(secrets, scenario=None)
+    at = new_app(secrets, scenario=PRODUCTION)
     at.button(key="start_demo").click().run()
     at.button(key="submit_info").click().run()
     for _ in range(4):
