@@ -14,6 +14,7 @@ from ai_bic import facts
 from ai_bic import project as pj
 from ai_bic import simulation as sim
 from ai_bic.output_check import similarity
+from ai_bic.overview import signature
 from ai_bic.project import Project, TrialMetric, TrialPlan
 
 DECISIONS = ["展開する", "修正して再試行", "見送る"]
@@ -55,17 +56,31 @@ def default_metrics(inputs: sim.SimulationInputs | None, effect_metric: str | No
 
 
 def same_metric(a: str, b: str) -> bool:
-    """測定項目の名前が同じものを指すか（重複して追加しないため）。"""
+    """測定項目の名前が同じものを指すか（重複して追加しないため）。
+
+    文がほぼ同じか、単位（日・件など）と期間（月など）が同じで内容の言葉が重なれば同じ
+    （例：「月の記入漏れの日数」と「返却時刻の記入漏れの月間発生日数」。不足情報の統合と同じ考え方）。
+    """
     x, y = "".join(a.split()), "".join(b.split())
-    return x in y or y in x or similarity(x, y) >= 0.5
+    ua, pa, wa = signature(x)
+    ub, pb, wb = signature(y)
+    if ua and ub and ua != ub:
+        return False  # 単位が違えば、文が似ていても別の項目（例：日数と件数）
+    if x in y or y in x or similarity(x, y) >= 0.5:
+        return True
+    return bool(ua) and ua == ub and pa == pb and any(s in t or t in s for s in wa for t in wb)
 
 
 def add_metric_unique(plan: TrialPlan, metric: TrialMetric) -> bool:
-    """測定項目を追加する。既にある項目と同じなら追加せず False。"""
-    if any(same_metric(m.name, metric.name) for m in plan.metrics):
-        return False
-    plan.metrics.append(metric)
-    return True
+    """測定項目を追加する。既にある項目と同じなら追加せず、確認予定の内容と単位だけを書き足して False。"""
+    twin = next((m for m in plan.metrics if same_metric(m.name, metric.name)), None)
+    if twin is None:
+        plan.metrics.append(metric)
+        return True
+    i = plan.metrics.index(twin)
+    note = twin.note if not metric.note or metric.note in twin.note else "　".join(x for x in (twin.note, metric.note) if x)
+    plan.metrics[i] = twin.model_copy(update={"note": note, "unit": twin.unit or metric.unit})
+    return False
 
 
 def planned_metrics(project: Project) -> list[TrialMetric]:

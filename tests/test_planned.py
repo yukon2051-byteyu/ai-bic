@@ -68,8 +68,25 @@ def test_確認予定の値は_試行計画の測定項目に引き継ぎ_同じ
     facts.decide(project, "P1")
     plan = tr.new_plan(project)
     names = [m.name for m in plan.metrics]
-    assert "記入漏れの月間発生日数" in names
-    metric = next(m for m in plan.metrics if m.name == "記入漏れの月間発生日数")
+    # 案1の指標「月の記入漏れの日数」と同じものなので、新しく足さずに確認予定の内容を書き足す
+    assert "記入漏れの月間発生日数" not in names
+    metric = next(m for m in plan.metrics if m.name == "月の記入漏れの日数")
     assert metric.unit == "日" and metric.note == "確認予定：1か月記録して確かめる" and metric.actual is None
     assert not tr.add_metric_unique(plan, tr.TrialMetric(name="記入漏れの月間発生日数（1か月の記録）"))
     assert len(plan.metrics) == len(names)
+    project.decision = None
+    facts.decide(project, "P2")  # 指標が時間の案では、確認予定の値は別の測定項目として入る
+    assert "記入漏れの月間発生日数" in [m.name for m in tr.new_plan(project).metrics]
+
+
+
+def test_案の指標と確認予定の値が同じものなら_測定項目を重ねず_確認予定の内容を書き足す():
+    """本物のAIの通し確認で、「月の記入漏れの日数」と「返却時刻の記入漏れの月間発生日数」が2つ入った（AI-BIC 3.2）。"""
+    assert tr.same_metric("月の記入漏れの日数", "返却時刻の記入漏れの月間発生日数")
+    assert not tr.same_metric("月の記入漏れの日数", "月の記入漏れの件数")  # 単位が違えば別の項目
+    plan = tr.TrialPlan(pid="P1", created_at=__import__("datetime").datetime(2026, 11, 11),
+                        metrics=[tr.TrialMetric(name="月の記入漏れの日数")])
+    added = tr.add_metric_unique(plan, tr.TrialMetric(name="返却時刻の記入漏れの月間発生日数", unit="日",
+                                                      note="確認予定：1か月記録して確かめる"))
+    assert not added and len(plan.metrics) == 1
+    assert plan.metrics[0].unit == "日" and plan.metrics[0].note == "確認予定：1か月記録して確かめる"
